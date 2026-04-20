@@ -1,54 +1,82 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { User, AuthContextType } from "@/lib/types";
+import { saveSession, getStoredSession, clearSession, isSessionValid } from "@/lib/utils/session";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const MOCK_PERMISSIONS = [
+  "pos.create",
+  "pos.view",
+  "pos.void",
+  "pos.configure",
+  "inventory.view",
+  "inventory.create",
+  "inventory.edit",
+  "inventory.delete",
+  "inventory.adjust",
+  "employees.view",
+  "employees.create",
+  "employees.edit",
+  "employees.delete",
+  "schedules.view",
+  "schedules.edit",
+  "schedules.checkin",
+  "payroll.view",
+  "payroll.create",
+  "payroll.approve",
+  "payroll.pay",
+  "settings.view",
+  "settings.edit",
+  "settings.manage_roles",
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = useCallback(async (email: string, password: string) => {
+  // Try to restore session on mount
+  useEffect(() => {
+    const restoreSession = async () => {
+      const storedSession = getStoredSession();
+      if (storedSession && isSessionValid(storedSession)) {
+        // Auto-login with stored session
+        const mockUser: User = {
+          id: "1",
+          email: storedSession.email,
+          firstName: "User",
+          lastName: "Session",
+          roleId: "admin",
+          permissions: MOCK_PERMISSIONS,
+        };
+        setUser(mockUser);
+      }
+      setIsLoading(false);
+    };
+
+    restoreSession();
+  }, []);
+
+  const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     setIsLoading(true);
     try {
-      // TODO: Implement actual API call
+      // TODO: Implement actual API call to verify credentials
       // For now, mock data with admin permissions (all permissions)
-      const mockPermissions = [
-        "pos.create",
-        "pos.view",
-        "pos.void",
-        "pos.configure",
-        "inventory.view",
-        "inventory.create",
-        "inventory.edit",
-        "inventory.delete",
-        "inventory.adjust",
-        "employees.view",
-        "employees.create",
-        "employees.edit",
-        "employees.delete",
-        "schedules.view",
-        "schedules.edit",
-        "schedules.checkin",
-        "payroll.view",
-        "payroll.create",
-        "payroll.approve",
-        "payroll.pay",
-        "settings.view",
-        "settings.edit",
-        "settings.manage_roles",
-      ];
-
       const mockUser: User = {
         id: "1",
         email,
         firstName: "Admin",
         lastName: "User",
         roleId: "admin",
-        permissions: mockPermissions,
+        permissions: MOCK_PERMISSIONS,
       };
       setUser(mockUser);
+
+      // Save session if "Remember me" is checked
+      if (rememberMe) {
+        saveSession(email, true);
+      }
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -59,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(() => {
     setUser(null);
+    clearSession();
   }, []);
 
   const hasPermission = useCallback(

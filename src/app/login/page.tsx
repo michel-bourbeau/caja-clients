@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const { login, isLoading } = useAuth();
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
       setError("Credenciales inválidas");
@@ -50,6 +51,19 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="remember-me"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 text-blue-600 border-slate-300 rounded cursor-pointer"
+            />
+            <label htmlFor="remember-me" className="ml-2 text-sm text-slate-700 cursor-pointer">
+              Recuérdame por 30 días
+            </label>
+          </div>
 
           {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
 
