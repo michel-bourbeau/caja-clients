@@ -11,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const { tenantId, productId } = await params;
-    const { name, sku, price, quantity, category_id, description, image } = await request.json();
+    const { name, sku, price, quantity, category_id, description } = await request.json();
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -19,10 +19,9 @@ export async function PUT(
     if (name !== undefined) updates.name = name.trim();
     if (sku !== undefined) updates.sku = sku.trim().toUpperCase();
     if (price !== undefined) updates.price = parseFloat(price);
-    if (quantity !== undefined) updates.quantity = parseInt(quantity);
+    if (quantity !== undefined) updates.stock_quantity = parseInt(quantity);
     if (category_id !== undefined) updates.category_id = category_id;
     if (description !== undefined) updates.description = description?.trim() || null;
-    if (image !== undefined) updates.image = image || null;
 
     const { data, error } = await supabaseAdmin
       .from("products")

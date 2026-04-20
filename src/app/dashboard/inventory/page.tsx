@@ -53,6 +53,8 @@ export default function InventoryPage() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState<string>("");
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -209,6 +211,34 @@ export default function InventoryPage() {
       }
     } catch (error) {
       setMessage("Erreur réseau");
+    }
+  };
+
+  const handleUpdateQuantity = async (productId: string, newQuantity: string) => {
+    if (!newQuantity || isNaN(parseInt(newQuantity))) {
+      setMessage("Veuillez entrer une quantité valide");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${productId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: parseInt(newQuantity) }),
+      });
+
+      if (res.ok) {
+        setMessage("Stock mis à jour avec succès");
+        setEditingProductId(null);
+        setEditingQuantity("");
+        await fetchData();
+      } else {
+        const error = await res.json();
+        setMessage(error.error || "Erreur lors de la mise à jour");
+      }
+    } catch (error) {
+      setMessage("Erreur réseau");
+      console.error(error);
     }
   };
 
@@ -376,14 +406,57 @@ export default function InventoryPage() {
                           <td className="px-4 py-2 text-gray-900">{product.name}</td>
                           <td className="px-4 py-2 text-gray-900">{product.sku}</td>
                           <td className="px-4 py-2 text-right text-gray-900">${product.price.toFixed(2)}</td>
-                          <td className="px-4 py-2 text-right text-gray-900">{product.quantity}</td>
+                          <td className="px-4 py-2 text-right text-gray-900">
+                            {editingProductId === product.id ? (
+                              <input
+                                type="number"
+                                value={editingQuantity}
+                                onChange={(e) => setEditingQuantity(e.target.value)}
+                                className="w-16 px-2 py-1 border border-gray-400 rounded bg-white text-gray-900"
+                                min="0"
+                              />
+                            ) : (
+                              product.quantity
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-center">
-                            <Button
-                              onClick={() => handleDeleteProduct(product.id)}
-                              className="bg-red-500 text-white text-xs px-2 py-1"
-                            >
-                              Supprimer
-                            </Button>
+                            {editingProductId === product.id ? (
+                              <div className="flex gap-1 justify-center">
+                                <Button
+                                  onClick={() => handleUpdateQuantity(product.id, editingQuantity)}
+                                  className="bg-green-600 text-white text-xs px-2 py-1"
+                                >
+                                  ✓
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setEditingProductId(null);
+                                    setEditingQuantity("");
+                                  }}
+                                  className="bg-gray-400 text-white text-xs px-2 py-1"
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-1 justify-center">
+                                <Button
+                                  onClick={() => {
+                                    setEditingProductId(product.id);
+                                    setEditingQuantity(product.quantity.toString());
+                                  }}
+                                  className="bg-blue-500 text-white text-xs px-2 py-1"
+                                >
+                                  ✎
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                  className="bg-red-500 text-white text-xs px-2 py-1"
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -415,14 +488,57 @@ export default function InventoryPage() {
                       <td className="px-4 py-2 text-gray-900">{product.name}</td>
                       <td className="px-4 py-2 text-gray-900">{product.sku}</td>
                       <td className="px-4 py-2 text-right text-gray-900">${product.price.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right text-gray-900">{product.quantity}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">
+                        {editingProductId === product.id ? (
+                          <input
+                            type="number"
+                            value={editingQuantity}
+                            onChange={(e) => setEditingQuantity(e.target.value)}
+                            className="w-16 px-2 py-1 border border-gray-400 rounded bg-white text-gray-900"
+                            min="0"
+                          />
+                        ) : (
+                          product.quantity
+                        )}
+                      </td>
                       <td className="px-4 py-2 text-center">
-                        <Button
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className="bg-red-500 text-white text-xs px-2 py-1"
-                        >
-                          Supprimer
-                        </Button>
+                        {editingProductId === product.id ? (
+                          <div className="flex gap-1 justify-center">
+                            <Button
+                              onClick={() => handleUpdateQuantity(product.id, editingQuantity)}
+                              className="bg-green-600 text-white text-xs px-2 py-1"
+                            >
+                              ✓
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setEditingProductId(null);
+                                setEditingQuantity("");
+                              }}
+                              className="bg-gray-400 text-white text-xs px-2 py-1"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1 justify-center">
+                            <Button
+                              onClick={() => {
+                                setEditingProductId(product.id);
+                                setEditingQuantity(product.quantity.toString());
+                              }}
+                              className="bg-blue-500 text-white text-xs px-2 py-1"
+                            >
+                              ✎
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="bg-red-500 text-white text-xs px-2 py-1"
+                            >
+                              ✕
+                            </Button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
