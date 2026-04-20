@@ -27,12 +27,33 @@ export function useTenantFeatures() {
       setLoading(true);
       setError(null);
 
-      // Get tenant ID from localStorage (same way TenantContext does)
-      const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") : null;
+      // Try multiple ways to get tenant ID
+      let tenantId: string | null = null;
+
+      // 1. Try from localStorage
+      if (typeof window !== "undefined") {
+        tenantId = localStorage.getItem("tenantId");
+      }
+
+      // 2. If not in localStorage, try to get from user's tenant
+      // (This would be set after proper authentication)
+      if (!tenantId && typeof window !== "undefined") {
+        // Try to get from sessionStorage as backup
+        tenantId = sessionStorage.getItem("defaultTenantId");
+      }
 
       if (!tenantId) {
-        console.warn("No tenant ID found");
-        setFeatures({});
+        // If still no tenant, use a default or show all features
+        console.warn("No tenant ID found, showing all features by default");
+        setFeatures({
+          pos: true,
+          inventory: true,
+          employees: true,
+          schedules: true,
+          payroll: true,
+          reports: true,
+          settings: true,
+        });
         setLoading(false);
         return;
       }
@@ -47,7 +68,7 @@ export function useTenantFeatures() {
     } catch (err) {
       console.error("Error fetching features:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
-      // Default: show all modules
+      // Default: show all modules on error
       setFeatures({
         pos: true,
         inventory: true,

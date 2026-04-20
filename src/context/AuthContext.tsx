@@ -74,6 +74,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUser(mockUser);
 
+      // Store a default tenant ID for feature filtering (hardcoded for now)
+      // In production, this would come from the user's profile in Supabase
+      const defaultTenantId = "c1d44fe1-a862-4b6b-afbd-8566f61099a2";
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("defaultTenantId", defaultTenantId);
+      }
+
       // Save session if "Remember me" is checked
       if (rememberMe) {
         saveSession(email, true);

@@ -4,8 +4,9 @@ import { Card, Button, Input } from "@/components/ui";
 import { DataTable } from "@/components/DataTable";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { Payroll } from "@/lib/types";
+import { FeatureGuard } from "@/components/FeatureGuard";
 
-export default function PayrollPage() {
+function PayrollContent() {
   const mockPayroll: Payroll[] = [
     {
       id: "1",
@@ -91,5 +92,13 @@ export default function PayrollPage() {
         />
       </Card>
     </div>
+  );
+}
+
+export default function PayrollPage() {
+  return (
+    <FeatureGuard feature="payroll">
+      <PayrollContent />
+    </FeatureGuard>
   );
 }
