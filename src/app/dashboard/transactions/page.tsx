@@ -26,6 +26,7 @@ export default function TransactionsPage() {
     datetime: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -193,32 +194,48 @@ export default function TransactionsPage() {
       )}
 
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Input
-            type="date"
-            placeholder="Desde"
-            value={filters.fromDate}
-            onChange={(e) => handleFilterChange("fromDate", e.target.value)}
-          />
-          <Input
-            type="date"
-            placeholder="Hasta"
-            value={filters.toDate}
-            onChange={(e) => handleFilterChange("toDate", e.target.value)}
-          />
-          <select
-            className="px-3 py-2 border border-slate-300 rounded text-slate-900"
-            value={filters.paymentMethod}
-            onChange={(e) => handleFilterChange("paymentMethod", e.target.value)}
+        {/* ACCORDION FILTERS */}
+        <div className="mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 py-3 px-4 hover:bg-slate-50 transition-colors w-full"
           >
-            <option value="ALL">Todos los métodos</option>
-            <option value="CASH">EFECTIVO</option>
-            <option value="CARD">TARJETA</option>
-            <option value="TRANSFER">TRANSFERENCIA</option>
-          </select>
-          <Button onClick={loadData} disabled={isLoading}>
-            {isLoading ? "Cargando..." : "Actualizar"}
-          </Button>
+            <span className="text-lg font-semibold text-slate-700">
+              {showFilters ? "▼" : "▶"} Filtros
+            </span>
+          </button>
+
+          {showFilters && (
+            <div className="px-4 pb-4 border-t border-slate-200 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Input
+                  type="date"
+                  placeholder="Desde"
+                  value={filters.fromDate}
+                  onChange={(e) => handleFilterChange("fromDate", e.target.value)}
+                />
+                <Input
+                  type="date"
+                  placeholder="Hasta"
+                  value={filters.toDate}
+                  onChange={(e) => handleFilterChange("toDate", e.target.value)}
+                />
+                <select
+                  className="px-3 py-2 border border-slate-300 rounded text-slate-900"
+                  value={filters.paymentMethod}
+                  onChange={(e) => handleFilterChange("paymentMethod", e.target.value)}
+                >
+                  <option value="ALL">Todos los métodos</option>
+                  <option value="CASH">EFECTIVO</option>
+                  <option value="CARD">TARJETA</option>
+                  <option value="TRANSFER">TRANSFERENCIA</option>
+                </select>
+                <Button onClick={loadData} disabled={isLoading}>
+                  {isLoading ? "Cargando..." : "Actualizar"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {isLoading ? (
