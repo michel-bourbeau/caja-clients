@@ -253,7 +253,7 @@ export default function TransactionsPage() {
               return (
                 <div key={dateKey}>
                   {/* Date group header */}
-                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 text-white text-xs font-semibold sticky top-0 z-10">
+                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 text-white text-sm font-semibold sticky top-0 z-10">
                     <span className="capitalize">{formatDateHeader(dateKey)}</span>
                     <div className="flex items-center gap-3">
                       <span className="bg-slate-600 px-2 py-0.5 rounded-full">
@@ -266,7 +266,7 @@ export default function TransactionsPage() {
                   {/* Table for this day */}
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
                         <th className="px-4 py-2 text-left">Hora</th>
                         <th className="px-4 py-2 text-left">Productos</th>
                         <th className="px-4 py-2 text-center hidden sm:table-cell">Método</th>
@@ -280,42 +280,42 @@ export default function TransactionsPage() {
                     <tbody className="divide-y divide-slate-100">
                       {dayTxs.map((tx) => (
                         <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
-                          <td className="px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-slate-500 text-sm whitespace-nowrap">
                             {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                           </td>
                           <td className="px-4 py-2.5 max-w-xs">
                             {tx.items && tx.items.length > 0 ? (
                               <div className="space-y-0.5">
                                 {tx.items.slice(0, 2).map((item: any, i: number) => (
-                                  <p key={i} className="text-xs text-slate-700 truncate">
+                                  <p key={i} className="text-sm text-slate-700 truncate">
                                     <span className="font-medium">{item.quantity}×</span>{" "}
                                     {getProductName(item.productId, item.name)}
                                   </p>
                                 ))}
                                 {tx.items.length > 2 && (
-                                  <p className="text-xs text-slate-400">+{tx.items.length - 2} más</p>
+                                  <p className="text-sm text-slate-400">+{tx.items.length - 2} más</p>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-400 italic">Sin productos</span>
+                              <span className="text-sm text-slate-400 italic">Sin productos</span>
                             )}
                           </td>
                           <td className="px-4 py-2.5 text-center hidden sm:table-cell">
-                            <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold ${PAYMENT_BADGE[tx.paymentMethod] ?? "bg-slate-100 text-slate-600"}`}>
+                            <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${PAYMENT_BADGE[tx.paymentMethod] ?? "bg-slate-100 text-slate-600"}`}>
                               {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
                             </span>
                           </td>
-                          <td className="px-4 py-2.5 text-right text-xs text-slate-600 hidden md:table-cell">
+                          <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
                             {formatCurrency(tx.subtotal)}
                           </td>
-                          <td className="px-4 py-2.5 text-right text-xs hidden md:table-cell">
+                          <td className="px-4 py-2.5 text-right text-sm hidden md:table-cell">
                             {(tx.discount || 0) > 0 ? (
                               <span className="text-amber-600">-{formatCurrency(tx.discount || 0)}</span>
                             ) : (
                               <span className="text-slate-300">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-right text-xs text-slate-600 hidden md:table-cell">
+                          <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
                             {(tx.tax || 0) > 0 ? formatCurrency(tx.tax) : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
@@ -325,7 +325,7 @@ export default function TransactionsPage() {
                             <div className="flex gap-1 justify-center">
                               <button
                                 onClick={() => handleOpenDetails(tx)}
-                                className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                                className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
                                 title="Ver / editar"
                               >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,7 +334,7 @@ export default function TransactionsPage() {
                               </button>
                               <button
                                 onClick={() => handleDeleteTransaction(tx.id)}
-                                className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-xs font-semibold rounded-lg transition-colors"
+                                className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-semibold rounded-lg transition-colors"
                                 title="Eliminar"
                               >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -350,7 +350,7 @@ export default function TransactionsPage() {
                 </div>
               );
             })}
-            <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 bg-slate-50">
+            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {totals.count} transacción{totals.count !== 1 ? "es" : ""}
               {(filters.search || filters.fromDate || filters.toDate || filters.paymentMethod !== "ALL") &&
                 ` · filtrado de ${transactions.length}`}
@@ -383,8 +383,8 @@ export default function TransactionsPage() {
             <div className="p-5 space-y-4">
               {/* ID */}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
-                <p className="font-mono text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200 break-all">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
+                <p className="font-mono text-sm text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200 break-all">
                   {selectedTransaction.id}
                 </p>
               </div>
@@ -392,13 +392,13 @@ export default function TransactionsPage() {
               {/* Products */}
               {selectedTransaction.items && selectedTransaction.items.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Productos</p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-1">Productos</p>
                   <div className="bg-slate-50 rounded border border-slate-200 divide-y divide-slate-100">
                     {selectedTransaction.items.map((item: any, i: number) => (
                       <div key={i} className="flex justify-between items-center px-3 py-2 text-sm">
                         <div>
                           <p className="font-medium text-slate-900">{item.name || item.productId}</p>
-                          <p className="text-xs text-slate-500">{item.quantity} × {formatCurrency(item.price)}</p>
+                          <p className="text-sm text-slate-500">{item.quantity} × {formatCurrency(item.price)}</p>
                         </div>
                         <p className="font-semibold text-slate-900">{formatCurrency(item.total)}</p>
                       </div>
@@ -430,7 +430,7 @@ export default function TransactionsPage() {
               {/* Editable fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Método de Pago</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">Método de Pago</label>
                   <select
                     value={editForm.paymentMethod}
                     onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as "CASH" | "CARD" | "TRANSFER" })}
@@ -442,7 +442,7 @@ export default function TransactionsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha / Hora</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">Fecha / Hora</label>
                   <input
                     type="datetime-local"
                     value={editForm.datetime}

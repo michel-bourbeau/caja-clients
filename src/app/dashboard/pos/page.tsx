@@ -24,6 +24,7 @@ export default function POSPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [discount, setDiscount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -31,28 +32,25 @@ export default function POSPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    async function loadData() {
-      if (!tenantId) return;
-      setLoading(true);
-      try {
-        const [productsData, categoriesData, taxesData] = await Promise.all([
-          POSService.fetchProducts(tenantId),
-          fetch(`/api/tenants/${tenantId}/categories`).then((res) => res.json()),
-          TaxService.fetchTaxes(tenantId),
-        ]);
-        setProducts(productsData);
+    if (!tenantId) return;
+
+    // Load products first — critical path
+    setProductsLoading(true);
+    POSService.fetchProducts(tenantId)
+      .then((data) => setProducts(data))
+      .catch((err) => setMessage(err instanceof Error ? err.message : "Error cargando productos"))
+      .finally(() => setProductsLoading(false));
+
+    // Load categories + taxes in background (non-blocking)
+    Promise.all([
+      fetch(`/api/tenants/${tenantId}/categories`).then((res) => res.json()),
+      TaxService.fetchTaxes(tenantId),
+    ])
+      .then(([categoriesData, taxesData]) => {
         setCategories(categoriesData);
         setTaxes(taxesData);
-        // Don't select a category by default - display all products
-        setSelectedCategory(null);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Error cargando productos");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
+      })
+      .catch(console.error);
   }, [tenantId]);
 
   const cartTotal = useMemo(
@@ -219,7 +217,7 @@ export default function POSPage() {
           </svg>
           <span className="text-sm font-semibold">Carrito</span>
           {cartItemCount > 0 && (
-            <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full">
+            <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 text-white rounded-full">
               {cartItemCount > 99 ? "99+" : cartItemCount}
             </span>
           )}
@@ -272,17 +270,27 @@ export default function POSPage() {
           </select>
         </div>
 
-        {loading ? (
-          <p className="text-gray-800 p-6">Cargando...</p>
-        ) : categories.length === 0 ? (
-          <p className="text-gray-800 p-6">No hay categorías disponibles. Primero crea una categoría en el inventario.</p>
+        {productsLoading ? (
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-slate-100">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-3/4 mb-1" /><div className="h-3 bg-slate-100 rounded w-1/2" /></td>
+                  <td className="px-4 py-3 hidden md:table-cell"><div className="h-5 bg-slate-200 rounded-full w-20" /></td>
+                  <td className="px-4 py-3 text-right"><div className="h-4 bg-slate-200 rounded w-16 ml-auto" /></td>
+                  <td className="px-4 py-3 text-center"><div className="h-5 bg-slate-200 rounded-full w-10 mx-auto" /></td>
+                  <td className="px-4 py-3 text-center"><div className="h-7 bg-slate-200 rounded-lg w-20 mx-auto" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : displayedProducts.length === 0 ? (
           <p className="text-gray-500 text-center py-12">Sin resultados.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5 text-left">Producto</th>
                   <th className="px-4 py-2.5 text-left hidden md:table-cell">Categoría</th>
                   <th className="px-4 py-2.5 text-right">Precio</th>
@@ -304,23 +312,23 @@ export default function POSPage() {
                       <td className="px-4 py-2.5">
                         <p className="font-medium text-slate-900">{product.name}</p>
                         {product.description && (
-                          <p className="text-xs text-slate-500 truncate max-w-xs">{product.description}</p>
+                          <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
                       </td>
                       <td className="px-4 py-2.5 hidden md:table-cell">
                         {category ? (
-                          <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-medium">
+                          <span className="inline-block px-2 py-0.5 text-sm rounded-full bg-slate-100 text-slate-600 font-medium">
                             {category.name}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">—</span>
+                          <span className="text-sm text-slate-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
                         {formatCurrency(product.price)}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold ${
+                        <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                           product.quantity <= 0
                             ? "bg-red-100 text-red-700"
                             : product.quantity <= 5
@@ -332,13 +340,13 @@ export default function POSPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {outOfStock ? (
-                          <span className="text-xs text-slate-400 font-medium">Agotado</span>
+                          <span className="text-sm text-slate-400 font-medium">Agotado</span>
                         ) : stockReached ? (
-                          <span className="text-xs text-amber-600 font-medium">Máx. {product.quantity}</span>
+                          <span className="text-sm text-amber-600 font-medium">Máx. {product.quantity}</span>
                         ) : (
                           <button
                             onClick={() => handleAddProduct(product)}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg transition-colors"
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-colors"
                           >
                             {inCart ? (
                               <>
@@ -363,7 +371,7 @@ export default function POSPage() {
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 bg-slate-50">
+            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
             </div>
           </div>
@@ -399,7 +407,7 @@ export default function POSPage() {
             </svg>
             <h2 className="font-semibold text-sm">Carrito</h2>
             {cartItemCount > 0 && (
-              <span className="flex items-center justify-center w-5 h-5 text-xs font-bold bg-red-500 rounded-full">
+              <span className="flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 rounded-full">
                 {cartItemCount}
               </span>
             )}
@@ -418,24 +426,24 @@ export default function POSPage() {
         {/* Cart items — scrollable */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {cart.length === 0 ? (
-            <p className="text-xs text-gray-500 text-center mt-8">Carrito vacío</p>
+            <p className="text-sm text-gray-500 text-center mt-8">Carrito vacío</p>
           ) : (
             cart.map((item) => {
               const product = products.find((p) => p.id === item.productId);
               return (
                 <div key={item.productId} className="flex justify-between items-center py-2 border-b border-slate-100">
                   <div>
-                    <p className="text-xs font-medium text-slate-900">
+                    <p className="text-sm font-medium text-slate-900">
                       {item.quantity} × {product?.name || "Producto"}
                     </p>
-                    <p className="text-xs text-slate-600">{formatCurrency(item.price)}</p>
+                    <p className="text-sm text-slate-600">{formatCurrency(item.price)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-medium text-slate-900">{formatCurrency(item.total)}</p>
+                    <p className="text-sm font-medium text-slate-900">{formatCurrency(item.total)}</p>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(item.productId)}
-                      className="text-xs text-red-600 hover:underline"
+                      className="text-sm text-red-600 hover:underline"
                     >
                       Eliminar
                     </button>
@@ -449,32 +457,32 @@ export default function POSPage() {
         {/* Cart summary & actions */}
         <div className="p-4 border-t border-slate-200 space-y-3">
           <div className="space-y-1">
-            <div className="flex justify-between text-xs text-slate-600">
+            <div className="flex justify-between text-sm text-slate-600">
               <span>Subtotal</span>
               <span>{formatCurrency(cartTotal.subtotal)}</span>
             </div>
 
             {/* Discount */}
             <div className="border-t pt-1 mt-1">
-              <label className="text-xs font-semibold text-slate-600 block mb-1">Descuento ($)</label>
+              <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ($)</label>
               <input
                 type="number"
                 value={discount}
                 onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
                 min="0"
                 max={cartTotal.subtotal}
-                className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900"
+                className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
                 placeholder="0.00"
               />
               {discount > 0 && (
-                <p className="text-xs text-blue-600 mt-0.5">
+                <p className="text-sm text-blue-600 mt-0.5">
                   -{formatCurrency(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
                 </p>
               )}
             </div>
 
             {cartTotal.discount > 0 && (
-              <div className="flex justify-between text-xs text-slate-600 pt-0.5">
+              <div className="flex justify-between text-sm text-slate-600 pt-0.5">
                 <span>Después de descuento</span>
                 <span>{formatCurrency(cartTotal.subtotalAfterDiscount)}</span>
               </div>
@@ -482,13 +490,13 @@ export default function POSPage() {
 
             {taxes.length > 0 ? (
               taxes.map((tax) => (
-                <div key={tax.id} className="flex justify-between text-xs text-slate-600">
+                <div key={tax.id} className="flex justify-between text-sm text-slate-600">
                   <span>{tax.name} ({tax.rate}%)</span>
                   <span>{formatCurrency((cartTotal.taxes as any)[tax.name] || 0)}</span>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-gray-500 italic">
+              <p className="text-sm text-gray-500 italic">
                 Sin impuestos.{" "}
                 <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
                   Configurar
@@ -505,7 +513,7 @@ export default function POSPage() {
           <select
             value={paymentMethod}
             onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-            className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900"
+            className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
           >
             <option value="CASH">EFECTIVO</option>
             <option value="CARD">TARJETA</option>

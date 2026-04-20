@@ -422,7 +422,7 @@ export default function InventoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5 text-left">Producto</th>
                   <th className="px-4 py-2.5 text-left hidden md:table-cell">SKU</th>
                   <th className="px-4 py-2.5 text-left hidden lg:table-cell">Categoría</th>
@@ -440,21 +440,21 @@ export default function InventoryPage() {
                       <td className="px-4 py-2.5">
                         <p className="font-medium text-slate-900">{product.name}</p>
                         {product.description && (
-                          <p className="text-xs text-slate-500 truncate max-w-xs">{product.description}</p>
+                          <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
                       </td>
                       <td className="px-4 py-2.5 hidden md:table-cell">
-                        <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        <span className="font-mono text-sm text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                           {product.sku}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 hidden lg:table-cell">
                         {category ? (
-                          <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-medium">
+                          <span className="inline-block px-2 py-0.5 text-sm rounded-full bg-slate-100 text-slate-600 font-medium">
                             {category.name}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">—</span>
+                          <span className="text-sm text-slate-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
@@ -471,7 +471,7 @@ export default function InventoryPage() {
                             autoFocus
                           />
                         ) : (
-                          <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold ${
+                          <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                             product.quantity <= 0
                               ? "bg-red-100 text-red-700"
                               : product.quantity <= 5
@@ -487,14 +487,14 @@ export default function InventoryPage() {
                           <div className="flex gap-1 justify-center">
                             <button
                               onClick={() => handleUpdateQuantity(product.id, editingQuantity)}
-                              className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                              className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
                               title="Guardar"
                             >
                               ✓
                             </button>
                             <button
                               onClick={() => { setEditingProductId(null); setEditingQuantity(""); }}
-                              className="inline-flex items-center px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                              className="inline-flex items-center px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
                               title="Cancelar"
                             >
                               ✕
@@ -504,7 +504,7 @@ export default function InventoryPage() {
                           <div className="flex gap-1 justify-center">
                             <button
                               onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
-                              className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                              className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
                               title="Editar stock"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,7 +513,7 @@ export default function InventoryPage() {
                             </button>
                             <button
                               onClick={() => handleDeleteProduct(product.id)}
-                              className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-xs font-semibold rounded-lg transition-colors"
+                              className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-semibold rounded-lg transition-colors"
                               title="Eliminar"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -528,7 +528,7 @@ export default function InventoryPage() {
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 bg-slate-50">
+            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
               {(search || filterCategory) && ` · filtrado de ${products.length}`}
             </div>
