@@ -22,6 +22,26 @@ interface Category {
   description?: string;
 }
 
+/**
+ * Generate SKU from product name
+ * Example: "Chocolat noir 70%" -> "CHOC-NOIR-70-XYZ123"
+ */
+function generateSKU(name: string): string {
+  if (!name.trim()) return "";
+
+  // Take first letters of each word, uppercase, remove special chars
+  const words = name.trim().split(/\s+/).slice(0, 3); // First 3 words max
+  const prefix = words
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("")
+    .replace(/[^A-Z0-9]/g, "");
+
+  // Add timestamp suffix for uniqueness (short format)
+  const timestamp = Date.now().toString().slice(-5);
+  
+  return `${prefix}-${timestamp}`;
+}
+
 export default function InventoryPage() {
   const { user } = useAuth();
   const { tenantId } = useTenant();
@@ -119,8 +139,8 @@ export default function InventoryPage() {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name.trim() || !newProduct.sku.trim() || !newProduct.price) {
-      setMessage("Remplissez les champs obligatoires");
+    if (!newProduct.name.trim() || !newProduct.price) {
+      setMessage("Remplissez au minimum le nom et le prix");
       return;
     }
 
@@ -244,13 +264,22 @@ export default function InventoryPage() {
               label="Nom *"
               placeholder="Nom du produit"
               value={newProduct.name}
-              onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+              onChange={(e) => {
+                const newName = e.target.value;
+                setNewProduct({
+                  ...newProduct,
+                  name: newName,
+                  sku: generateSKU(newName), // Auto-generate SKU
+                });
+              }}
             />
             <Input
               label="SKU *"
-              placeholder="Code SKU"
+              placeholder="Généré automatiquement"
               value={newProduct.sku}
-              onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+              readOnly
+              className="bg-gray-100 cursor-not-allowed opacity-75"
+              title="Le SKU est généré automatiquement à partir du nom du produit"
             />
             <Input
               label="Prix *"
