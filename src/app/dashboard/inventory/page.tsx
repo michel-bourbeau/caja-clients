@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Input, Card } from "@/components/ui";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 interface Product {
   id: string;
@@ -55,6 +56,8 @@ export default function InventoryPage() {
   const [message, setMessage] = useState("");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingQuantity, setEditingQuantity] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -242,6 +245,22 @@ export default function InventoryPage() {
     }
   };
 
+  const filteredProducts = useMemo(() => {
+    let list = filterCategory
+      ? products.filter((p) => p.category_id === filterCategory)
+      : products;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.sku.toLowerCase().includes(q) ||
+          (p.description ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [products, filterCategory, search]);
+
   const productsByCategory = categories.map((cat) => ({
     ...cat,
     products: products.filter((p) => p.category_id === cat.id),
@@ -249,309 +268,271 @@ export default function InventoryPage() {
 
   const uncategorizedProducts = products.filter((p) => !p.category_id);
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="text-center">Chargement...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Gestion des Produits</h1>
-        <div className="space-x-2">
-          <Button onClick={() => setShowAddCategory(!showAddCategory)} className="bg-blue-500">
-            + Catégorie
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap gap-3 justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Gestión de Productos</h1>
+          <p className="text-sm text-slate-600 mt-1">{products.length} producto{products.length !== 1 ? "s" : ""} en inventario</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => setShowAddCategory(!showAddCategory)} className="bg-blue-600 hover:bg-blue-700">
+            + Categoría
           </Button>
-          <Button onClick={() => setShowAddProduct(!showAddProduct)} className="bg-green-500">
-            + Produit
+          <Button onClick={() => setShowAddProduct(!showAddProduct)} className="bg-green-600 hover:bg-green-700">
+            + Producto
           </Button>
         </div>
       </div>
 
       {message && (
-        <div className="p-3 bg-blue-100 text-blue-700 rounded">
+        <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">
           {message}
         </div>
       )}
 
       {/* Add Category Form */}
       {showAddCategory && (
-        <Card className="p-4 bg-white border-2 border-blue-400">
-          <h2 className="font-bold mb-4 text-gray-900 text-lg">Nouvelle Catégorie</h2>
-          <div className="space-y-3">
+        <div className="bg-white rounded-lg border-2 border-blue-400 shadow-sm p-5">
+          <h2 className="font-semibold mb-4 text-slate-900 text-base">Nueva Categoría</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
-              label="Nom"
-              placeholder="Ex: Électronique"
+              label="Nombre"
+              placeholder="Ej: Electrónica"
               value={newCategory.name}
               onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
             />
             <Input
-              label="Description"
-              placeholder="Description optionnelle"
+              label="Descripción"
+              placeholder="Descripción opcional"
               value={newCategory.description}
               onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
             />
-            <div className="flex gap-2">
-              <Button onClick={handleAddCategory} className="bg-blue-600 text-white">
-                Créer
-              </Button>
-              <Button onClick={() => setShowAddCategory(false)} className="bg-gray-400">
-                Annuler
-              </Button>
-            </div>
           </div>
-        </Card>
+          <div className="flex gap-2 mt-4">
+            <Button onClick={handleAddCategory} className="bg-blue-600 hover:bg-blue-700 text-white">Crear</Button>
+            <Button onClick={() => setShowAddCategory(false)} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
+          </div>
+        </div>
       )}
 
       {/* Add Product Form */}
       {showAddProduct && (
-        <Card className="p-4 bg-white border-2 border-green-400">
-          <h2 className="font-bold mb-4 text-gray-900 text-lg">Nouveau Produit</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-lg border-2 border-green-400 shadow-sm p-5">
+          <h2 className="font-semibold mb-4 text-slate-900 text-base">Nuevo Producto</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Input
-              label="Nom *"
-              placeholder="Nom du produit"
+              label="Nombre *"
+              placeholder="Nombre del producto"
               value={newProduct.name}
               onChange={(e) => {
                 const newName = e.target.value;
-                setNewProduct({
-                  ...newProduct,
-                  name: newName,
-                  sku: generateSKU(newName), // Auto-generate SKU
-                });
+                setNewProduct({ ...newProduct, name: newName, sku: generateSKU(newName) });
               }}
             />
             <Input
               label="SKU *"
-              placeholder="Généré automatiquement"
+              placeholder="Generado automáticamente"
               value={newProduct.sku}
               readOnly
-              className="bg-gray-100 cursor-not-allowed opacity-75"
-              title="Le SKU est généré automatiquement à partir du nom du produit"
+              className="bg-slate-50 cursor-not-allowed opacity-75"
+              title="El SKU se genera automáticamente a partir del nombre"
             />
             <Input
-              label="Prix *"
+              label="Precio *"
               type="number"
-              placeholder="Prix unitaire"
+              placeholder="Precio unitario"
               value={newProduct.price}
               onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
             />
             <Input
-              label="Quantité"
+              label="Cantidad"
               type="number"
-              placeholder="Stock initial"
+              placeholder="Stock inicial"
               value={newProduct.quantity}
               onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
             />
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-1">Catégorie</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
               <select
                 value={newProduct.category_id}
                 onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-400 rounded bg-white text-gray-900 font-medium"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">-- Sans catégorie --</option>
+                <option value="">— Sin categoría —</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
             </div>
             <Input
-              label="Description"
-              placeholder="Description optionnelle"
+              label="Descripción"
+              placeholder="Descripción opcional"
               value={newProduct.description}
               onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
             />
           </div>
           <div className="flex gap-2 mt-4">
-            <Button onClick={handleAddProduct} className="bg-green-600 text-white">
-              Ajouter
-            </Button>
-            <Button onClick={() => setShowAddProduct(false)} className="bg-gray-400">
-              Annuler
-            </Button>
+            <Button onClick={handleAddProduct} className="bg-green-600 hover:bg-green-700 text-white">Agregar</Button>
+            <Button onClick={() => setShowAddProduct(false)} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Products by Category */}
-      <div className="space-y-6">
-        {productsByCategory.map(
-          (category) =>
-            category.products.length > 0 && (
-              <Card key={category.id} className="p-4">
-                <h3 className="text-xl font-bold mb-4 text-blue-600">{category.name}</h3>
-                {category.description && (
-                  <p className="text-sm text-gray-600 mb-3">{category.description}</p>
-                )}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-200">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-gray-900 font-bold">Nom</th>
-                        <th className="px-4 py-2 text-left text-gray-900 font-bold">SKU</th>
-                        <th className="px-4 py-2 text-right text-gray-900 font-bold">Prix</th>
-                        <th className="px-4 py-2 text-right text-gray-900 font-bold">Stock</th>
-                        <th className="px-4 py-2 text-center text-gray-900 font-bold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {category.products.map((product) => (
-                        <tr key={product.id} className="border-t hover:bg-gray-50">
-                          <td className="px-4 py-2 text-gray-900">{product.name}</td>
-                          <td className="px-4 py-2 text-gray-900">{product.sku}</td>
-                          <td className="px-4 py-2 text-right text-gray-900">${product.price.toFixed(2)}</td>
-                          <td className="px-4 py-2 text-right text-gray-900">
-                            {editingProductId === product.id ? (
-                              <input
-                                type="number"
-                                value={editingQuantity}
-                                onChange={(e) => setEditingQuantity(e.target.value)}
-                                className="w-16 px-2 py-1 border border-gray-400 rounded bg-white text-gray-900"
-                                min="0"
-                              />
-                            ) : (
-                              product.quantity
-                            )}
-                          </td>
-                          <td className="px-4 py-2 text-center">
-                            {editingProductId === product.id ? (
-                              <div className="flex gap-1 justify-center">
-                                <Button
-                                  onClick={() => handleUpdateQuantity(product.id, editingQuantity)}
-                                  className="bg-green-600 text-white text-xs px-2 py-1"
-                                >
-                                  ✓
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    setEditingProductId(null);
-                                    setEditingQuantity("");
-                                  }}
-                                  className="bg-gray-400 text-white text-xs px-2 py-1"
-                                >
-                                  ✕
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex gap-1 justify-center">
-                                <Button
-                                  onClick={() => {
-                                    setEditingProductId(product.id);
-                                    setEditingQuantity(product.quantity.toString());
-                                  }}
-                                  className="bg-blue-500 text-white text-xs px-2 py-1"
-                                >
-                                  ✎
-                                </Button>
-                                <Button
-                                  onClick={() => handleDeleteProduct(product.id)}
-                                  className="bg-red-500 text-white text-xs px-2 py-1"
-                                >
-                                  ✕
-                                </Button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            )
-        )}
+      {/* Products table */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
 
-        {/* Uncategorized Products */}
-        {uncategorizedProducts.length > 0 && (
-          <Card className="p-4">
-            <h3 className="text-xl font-bold mb-4 text-gray-600">Non catégorisés</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-200">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-gray-900 font-bold">Nom</th>
-                    <th className="px-4 py-2 text-left text-gray-900 font-bold">SKU</th>
-                    <th className="px-4 py-2 text-right text-gray-900 font-bold">Prix</th>
-                    <th className="px-4 py-2 text-right text-gray-900 font-bold">Stock</th>
-                    <th className="px-4 py-2 text-center text-gray-900 font-bold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {uncategorizedProducts.map((product) => (
-                    <tr key={product.id} className="border-t hover:bg-gray-50">
-                      <td className="px-4 py-2 text-gray-900">{product.name}</td>
-                      <td className="px-4 py-2 text-gray-900">{product.sku}</td>
-                      <td className="px-4 py-2 text-right text-gray-900">${product.price.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right text-gray-900">
-                        {editingProductId === product.id ? (
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
+          <div className="relative flex-1">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, SKU o descripción..."
+              className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas las categorías</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+            <option value="__none__">Sin categoría</option>
+          </select>
+        </div>
+
+        {loading ? (
+          <p className="p-6 text-gray-500">Cargando...</p>
+        ) : filteredProducts.length === 0 ? (
+          <p className="p-12 text-center text-gray-400">
+            {products.length === 0
+              ? "Ningún producto. Comience creando una categoría y agregando un producto."
+              : "Sin resultados para esta búsqueda."}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5 text-left">Producto</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell">SKU</th>
+                  <th className="px-4 py-2.5 text-left hidden lg:table-cell">Categoría</th>
+                  <th className="px-4 py-2.5 text-right">Precio</th>
+                  <th className="px-4 py-2.5 text-center">Stock</th>
+                  <th className="px-4 py-2.5 text-center w-28">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredProducts.map((product) => {
+                  const category = categories.find((c) => c.id === product.category_id);
+                  const isEditing = editingProductId === product.id;
+                  return (
+                    <tr key={product.id} className="group hover:bg-blue-50 transition-colors">
+                      <td className="px-4 py-2.5">
+                        <p className="font-medium text-slate-900">{product.name}</p>
+                        {product.description && (
+                          <p className="text-xs text-slate-500 truncate max-w-xs">{product.description}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 hidden md:table-cell">
+                        <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {product.sku}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 hidden lg:table-cell">
+                        {category ? (
+                          <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-medium">
+                            {category.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
+                        {formatCurrency(product.price)}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {isEditing ? (
                           <input
                             type="number"
                             value={editingQuantity}
                             onChange={(e) => setEditingQuantity(e.target.value)}
-                            className="w-16 px-2 py-1 border border-gray-400 rounded bg-white text-gray-900"
+                            className="w-16 px-2 py-1 border border-blue-400 rounded text-center text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             min="0"
+                            autoFocus
                           />
                         ) : (
-                          product.quantity
+                          <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold ${
+                            product.quantity <= 0
+                              ? "bg-red-100 text-red-700"
+                              : product.quantity <= 5
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                            {product.quantity}
+                          </span>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-center">
-                        {editingProductId === product.id ? (
+                      <td className="px-4 py-2.5 text-center">
+                        {isEditing ? (
                           <div className="flex gap-1 justify-center">
-                            <Button
+                            <button
                               onClick={() => handleUpdateQuantity(product.id, editingQuantity)}
-                              className="bg-green-600 text-white text-xs px-2 py-1"
+                              className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                              title="Guardar"
                             >
                               ✓
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                setEditingProductId(null);
-                                setEditingQuantity("");
-                              }}
-                              className="bg-gray-400 text-white text-xs px-2 py-1"
+                            </button>
+                            <button
+                              onClick={() => { setEditingProductId(null); setEditingQuantity(""); }}
+                              className="inline-flex items-center px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                              title="Cancelar"
                             >
                               ✕
-                            </Button>
+                            </button>
                           </div>
                         ) : (
                           <div className="flex gap-1 justify-center">
-                            <Button
-                              onClick={() => {
-                                setEditingProductId(product.id);
-                                setEditingQuantity(product.quantity.toString());
-                              }}
-                              className="bg-blue-500 text-white text-xs px-2 py-1"
+                            <button
+                              onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
+                              className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                              title="Editar stock"
                             >
-                              ✎
-                            </Button>
-                            <Button
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                              </svg>
+                            </button>
+                            <button
                               onClick={() => handleDeleteProduct(product.id)}
-                              className="bg-red-500 text-white text-xs px-2 py-1"
+                              className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-xs font-semibold rounded-lg transition-colors"
+                              title="Eliminar"
                             >
-                              ✕
-                            </Button>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                              </svg>
+                            </button>
                           </div>
                         )}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 bg-slate-50">
+              {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
+              {(search || filterCategory) && ` · filtrado de ${products.length}`}
             </div>
-          </Card>
-        )}
-
-        {products.length === 0 && (
-          <Card className="p-6 text-center text-gray-900">
-            Aucun produit. Commencez par créer une catégorie et ajouter un produit.
-          </Card>
+          </div>
         )}
       </div>
     </div>

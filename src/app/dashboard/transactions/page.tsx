@@ -1,12 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, Button, Input } from "@/components/ui";
-import { DataTable } from "@/components/DataTable";
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
 import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
 import { TransactionService } from "@/features/transactions/services";
+
+const PAYMENT_BADGE: Record<string, string> = {
+  CASH: "bg-green-100 text-green-700",
+  CARD: "bg-blue-100 text-blue-700",
+  TRANSFER: "bg-purple-100 text-purple-700",
+};
+
+const PAYMENT_LABEL: Record<string, string> = {
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+  TRANSFER: "Transferencia",
+};
 
 export default function TransactionsPage() {
   const tenantId = useTenantId();
@@ -14,11 +25,11 @@ export default function TransactionsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [filters, setFilters] = useState({
     fromDate: "",
     toDate: "",
     paymentMethod: "ALL",
+    search: "",
   });
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [editForm, setEditForm] = useState({
@@ -26,15 +37,10 @@ export default function TransactionsPage() {
     datetime: "",
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [tenantId]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [transactions, filters]);
 
   const loadData = async () => {
     if (!tenantId) {
@@ -42,13 +48,12 @@ export default function TransactionsPage() {
       setIsLoading(false);
       return;
     }
-
     try {
       setIsLoading(true);
       setError(null);
       const [transactionsData, productsData] = await Promise.all([
         TransactionService.fetchTransactions(tenantId),
-        fetch(`/api/tenants/${tenantId}/products`).then(res => res.json()),
+        fetch(`/api/tenants/${tenantId}/products`).then((res) => res.json()),
       ]);
       setTransactions(transactionsData);
       setProducts(productsData);
@@ -61,88 +66,76 @@ export default function TransactionsPage() {
 
   const getProductName = (productId: string, itemName?: string): string => {
     if (itemName) return itemName;
-    const product = products.find(p => p.id === productId);
+    const product = products.find((p) => p.id === productId);
     return product?.name || productId;
   };
 
-  const groupTransactionsByDate = (transactions: Transaction[]): Record<string, Transaction[]> => {
-    const grouped: Record<string, Transaction[]> = {};
-    transactions.forEach((tx) => {
-      // Get date only (YYYY-MM-DD format)
-      const dateKey = tx.timestamp.toISOString().split('T')[0];
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-      }
-      grouped[dateKey].push(tx);
-    });
-    // Sort dates in descending order (newest first)
-    const sorted: Record<string, Transaction[]> = {};
-    Object.keys(grouped).sort().reverse().forEach(key => {
-      sorted[key] = grouped[key];
-    });
-    return sorted;
-  };
-
-  const formatDateHeader = (dateString: string): string => {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('es-ES', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  const getTimeOnly = (timestamp: Date): string => {
-    return timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const applyFilters = () => {
-    let filtered = [...transactions];
+  const filteredTransactions = useMemo(() => {
+    let list = [...transactions];
 
     if (filters.fromDate) {
-      // Parse date string in format "YYYY-MM-DD" and create local date at midnight
-      const [year, month, day] = filters.fromDate.split("-");
-      const fromDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
-      filtered = filtered.filter((tx) => tx.timestamp >= fromDate);
+      const [y, m, d] = filters.fromDate.split("-");
+      const from = new Date(+y, +m - 1, +d, 0, 0, 0, 0);
+      list = list.filter((tx) => tx.timestamp >= from);
     }
-
     if (filters.toDate) {
-      // Parse date string in format "YYYY-MM-DD" and create local date at 23:59:59.999
-      const [year, month, day] = filters.toDate.split("-");
-      const toDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 23, 59, 59, 999);
-      filtered = filtered.filter((tx) => tx.timestamp <= toDate);
+      const [y, m, d] = filters.toDate.split("-");
+      const to = new Date(+y, +m - 1, +d, 23, 59, 59, 999);
+      list = list.filter((tx) => tx.timestamp <= to);
     }
-
     if (filters.paymentMethod !== "ALL") {
-      filtered = filtered.filter(
-        (tx) => tx.paymentMethod === filters.paymentMethod
+      list = list.filter((tx) => tx.paymentMethod === filters.paymentMethod);
+    }
+    if (filters.search.trim()) {
+      const q = filters.search.toLowerCase();
+      list = list.filter(
+        (tx) =>
+          tx.id.toLowerCase().includes(q) ||
+          tx.items?.some((item: any) =>
+            (item.name || "").toLowerCase().includes(q)
+          )
       );
     }
+    return list;
+  }, [transactions, filters]);
 
-    setFilteredTransactions(filtered);
-  };
+  const groupedByDate = useMemo(() => {
+    const grouped: Record<string, Transaction[]> = {};
+    filteredTransactions.forEach((tx) => {
+      const key = tx.timestamp.toISOString().split("T")[0];
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(tx);
+    });
+    const sorted: Record<string, Transaction[]> = {};
+    Object.keys(grouped)
+      .sort()
+      .reverse()
+      .forEach((k) => (sorted[k] = grouped[k]));
+    return sorted;
+  }, [filteredTransactions]);
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+  const totals = useMemo(() => ({
+    count: filteredTransactions.length,
+    amount: filteredTransactions.reduce((s, tx) => s + tx.total, 0),
+  }), [filteredTransactions]);
+
+  const formatDateHeader = (dateString: string): string => {
+    const date = new Date(dateString + "T00:00:00");
+    return date.toLocaleDateString("es-ES", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   const handleDeleteTransaction = async (transactionId: string) => {
     if (!tenantId) return;
-    
-    const confirmDelete = window.confirm(
-      "¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer."
-    );
-    
-    if (!confirmDelete) return;
-
+    if (!window.confirm("¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer."))
+      return;
     try {
       setError(null);
       await TransactionService.deleteTransaction(tenantId, transactionId);
-      // Reload transactions after deletion
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar la transacción");
@@ -157,25 +150,17 @@ export default function TransactionsPage() {
     });
   };
 
-  const handleCloseDetails = () => {
-    setSelectedTransaction(null);
-  };
-
   const handleSaveChanges = async () => {
     if (!tenantId || !selectedTransaction) return;
-
     try {
       setIsSaving(true);
       setError(null);
-      
       await TransactionService.updateTransaction(tenantId, selectedTransaction.id, {
         payment_method: editForm.paymentMethod,
         created_at: new Date(editForm.datetime).toISOString(),
       });
-
-      // Reload transactions
       await loadData();
-      handleCloseDetails();
+      setSelectedTransaction(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar los cambios");
     } finally {
@@ -184,250 +169,311 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Transacciones</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap gap-3 justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Transacciones</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            {totals.count} transacción{totals.count !== 1 ? "es" : ""}
+            {totals.count > 0 && <> · Total: <span className="font-semibold text-slate-800">{formatCurrency(totals.amount)}</span></>}
+          </p>
+        </div>
+        <button
+          onClick={loadData}
+          disabled={isLoading}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow transition-colors"
+        >
+          <svg className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
+          </svg>
+          {isLoading ? "Cargando..." : "Actualizar"}
+        </button>
+      </div>
 
       {error && (
-        <Card className="mb-6 p-4 bg-red-50 border border-red-200">
-          <p className="text-red-800">Error: {error}</p>
-        </Card>
+        <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
+          {error}
+        </div>
       )}
 
-      <Card>
-        {/* ACCORDION FILTERS */}
-        <div className="mb-3">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 py-1 px-3 hover:bg-slate-50 transition-colors w-full"
-          >
-            <span className="text-sm font-semibold text-slate-700">
-              {showFilters ? "▼" : "▶"} Filtros
-            </span>
-          </button>
+      {/* Table container */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
 
-          {showFilters && (
-            <div className="px-3 pb-2 border-t border-slate-200 pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                <Input
-                  type="date"
-                  placeholder="Desde"
-                  value={filters.fromDate}
-                  onChange={(e) => handleFilterChange("fromDate", e.target.value)}
-                />
-                <Input
-                  type="date"
-                  placeholder="Hasta"
-                  value={filters.toDate}
-                  onChange={(e) => handleFilterChange("toDate", e.target.value)}
-                />
-                <select
-                  className="px-3 py-1 border border-slate-300 rounded text-sm text-slate-900"
-                  value={filters.paymentMethod}
-                  onChange={(e) => handleFilterChange("paymentMethod", e.target.value)}
-                >
-                  <option value="ALL">Todos los métodos</option>
-                  <option value="CASH">EFECTIVO</option>
-                  <option value="CARD">TARJETA</option>
-                  <option value="TRANSFER">TRANSFERENCIA</option>
-                </select>
-                <Button onClick={loadData} disabled={isLoading}>
-                  {isLoading ? "Cargando..." : "Actualizar"}
-                </Button>
-              </div>
-            </div>
-          )}
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
+          {/* Search */}
+          <div className="relative flex-1">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              value={filters.search}
+              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              placeholder="Buscar por ID o producto..."
+              className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* Date from */}
+          <input
+            type="date"
+            value={filters.fromDate}
+            onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {/* Date to */}
+          <input
+            type="date"
+            value={filters.toDate}
+            onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {/* Payment method */}
+          <select
+            value={filters.paymentMethod}
+            onChange={(e) => setFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="ALL">Todos los métodos</option>
+            <option value="CASH">Efectivo</option>
+            <option value="CARD">Tarjeta</option>
+            <option value="TRANSFER">Transferencia</option>
+          </select>
         </div>
 
         {isLoading ? (
-          <p className="text-center py-8 text-slate-500">Cargando transacciones...</p>
+          <p className="text-center py-12 text-slate-500">Cargando transacciones...</p>
         ) : filteredTransactions.length === 0 ? (
-          <p className="text-center py-8 text-slate-500">
-            No hay transacciones disponibles
-          </p>
+          <p className="text-center py-12 text-slate-400">No hay transacciones disponibles.</p>
         ) : (
-          <div className="space-y-6">
-            {Object.entries(groupTransactionsByDate(filteredTransactions)).map(([dateKey, dayTransactions]) => (
-              <div key={dateKey}>
-                {/* Date Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-slate-600 to-slate-700 text-white px-4 py-2 rounded-t-lg">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-bold capitalize">
-                      📅 {formatDateHeader(dateKey)}
-                    </h3>
-                    <span className="text-xs bg-slate-500 px-2 py-0.5 rounded">
-                      {dayTransactions.length} venta{dayTransactions.length > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Transactions for this day */}
-                <div className="space-y-2 bg-slate-50 px-4 py-3 rounded-b-lg border border-slate-200 border-t-0">
-                  {dayTransactions.map((transaction) => (
-                    <div key={transaction.id} className="border border-slate-300 rounded overflow-hidden hover:border-slate-400 transition-colors bg-white flex flex-col">
-                      {/* HEADER - Hora y método de pago */}
-                      <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-700">
-                          🕐 {getTimeOnly(transaction.timestamp)}
-                        </span>
-                        <span className="text-xs font-medium text-slate-600">{transaction.paymentMethod} • {formatCurrency(transaction.total)}</span>
-                      </div>
-
-                      {/* MIDDLE - Productos Vendidos */}
-                      <div className="px-3 py-2 flex-1">
-                        {transaction.items && transaction.items.length > 0 ? (
-                          <div className="space-y-1">
-                            {transaction.items.map((item: any, index: number) => (
-                              <div key={index} className="flex justify-between items-center text-xs">
-                                <span className="text-slate-900 font-medium flex-1 truncate">
-                                  {getProductName(item.productId, item.name)}
-                                </span>
-                                <span className="text-slate-600 mx-2">
-                                  {item.quantity}×{formatCurrency(item.price)}
-                                </span>
-                                <span className="font-semibold text-slate-900 text-right min-w-fit">
-                                  {formatCurrency(item.total)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-slate-500 italic">Sin productos</p>
-                        )}
-                      </div>
-
-                      {/* FOOTER - Resumen y botones */}
-                      <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
-                        <div className="text-xs text-slate-600">
-                          <span className="font-semibold">Sub: {formatCurrency(transaction.subtotal)}</span>
-                          {(transaction.discount || 0) > 0 && <span className="ml-3">Desc: {formatCurrency(transaction.discount || 0)}</span>}
-                          {(transaction.tax || 0) > 0 && <span className="ml-3">Imp: {formatCurrency(transaction.tax)}</span>}
-                        </div>
-                        <div className="flex gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="secondary"
-                            onClick={() => handleOpenDetails(transaction)}
-                            className="text-xs py-1 px-2"
-                            title="Ver detalles"
-                          >
-                            �
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="danger"
-                            onClick={() => handleDeleteTransaction(transaction.id)}
-                            className="text-xs py-1 px-2"
-                            title="Revertir transacción"
-                          >
-                            🗑️
-                          </Button>
-                        </div>
-                      </div>
+          <div className="overflow-x-auto">
+            {Object.entries(groupedByDate).map(([dateKey, dayTxs]) => {
+              const dayTotal = dayTxs.reduce((s, tx) => s + tx.total, 0);
+              return (
+                <div key={dateKey}>
+                  {/* Date group header */}
+                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 text-white text-xs font-semibold sticky top-0 z-10">
+                    <span className="capitalize">{formatDateHeader(dateKey)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="bg-slate-600 px-2 py-0.5 rounded-full">
+                        {dayTxs.length} venta{dayTxs.length > 1 ? "s" : ""}
+                      </span>
+                      <span className="text-slate-300">{formatCurrency(dayTotal)}</span>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Table for this day */}
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th className="px-4 py-2 text-left">Hora</th>
+                        <th className="px-4 py-2 text-left">Productos</th>
+                        <th className="px-4 py-2 text-center hidden sm:table-cell">Método</th>
+                        <th className="px-4 py-2 text-right hidden md:table-cell">Subtotal</th>
+                        <th className="px-4 py-2 text-right hidden md:table-cell">Desc.</th>
+                        <th className="px-4 py-2 text-right hidden md:table-cell">Imp.</th>
+                        <th className="px-4 py-2 text-right font-bold">Total</th>
+                        <th className="px-4 py-2 text-center w-20">Acc.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {dayTxs.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
+                          <td className="px-4 py-2.5 text-slate-500 text-xs whitespace-nowrap">
+                            {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                          </td>
+                          <td className="px-4 py-2.5 max-w-xs">
+                            {tx.items && tx.items.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {tx.items.slice(0, 2).map((item: any, i: number) => (
+                                  <p key={i} className="text-xs text-slate-700 truncate">
+                                    <span className="font-medium">{item.quantity}×</span>{" "}
+                                    {getProductName(item.productId, item.name)}
+                                  </p>
+                                ))}
+                                {tx.items.length > 2 && (
+                                  <p className="text-xs text-slate-400">+{tx.items.length - 2} más</p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Sin productos</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-center hidden sm:table-cell">
+                            <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold ${PAYMENT_BADGE[tx.paymentMethod] ?? "bg-slate-100 text-slate-600"}`}>
+                              {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-xs text-slate-600 hidden md:table-cell">
+                            {formatCurrency(tx.subtotal)}
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-xs hidden md:table-cell">
+                            {(tx.discount || 0) > 0 ? (
+                              <span className="text-amber-600">-{formatCurrency(tx.discount || 0)}</span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-xs text-slate-600 hidden md:table-cell">
+                            {(tx.tax || 0) > 0 ? formatCurrency(tx.tax) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
+                            {formatCurrency(tx.total)}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                onClick={() => handleOpenDetails(tx)}
+                                className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                                title="Ver / editar"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(tx.id)}
+                                className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-xs font-semibold rounded-lg transition-colors"
+                                title="Eliminar"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+            <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 bg-slate-50">
+              {totals.count} transacción{totals.count !== 1 ? "es" : ""}
+              {(filters.search || filters.fromDate || filters.toDate || filters.paymentMethod !== "ALL") &&
+                ` · filtrado de ${transactions.length}`}
+            </div>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* Modal de detalles */}
+      {/* Detail / Edit Modal */}
       {selectedTransaction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <Card className="w-full max-w-md p-6 bg-white">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Detalles de la Transacción</h2>
-            
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-600">ID Transacción:</p>
-              <p className="text-gray-900">{selectedTransaction.id}</p>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => e.target === e.currentTarget && setSelectedTransaction(null)}
+        >
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-900 text-white">
+              <h2 className="font-semibold text-sm">Detalles de la Transacción</h2>
+              <button
+                onClick={() => setSelectedTransaction(null)}
+                className="p-1 rounded hover:bg-slate-700 transition-colors"
+                aria-label="Cerrar"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-600">Subtotal:</p>
-              <p className="text-gray-900">{formatCurrency(selectedTransaction.subtotal)}</p>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-600">Descuento:</p>
-              <p className="text-gray-900">{formatCurrency(selectedTransaction.discount || 0)}</p>
-            </div>
-
-            {(selectedTransaction.tax || 0) > 0 && (
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-slate-600">Impuesto:</p>
-                <p className="text-gray-900">{formatCurrency(selectedTransaction.tax)}</p>
+            <div className="p-5 space-y-4">
+              {/* ID */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
+                <p className="font-mono text-xs text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200 break-all">
+                  {selectedTransaction.id}
+                </p>
               </div>
-            )}
 
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-600">Total:</p>
-              <p className="text-gray-900">{formatCurrency(selectedTransaction.total)}</p>
-            </div>
-
-            {/* Products Section */}
-            {selectedTransaction.items && selectedTransaction.items.length > 0 && (
-              <div className="mb-6 p-3 bg-slate-50 rounded border border-slate-200">
-                <p className="text-sm font-semibold text-slate-700 mb-3">Productos Vendidos:</p>
-                <div className="space-y-2">
-                  {selectedTransaction.items.map((item: any, index: number) => (
-                    <div key={index} className="flex justify-between items-start text-sm">
-                      <div>
-                        <p className="font-medium text-slate-900">{item.name || item.productId}</p>
-                        <p className="text-slate-600 text-xs">
-                          {item.quantity} × {formatCurrency(item.price)}
-                        </p>
+              {/* Products */}
+              {selectedTransaction.items && selectedTransaction.items.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Productos</p>
+                  <div className="bg-slate-50 rounded border border-slate-200 divide-y divide-slate-100">
+                    {selectedTransaction.items.map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center px-3 py-2 text-sm">
+                        <div>
+                          <p className="font-medium text-slate-900">{item.name || item.productId}</p>
+                          <p className="text-xs text-slate-500">{item.quantity} × {formatCurrency(item.price)}</p>
+                        </div>
+                        <p className="font-semibold text-slate-900">{formatCurrency(item.total)}</p>
                       </div>
-                      <p className="font-semibold text-slate-900">{formatCurrency(item.total)}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Summary */}
+              <div className="bg-slate-50 rounded border border-slate-200 divide-y divide-slate-100 text-sm">
+                <div className="flex justify-between px-3 py-2 text-slate-600">
+                  <span>Subtotal</span><span>{formatCurrency(selectedTransaction.subtotal)}</span>
+                </div>
+                {(selectedTransaction.discount || 0) > 0 && (
+                  <div className="flex justify-between px-3 py-2 text-amber-600">
+                    <span>Descuento</span><span>-{formatCurrency(selectedTransaction.discount || 0)}</span>
+                  </div>
+                )}
+                {(selectedTransaction.tax || 0) > 0 && (
+                  <div className="flex justify-between px-3 py-2 text-slate-600">
+                    <span>Impuesto</span><span>{formatCurrency(selectedTransaction.tax)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between px-3 py-2 font-bold text-slate-900">
+                  <span>Total</span><span>{formatCurrency(selectedTransaction.total)}</span>
                 </div>
               </div>
-            )}
 
-            <div className="mb-4">
-              <label className="text-sm font-semibold text-slate-600">Método de Pago:</label>
-              <select
-                value={editForm.paymentMethod}
-                onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as "CASH" | "CARD" | "TRANSFER" })}
-                className="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-slate-900"
-              >
-                <option value="CASH">EFECTIVO</option>
-                <option value="CARD">TARJETA</option>
-                <option value="TRANSFER">TRANSFERENCIA</option>
-              </select>
+              {/* Editable fields */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Método de Pago</label>
+                  <select
+                    value={editForm.paymentMethod}
+                    onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as "CASH" | "CARD" | "TRANSFER" })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="CASH">Efectivo</option>
+                    <option value="CARD">Tarjeta</option>
+                    <option value="TRANSFER">Transferencia</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha / Hora</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.datetime}
+                    onChange={(e) => setEditForm({ ...editForm, datetime: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-slate-600">Fecha/Hora:</label>
-              <input
-                type="datetime-local"
-                value={editForm.datetime}
-                onChange={(e) => setEditForm({ ...editForm, datetime: e.target.value })}
-                className="w-full mt-1 px-3 py-2 border border-slate-300 rounded text-slate-900"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                onClick={handleCloseDetails}
+            {/* Modal footer */}
+            <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => setSelectedTransaction(null)}
                 disabled={isSaving}
-                className="flex-1"
+                className="flex-1 px-4 py-2 border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancelar
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={handleSaveChanges}
                 disabled={isSaving}
-                className="flex-1"
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
               >
                 {isSaving ? "Guardando..." : "Guardar"}
-              </Button>
+              </button>
             </div>
-          </Card>
+          </div>
         </div>
       )}
     </div>
   );
 }
+

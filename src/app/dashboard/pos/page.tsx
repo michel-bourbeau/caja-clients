@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Card, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
 import { CartItem, Product } from "@/lib/types";
@@ -28,6 +28,7 @@ export default function POSPage() {
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -104,14 +105,24 @@ export default function POSPage() {
     return grouped;
   }, [products]);
 
-  const displayedProducts = selectedCategory
-    ? productsByCategory[selectedCategory] || []
-    : Object.values(productsByCategory).flat();
+  const displayedProducts = useMemo(() => {
+    const base = selectedCategory
+      ? productsByCategory[selectedCategory] ?? []
+      : Object.values(productsByCategory).flat();
+    if (!search.trim()) return base;
+    const q = search.toLowerCase();
+    return base.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.description ?? "").toLowerCase().includes(q)
+    );
+  }, [selectedCategory, productsByCategory, search]);
 
   const handleAddProduct = (product: Product) => {
     setCart((current) => {
       const existing = current.find((item) => item.productId === product.id);
       if (existing) {
+        if (existing.quantity >= product.quantity) return current;
         return current.map((item) =>
           item.productId === product.id
             ? {
@@ -195,10 +206,10 @@ export default function POSPage() {
           <p className="text-sm text-slate-600 mt-1">Selecciona productos, ajusta cantidades y finaliza la venta.</p>
         </div>
 
-        {/* Cart toggle button */}
+        {/* Cart toggle button — hidden on lg (cart always visible) */}
         <button
           onClick={() => setIsCartOpen(true)}
-          className="relative flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition-colors"
+          className="relative flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition-colors lg:hidden"
           aria-label="Abrir carrito"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -225,87 +236,159 @@ export default function POSPage() {
         </div>
       ) : null}
 
-      {/* Products — full width */}
-      <Card>
+      {/* Products + Cart side-by-side on lg */}
+      <div className="lg:flex lg:gap-6 lg:items-start">
+
+      {/* Products */}
+      <div className="flex-1 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
+          {/* Search */}
+          <div className="relative flex-1">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar producto..."
+              className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {/* Category filter */}
+          <select
+            value={selectedCategory || ""}
+            onChange={(e) => setSelectedCategory(e.target.value || null)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Todas las categorías</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name} ({productsByCategory[cat.id]?.length ?? 0})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {loading ? (
-          <p className="text-gray-800">Cargando...</p>
+          <p className="text-gray-800 p-6">Cargando...</p>
         ) : categories.length === 0 ? (
-          <p className="text-gray-800">No hay categorías disponibles. Primero crea una categoría en el inventario.</p>
+          <p className="text-gray-800 p-6">No hay categorías disponibles. Primero crea una categoría en el inventario.</p>
+        ) : displayedProducts.length === 0 ? (
+          <p className="text-gray-500 text-center py-12">Sin resultados.</p>
         ) : (
-          <>
-            {/* Category Dropdown */}
-            <div className="mb-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
-              <label className="text-sm font-semibold text-slate-700 md:whitespace-nowrap">Categorías</label>
-              <select
-                value={selectedCategory || ""}
-                onChange={(e) => setSelectedCategory(e.target.value || null)}
-                className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-              >
-                <option value="">Todos los productos</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name} ({productsByCategory[cat.id]?.length || 0})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Products Grid */}
-            {displayedProducts.length === 0 ? (
-              <p className="text-gray-800 text-center py-8">
-                Sin productos en esta categoría.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                {displayedProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="p-2.5 border border-slate-200 rounded bg-white shadow-xs hover:shadow-sm transition"
-                  >
-                    <div className="flex flex-col h-full">
-                      <div className="mb-2">
-                        <p className="text-sm font-semibold text-slate-900 line-clamp-2">{product.name}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5 text-left">Producto</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell">Categoría</th>
+                  <th className="px-4 py-2.5 text-right">Precio</th>
+                  <th className="px-4 py-2.5 text-center">Stock</th>
+                  <th className="px-4 py-2.5 text-center w-24"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {displayedProducts.map((product) => {
+                  const inCart = cart.find((i) => i.productId === product.id);
+                  const category = categories.find((c) => c.id === (product as any).category_id);
+                  const outOfStock = product.quantity <= 0;
+                  const stockReached = !!inCart && inCart.quantity >= product.quantity;
+                  return (
+                    <tr
+                      key={product.id}
+                      className={`group transition-colors ${outOfStock ? "opacity-50" : "hover:bg-blue-50"}`}
+                    >
+                      <td className="px-4 py-2.5">
+                        <p className="font-medium text-slate-900">{product.name}</p>
                         {product.description && (
-                          <p className="text-xs text-gray-600 line-clamp-1">{product.description}</p>
+                          <p className="text-xs text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
-                        <p className="mt-1.5 text-base font-bold text-blue-600">
-                          {formatCurrency(product.price)}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-0.5">
-                          Stock: {product.quantity}
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => handleAddProduct(product)}
-                        disabled={product.quantity <= 0}
-                        className="mt-auto text-sm py-1.5"
-                      >
-                        {product.quantity > 0 ? "Agregar" : "Agotado"}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+                      </td>
+                      <td className="px-4 py-2.5 hidden md:table-cell">
+                        {category ? (
+                          <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600 font-medium">
+                            {category.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
+                        {formatCurrency(product.price)}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold ${
+                          product.quantity <= 0
+                            ? "bg-red-100 text-red-700"
+                            : product.quantity <= 5
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-green-100 text-green-700"
+                        }`}>
+                          {product.quantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {outOfStock ? (
+                          <span className="text-xs text-slate-400 font-medium">Agotado</span>
+                        ) : stockReached ? (
+                          <span className="text-xs text-amber-600 font-medium">Máx. {product.quantity}</span>
+                        ) : (
+                          <button
+                            onClick={() => handleAddProduct(product)}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg transition-colors"
+                          >
+                            {inCart ? (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                {inCart.quantity}
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                Agregar
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="px-4 py-2 border-t border-slate-100 text-xs text-slate-400 bg-slate-50">
+              {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
+            </div>
+          </div>
         )}
-      </Card>
+      </div>
 
-      {/* Cart Drawer */}
-      {/* Backdrop */}
-      {isCartOpen && (
+      {/* Cart — drawer on < lg, always visible on lg */}
+      <div className="lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-4">
+
+        {/* Backdrop — mobile only */}
+        {isCartOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setIsCartOpen(false)}
+          />
+        )}
+
+        {/* Cart panel */}
         <div
-          className="fixed inset-0 z-40 bg-black/50"
-          onClick={() => setIsCartOpen(false)}
-        />
-      )}
-
-      {/* Drawer panel */}
-      <div
-        className={`fixed right-0 top-0 h-screen w-80 z-50 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col ${
-          isCartOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+          className={`fixed right-0 top-0 h-screen w-80 z-50 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col
+            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:shadow-sm lg:rounded-lg lg:border lg:border-slate-200 lg:z-auto lg:flex lg:flex-col
+            ${
+              isCartOpen ? "translate-x-0" : "translate-x-full"
+            }`}
+        >
         {/* Drawer header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-900 text-white">
           <div className="flex items-center gap-2">
@@ -323,7 +406,7 @@ export default function POSPage() {
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
-            className="p-1 rounded hover:bg-slate-700 transition-colors"
+            className="p-1 rounded hover:bg-slate-700 transition-colors lg:hidden"
             aria-label="Cerrar carrito"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -447,6 +530,9 @@ export default function POSPage() {
             Cancelar
           </Button>
         </div>
+      </div>
+      </div>
+
       </div>
     </div>
   );
