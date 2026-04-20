@@ -44,7 +44,7 @@ export default function POSPage() {
         // Don't select a category by default - display all products
         setSelectedCategory(null);
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Erreur de chargement des produits");
+        setMessage(error instanceof Error ? error.message : "Error cargando productos");
       } finally {
         setLoading(false);
       }
@@ -136,13 +136,13 @@ export default function POSPage() {
 
   const handleCompleteSale = async () => {
     if (!tenantId) {
-      setMessage("Aucun tenant sélectionné.");
+      setMessage("No hay tenant seleccionado.");
       setMessageType("error");
       return;
     }
 
     if (cart.length === 0) {
-      setMessage("Le panier est vide.");
+      setMessage("El carrito está vacío.");
       setMessageType("error");
       return;
     }
@@ -152,7 +152,7 @@ export default function POSPage() {
       await POSService.createTransaction(tenantId, cart, paymentMethod, "cashier-001", discount);
       setCart([]);
       setDiscount(0);
-      setMessage("✓ Vente enregistrée avec succès!");
+      setMessage("✓ ¡Venta registrada exitosamente!");
       setMessageType("success");
       const refreshed = await POSService.fetchProducts(tenantId);
       setProducts(refreshed);
@@ -163,13 +163,13 @@ export default function POSPage() {
         setMessageType(null);
       }, 3000);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Erreur lors de la transaction";
+      const errorMsg = error instanceof Error ? error.message : "Error en la transacción";
       
       // Check if this is a migration error
       if (errorMsg.includes("MIGRATION_REQUIRED") || errorMsg.includes("discount column")) {
         setMessage(
-          "⚠️ La base de données doit être mise à jour. " +
-          "Veuillez vérifier FIX_DISCOUNT_MIGRATION.md pour les instructions."
+          "⚠️ La base de datos necesita ser actualizada. " +
+          "Por favor verifica FIX_DISCOUNT_MIGRATION.md para las instrucciones."
         );
       } else {
         setMessage(errorMsg);
@@ -185,8 +185,8 @@ export default function POSPage() {
     <div>
       <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Caisse - Nouvelle Vente</h1>
-          <p className="text-sm text-slate-600 mt-1">Sélectionnez des produits, ajustez les quantités et finalisez la vente.</p>
+          <h1 className="text-3xl font-bold text-gray-900">Caja - Nueva Venta</h1>
+          <p className="text-sm text-slate-600 mt-1">Selecciona productos, ajusta cantidades y finaliza la venta.</p>
         </div>
       </div>
 
@@ -202,22 +202,22 @@ export default function POSPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Card title="Produits par Catégorie">
+          <Card>
             {loading ? (
-              <p className="text-gray-800">Chargement...</p>
+              <p className="text-gray-800">Cargando...</p>
             ) : categories.length === 0 ? (
-              <p className="text-gray-800">Aucune catégorie disponible. Créez d'abord une catégorie dans l'inventaire.</p>
+              <p className="text-gray-800">No hay categorías disponibles. Primero crea una categoría en el inventario.</p>
             ) : (
               <>
                 {/* Category Dropdown */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Catégories</label>
+                <div className="mb-4 flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                  <label className="text-sm font-semibold text-slate-700 md:whitespace-nowrap">Categorías</label>
                   <select
                     value={selectedCategory || ""}
                     onChange={(e) => setSelectedCategory(e.target.value || null)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
+                    className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
                   >
-                    <option value="">Tous les produits</option>
+                    <option value="">Todos los productos</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name} ({productsByCategory[cat.id]?.length || 0})
@@ -229,34 +229,34 @@ export default function POSPage() {
                 {/* Products Grid */}
                 {displayedProducts.length === 0 ? (
                   <p className="text-gray-800 text-center py-8">
-                    Aucun produit dans cette catégorie.
+                    Sin productos en esta categoría.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                     {displayedProducts.map((product) => (
                       <div
                         key={product.id}
-                        className="p-4 border border-slate-200 rounded-lg bg-white shadow-sm hover:shadow-md transition"
+                        className="p-2.5 border border-slate-200 rounded bg-white shadow-xs hover:shadow-sm transition"
                       >
                         <div className="flex flex-col h-full">
-                          <div className="mb-3">
-                            <p className="font-semibold text-slate-900">{product.name}</p>
+                          <div className="mb-2">
+                            <p className="text-sm font-semibold text-slate-900 line-clamp-2">{product.name}</p>
                             {product.description && (
-                              <p className="text-xs text-gray-700">{product.description}</p>
+                              <p className="text-xs text-gray-600 line-clamp-1">{product.description}</p>
                             )}
-                            <p className="mt-2 text-lg font-bold text-blue-600">
+                            <p className="mt-1.5 text-base font-bold text-blue-600">
                               {formatCurrency(product.price)}
                             </p>
-                            <p className="text-xs text-gray-700">
+                            <p className="text-xs text-gray-600 mt-0.5">
                               Stock: {product.quantity}
                             </p>
                           </div>
                           <Button
                             onClick={() => handleAddProduct(product)}
                             disabled={product.quantity <= 0}
-                            className="mt-auto"
+                            className="mt-auto text-sm py-1.5"
                           >
-                            {product.quantity > 0 ? "Ajouter" : "Rupture de stock"}
+                            {product.quantity > 0 ? "Agregar" : "Agotado"}
                           </Button>
                         </div>
                       </div>
@@ -269,11 +269,11 @@ export default function POSPage() {
         </div>
 
         <div>
-          <Card title="Résumé de Vente">
+          <Card title="Resumen de Venta">
             <div className="space-y-4">
               <div className="border-b pb-4">
                 {cart.length === 0 ? (
-                  <p className="text-gray-800 text-center">Panier vide</p>
+                  <p className="text-gray-800 text-center">Carrito vacío</p>
                 ) : (
                   cart.map((item) => {
                     const product = products.find((p) => p.id === item.productId);
@@ -281,7 +281,7 @@ export default function POSPage() {
                       <div key={item.productId} className="flex justify-between items-center py-2">
                         <div>
                           <p className="font-medium text-slate-900">
-                            {item.quantity} × {product?.name || "Produit"}
+                            {item.quantity} × {product?.name || "Producto"}
                           </p>
                           <p className="text-sm text-slate-600">{formatCurrency(item.price)}</p>
                         </div>
@@ -292,7 +292,7 @@ export default function POSPage() {
                             onClick={() => handleRemoveItem(item.productId)}
                             className="text-xs text-red-600 hover:underline"
                           >
-                            Supprimer
+                            Eliminar
                           </button>
                         </div>
                       </div>
@@ -309,7 +309,7 @@ export default function POSPage() {
                 
                 {/* Discount field */}
                 <div className="border-t pt-2 mt-2">
-                  <label className="text-sm font-semibold text-slate-600 block mb-1">Rabais ($)</label>
+                  <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ($)</label>
                   <input
                     type="number"
                     value={discount}
@@ -328,7 +328,7 @@ export default function POSPage() {
 
                 {cartTotal.discount > 0 && (
                   <div className="flex justify-between text-slate-600 pt-1">
-                    <span>Après rabais</span>
+                    <span>Después de descuento</span>
                     <span>{formatCurrency(cartTotal.subtotalAfterDiscount)}</span>
                   </div>
                 )}
@@ -344,9 +344,9 @@ export default function POSPage() {
                   </>
                 ) : (
                   <p className="text-xs text-gray-500 italic">
-                    Aucune taxe configurée.{" "}
+                    Sin impuestos configurados.{" "}
                     <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
-                      Configurer les taxes
+                      Configurar impuestos
                     </a>
                   </p>
                 )}
@@ -373,7 +373,7 @@ export default function POSPage() {
                   className="w-full bg-green-600 hover:bg-green-700"
                   disabled={cart.length === 0 || loading}
                 >
-                  {loading ? "Enregistrement..." : "Completar Venta"}
+                  {loading ? "Procesando..." : "Completar Venta"}
                 </Button>
                 <Button
                   className="w-full"
