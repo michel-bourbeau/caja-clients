@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { Card, Button, Input } from "@/components/ui";
 import { DataTable } from "@/components/DataTable";
 import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
-import { Transaction } from "@/lib/types";
+import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
 import { TransactionService } from "@/features/transactions/services";
 
 export default function TransactionsPage() {
   const tenantId = useTenantId();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
@@ -27,14 +28,14 @@ export default function TransactionsPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    loadTransactions();
+    loadData();
   }, [tenantId]);
 
   useEffect(() => {
     applyFilters();
   }, [transactions, filters]);
 
-  const loadTransactions = async () => {
+  const loadData = async () => {
     if (!tenantId) {
       setError("Tenant ID not found");
       setIsLoading(false);
@@ -44,13 +45,55 @@ export default function TransactionsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await TransactionService.fetchTransactions(tenantId);
-      setTransactions(data);
+      const [transactionsData, productsData] = await Promise.all([
+        TransactionService.fetchTransactions(tenantId),
+        fetch(`/api/tenants/${tenantId}/products`).then(res => res.json()),
+      ]);
+      setTransactions(transactionsData);
+      setProducts(productsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getProductName = (productId: string, itemName?: string): string => {
+    if (itemName) return itemName;
+    const product = products.find(p => p.id === productId);
+    return product?.name || productId;
+  };
+
+  const groupTransactionsByDate = (transactions: Transaction[]): Record<string, Transaction[]> => {
+    const grouped: Record<string, Transaction[]> = {};
+    transactions.forEach((tx) => {
+      // Get date only (YYYY-MM-DD format)
+      const dateKey = tx.timestamp.toISOString().split('T')[0];
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(tx);
+    });
+    // Sort dates in descending order (newest first)
+    const sorted: Record<string, Transaction[]> = {};
+    Object.keys(grouped).sort().reverse().forEach(key => {
+      sorted[key] = grouped[key];
+    });
+    return sorted;
+  };
+
+  const formatDateHeader = (dateString: string): string => {
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('es-ES', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  const getTimeOnly = (timestamp: Date): string => {
+    return timestamp.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   };
 
   const applyFilters = () => {
@@ -99,7 +142,7 @@ export default function TransactionsPage() {
       setError(null);
       await TransactionService.deleteTransaction(tenantId, transactionId);
       // Reload transactions after deletion
-      await loadTransactions();
+      await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar la transacción");
     }
@@ -130,7 +173,7 @@ export default function TransactionsPage() {
       });
 
       // Reload transactions
-      await loadTransactions();
+      await loadData();
       handleCloseDetails();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar los cambios");
@@ -173,7 +216,7 @@ export default function TransactionsPage() {
             <option value="CARD">TARJETA</option>
             <option value="TRANSFER">TRANSFERENCIA</option>
           </select>
-          <Button onClick={loadTransactions} disabled={isLoading}>
+          <Button onClick={loadData} disabled={isLoading}>
             {isLoading ? "Cargando..." : "Actualizar"}
           </Button>
         </div>
@@ -185,81 +228,91 @@ export default function TransactionsPage() {
             No hay transacciones disponibles
           </p>
         ) : (
-          <div className="space-y-3">
-            {filteredTransactions.map((transaction) => (
-              <div key={transaction.id} className="border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-colors">
-                {/* Header con fecha/hora y productos */}
-                <div className="bg-white p-4">
-                  {/* Fecha/Hora - Solo una vez para el grupo */}
-                  <div className="mb-3 pb-3 border-b border-slate-100">
-                    <p className="text-sm font-semibold text-slate-700">
-                      📅 {formatDateTime(transaction.timestamp)}
-                    </p>
-                  </div>
-
-                  {/* Productos Vendidos */}
-                  {transaction.items && transaction.items.length > 0 ? (
-                    <div className="space-y-2 mb-4">
-                      {transaction.items.map((item: any, index: number) => (
-                        <div key={index} className="flex justify-between items-start p-2 bg-slate-50 rounded text-sm border border-slate-100 hover:bg-slate-100 transition-colors">
-                          <div className="flex-1">
-                            <p className="font-medium text-slate-900">{item.name || item.productId}</p>
-                            <p className="text-xs text-slate-600">
-                              Cantidad: {item.quantity} × {formatCurrency(item.price)}
-                            </p>
-                          </div>
-                          <p className="font-semibold text-slate-900 ml-4 whitespace-nowrap">
-                            {formatCurrency(item.total)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-500 italic mb-4">Sin productos</p>
-                  )}
-
-                  {/* Resumen de la transacción - fila compacta */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs p-2 bg-slate-50 rounded border border-slate-100 mb-4">
-                    <div>
-                      <span className="text-slate-600">Subtotal:</span>
-                      <p className="font-medium text-slate-900">{formatCurrency(transaction.subtotal)}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Descuento:</span>
-                      <p className="font-medium text-slate-900">{formatCurrency(transaction.discount || 0)}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Impuesto:</span>
-                      <p className="font-medium text-slate-900">{formatCurrency(transaction.tax)}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Total:</span>
-                      <p className="font-bold text-slate-900">{formatCurrency(transaction.total)}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Método:</span>
-                      <p className="font-medium text-slate-900">{transaction.paymentMethod}</p>
-                    </div>
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      onClick={() => handleOpenDetails(transaction)}
-                    >
-                      📋 Detalles
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="danger"
-                      onClick={() => handleDeleteTransaction(transaction.id)}
-                    >
-                      Revertir
-                    </Button>
+          <div className="space-y-6">
+            {Object.entries(groupTransactionsByDate(filteredTransactions)).map(([dateKey, dayTransactions]) => (
+              <div key={dateKey}>
+                {/* Date Header */}
+                <div className="sticky top-0 bg-gradient-to-r from-slate-600 to-slate-700 text-white px-4 py-3 rounded-t-lg">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-bold capitalize">
+                      📅 {formatDateHeader(dateKey)}
+                    </h3>
+                    <span className="text-sm bg-slate-500 px-3 py-1 rounded">
+                      {dayTransactions.length} venta{dayTransactions.length > 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
+
+                {/* Transactions for this day */}
+                <div className="space-y-2 bg-slate-50 px-4 py-3 rounded-b-lg border border-slate-200 border-t-0">
+                  {dayTransactions.map((transaction) => (
+                    <div key={transaction.id} className="border border-slate-300 rounded overflow-hidden hover:border-slate-400 transition-colors bg-white">
+                      {/* Hora y método de pago */}
+                      <div className="px-3 py-2 bg-white border-b border-slate-100 flex justify-between items-center">
+                        <span className="text-sm font-semibold text-slate-700">
+                          🕐 {getTimeOnly(transaction.timestamp)}
+                        </span>
+                        <span className="text-sm text-slate-600">{transaction.paymentMethod} • {formatCurrency(transaction.total)}</span>
+                      </div>
+
+                      {/* Productos Vendidos - compacto */}
+                      <div className="px-3 py-2">
+                        {transaction.items && transaction.items.length > 0 ? (
+                          <div className="space-y-1">
+                            {transaction.items.map((item: any, index: number) => (
+                              <div key={index} className="flex justify-between items-center text-xs">
+                                <span className="text-slate-900 font-medium flex-1 truncate">
+                                  {getProductName(item.productId, item.name)}
+                                </span>
+                                <span className="text-slate-600 mx-2">
+                                  {item.quantity}×{formatCurrency(item.price)}
+                                </span>
+                                <span className="font-semibold text-slate-900 text-right min-w-fit">
+                                  {formatCurrency(item.total)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500 italic">Sin productos</p>
+                        )}
+                      </div>
+
+                      {/* Resumen compacto */}
+                      <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs">
+                        <div className="flex gap-3">
+                          <span className="text-slate-600">Sub: {formatCurrency(transaction.subtotal)}</span>
+                          {(transaction.discount || 0) > 0 && <span className="text-slate-600">Desc: {formatCurrency(transaction.discount || 0)}</span>}
+                          <span className="text-slate-600">Imp: {formatCurrency(transaction.tax)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            onClick={() => handleOpenDetails(transaction)}
+                            className="text-xs py-1 px-2"
+                          >
+                            Detalles
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="danger"
+                            onClick={() => handleDeleteTransaction(transaction.id)}
+                            className="text-xs py-1 px-2"
+                          >
+                            Revertir
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Modal de detalles */}
       {selectedTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
