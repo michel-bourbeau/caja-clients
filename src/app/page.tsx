@@ -15,7 +15,7 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-white mb-4">Caja</h1>
-          <p className="text-xl text-slate-300">Sistema de Gestión Integral</p>
+          <p className="text-xl text-gray-700">Sistema de Gestión Integral</p>
         </div>
 
         {/* Main Grid */}
