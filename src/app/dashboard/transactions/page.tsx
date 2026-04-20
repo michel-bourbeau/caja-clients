@@ -270,6 +270,26 @@ export default function TransactionsPage() {
               <p className="text-gray-900">{formatCurrency(selectedTransaction.total)}</p>
             </div>
 
+            {/* Products Section */}
+            {selectedTransaction.items && selectedTransaction.items.length > 0 && (
+              <div className="mb-6 p-3 bg-slate-50 rounded border border-slate-200">
+                <p className="text-sm font-semibold text-slate-700 mb-3">Productos Vendidos:</p>
+                <div className="space-y-2">
+                  {selectedTransaction.items.map((item: any, index: number) => (
+                    <div key={index} className="flex justify-between items-start text-sm">
+                      <div>
+                        <p className="font-medium text-slate-900">{item.name || item.productId}</p>
+                        <p className="text-slate-600 text-xs">
+                          {item.quantity} × {formatCurrency(item.price)}
+                        </p>
+                      </div>
+                      <p className="font-semibold text-slate-900">{formatCurrency(item.total)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="text-sm font-semibold text-slate-600">Método de Pago:</label>
               <select

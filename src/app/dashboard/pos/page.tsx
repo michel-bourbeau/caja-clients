@@ -122,6 +122,7 @@ export default function POSPage() {
         ...current,
         {
           productId: product.id,
+          name: product.name,
           quantity: 1,
           price: product.price,
           total: Number(product.price.toFixed(2)),
