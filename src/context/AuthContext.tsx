@@ -16,6 +16,7 @@ const MOCK_PERMISSIONS = [
   "inventory.edit",
   "inventory.delete",
   "inventory.adjust",
+  "manage_products",
   "employees.view",
   "employees.create",
   "employees.edit",
