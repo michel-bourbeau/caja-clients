@@ -279,28 +279,30 @@ export default function TransactionsPage() {
                       </div>
 
                       {/* FOOTER - Resumen y botones */}
-                      <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 space-y-2">
+                      <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
                         <div className="text-xs text-slate-600">
                           <span className="font-semibold">Sub: {formatCurrency(transaction.subtotal)}</span>
                           {(transaction.discount || 0) > 0 && <span className="ml-3">Desc: {formatCurrency(transaction.discount || 0)}</span>}
                           {(transaction.tax || 0) > 0 && <span className="ml-3">Imp: {formatCurrency(transaction.tax)}</span>}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           <Button 
                             size="sm" 
                             variant="secondary"
                             onClick={() => handleOpenDetails(transaction)}
-                            className="text-xs py-1 px-3 flex-1"
+                            className="text-xs py-1 px-2"
+                            title="Ver detalles"
                           >
-                            Detalles
+                            �
                           </Button>
                           <Button 
                             size="sm" 
                             variant="danger"
                             onClick={() => handleDeleteTransaction(transaction.id)}
-                            className="text-xs py-1 px-3 flex-1"
+                            className="text-xs py-1 px-2"
+                            title="Revertir transacción"
                           >
-                            Revertir
+                            🗑️
                           </Button>
                         </div>
                       </div>
