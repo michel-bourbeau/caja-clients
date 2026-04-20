@@ -317,11 +317,11 @@ export default function InventoryPage() {
               onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
             />
             <div>
-              <label className="block text-sm font-medium mb-1">Catégorie</label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Catégorie</label>
               <select
                 value={newProduct.category_id}
                 onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                className="w-full px-3 py-2 border rounded"
+                className="w-full px-3 py-2 border border-gray-400 rounded bg-white text-gray-900 font-medium"
               >
                 <option value="">-- Sans catégorie --</option>
                 {categories.map((cat) => (
@@ -361,22 +361,22 @@ export default function InventoryPage() {
                 )}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-gray-100">
+                    <thead className="bg-gray-200">
                       <tr>
-                        <th className="px-4 py-2 text-left">Nom</th>
-                        <th className="px-4 py-2 text-left">SKU</th>
-                        <th className="px-4 py-2 text-right">Prix</th>
-                        <th className="px-4 py-2 text-right">Stock</th>
-                        <th className="px-4 py-2 text-center">Actions</th>
+                        <th className="px-4 py-2 text-left text-gray-900 font-bold">Nom</th>
+                        <th className="px-4 py-2 text-left text-gray-900 font-bold">SKU</th>
+                        <th className="px-4 py-2 text-right text-gray-900 font-bold">Prix</th>
+                        <th className="px-4 py-2 text-right text-gray-900 font-bold">Stock</th>
+                        <th className="px-4 py-2 text-center text-gray-900 font-bold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {category.products.map((product) => (
                         <tr key={product.id} className="border-t hover:bg-gray-50">
-                          <td className="px-4 py-2">{product.name}</td>
-                          <td className="px-4 py-2 text-gray-600">{product.sku}</td>
-                          <td className="px-4 py-2 text-right">${product.price.toFixed(2)}</td>
-                          <td className="px-4 py-2 text-right">{product.quantity}</td>
+                          <td className="px-4 py-2 text-gray-900">{product.name}</td>
+                          <td className="px-4 py-2 text-gray-900">{product.sku}</td>
+                          <td className="px-4 py-2 text-right text-gray-900">${product.price.toFixed(2)}</td>
+                          <td className="px-4 py-2 text-right text-gray-900">{product.quantity}</td>
                           <td className="px-4 py-2 text-center">
                             <Button
                               onClick={() => handleDeleteProduct(product.id)}
@@ -400,22 +400,22 @@ export default function InventoryPage() {
             <h3 className="text-xl font-bold mb-4 text-gray-600">Non catégorisés</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-100">
+                <thead className="bg-gray-200">
                   <tr>
-                    <th className="px-4 py-2 text-left">Nom</th>
-                    <th className="px-4 py-2 text-left">SKU</th>
-                    <th className="px-4 py-2 text-right">Prix</th>
-                    <th className="px-4 py-2 text-right">Stock</th>
-                    <th className="px-4 py-2 text-center">Actions</th>
+                    <th className="px-4 py-2 text-left text-gray-900 font-bold">Nom</th>
+                    <th className="px-4 py-2 text-left text-gray-900 font-bold">SKU</th>
+                    <th className="px-4 py-2 text-right text-gray-900 font-bold">Prix</th>
+                    <th className="px-4 py-2 text-right text-gray-900 font-bold">Stock</th>
+                    <th className="px-4 py-2 text-center text-gray-900 font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {uncategorizedProducts.map((product) => (
                     <tr key={product.id} className="border-t hover:bg-gray-50">
-                      <td className="px-4 py-2">{product.name}</td>
-                      <td className="px-4 py-2 text-gray-600">{product.sku}</td>
-                      <td className="px-4 py-2 text-right">${product.price.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-right">{product.quantity}</td>
+                      <td className="px-4 py-2 text-gray-900">{product.name}</td>
+                      <td className="px-4 py-2 text-gray-900">{product.sku}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">${product.price.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-gray-900">{product.quantity}</td>
                       <td className="px-4 py-2 text-center">
                         <Button
                           onClick={() => handleDeleteProduct(product.id)}
@@ -433,7 +433,7 @@ export default function InventoryPage() {
         )}
 
         {products.length === 0 && (
-          <Card className="p-6 text-center text-gray-500">
+          <Card className="p-6 text-center text-gray-900">
             Aucun produit. Commencez par créer une catégorie et ajouter un produit.
           </Card>
         )}
