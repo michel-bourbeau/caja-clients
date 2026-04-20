@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
@@ -11,8 +12,10 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const { user, isLoading } = useAuth();
 
+  // Redirect on initial load if no user (server-side redirect)
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -24,6 +27,13 @@ export default function DashboardLayout({
   if (!user) {
     redirect("/login");
   }
+
+  // Handle logout on client-side (after user state changes)
+  useEffect(() => {
+    if (!user && !isLoading) {
+      router.push("/login");
+    }
+  }, [user, isLoading, router]);
 
   return (
     <TenantProvider>
