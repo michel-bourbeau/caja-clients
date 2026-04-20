@@ -141,6 +141,23 @@ export async function POST(
 
     if (error) {
       console.error("[transactions POST] Insert error:", error);
+      
+      // Handle missing discount column
+      if (error.message?.includes("Could not find the 'discount' column")) {
+        console.error(
+          "[transactions POST] Discount column not found in database schema. " +
+          "Please run the migration to add the discount column."
+        );
+        return NextResponse.json(
+          {
+            error: "Database schema is missing the discount column. " +
+              "Please contact your administrator or run: npm run migrate:add-discount",
+            code: "MIGRATION_REQUIRED",
+          },
+          { status: 503 }
+        );
+      }
+      
       throw error;
     }
     

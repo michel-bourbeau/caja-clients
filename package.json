@@ -10,7 +10,8 @@
     "lint": "eslint . --ext ts,tsx",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,md}\"",
+    "migrate:add-discount": "node scripts/migrations/add-discount-column.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",

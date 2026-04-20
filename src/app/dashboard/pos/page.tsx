@@ -163,7 +163,18 @@ export default function POSPage() {
         setMessageType(null);
       }, 3000);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erreur lors de la transaction");
+      const errorMsg = error instanceof Error ? error.message : "Erreur lors de la transaction";
+      
+      // Check if this is a migration error
+      if (errorMsg.includes("MIGRATION_REQUIRED") || errorMsg.includes("discount column")) {
+        setMessage(
+          "⚠️ La base de données doit être mise à jour. " +
+          "Veuillez vérifier FIX_DISCOUNT_MIGRATION.md pour les instructions."
+        );
+      } else {
+        setMessage(errorMsg);
+      }
+      
       setMessageType("error");
     } finally {
       setLoading(false);
