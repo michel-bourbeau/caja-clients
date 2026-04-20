@@ -30,7 +30,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-lg">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-blue-600">Caja</h1>
-          <p className="text-slate-600 text-sm mt-2">Sistema de Gestión Integral</p>
+          <p className="text-gray-700 text-sm mt-2">Sistema de Gestión Integral</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -60,7 +60,7 @@ export default function LoginPage() {
               onChange={(e) => setRememberMe(e.target.checked)}
               className="w-4 h-4 text-blue-600 border-slate-300 rounded cursor-pointer"
             />
-            <label htmlFor="remember-me" className="ml-2 text-sm text-slate-700 cursor-pointer">
+            <label htmlFor="remember-me" className="ml-2 text-sm text-gray-800 cursor-pointer">
               Recuérdame por 30 días
             </label>
           </div>
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded text-sm text-slate-700">
+        <div className="mt-6 p-4 bg-blue-50 rounded text-sm text-gray-800">
           <p className="font-medium mb-2">Credenciales de prueba:</p>
           <p>Email: admin@caja.com</p>
           <p>Contraseña: 123456</p>

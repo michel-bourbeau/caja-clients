@@ -24,7 +24,7 @@ export function FeatureGuard({ feature, children }: FeatureGuardProps) {
     return (
       <div className="flex items-center justify-center p-8">
         <Card className="p-6 text-center">
-          <p className="text-slate-600">Chargement des modules...</p>
+          <p className="text-gray-800">Chargement des modules...</p>
         </Card>
       </div>
     );

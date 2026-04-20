@@ -54,7 +54,7 @@ export function DataTable<T extends { id: string | number }>({
           {data.map((item, idx) => (
             <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
               {columns.map((col) => (
-                <td key={String(col.key)} className="px-6 py-3 text-slate-700">
+                <td key={String(col.key)} className="px-6 py-3 text-gray-800">
                   {col.format ? col.format(item[col.key]) : String(item[col.key])}
                 </td>
               ))}

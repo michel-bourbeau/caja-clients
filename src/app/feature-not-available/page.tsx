@@ -8,7 +8,7 @@ export default function FeatureNotAvailablePage() {
         <Card className="p-8 text-center">
           <div className="text-6xl mb-4">🔒</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Module Non Disponible</h1>
-          <p className="text-slate-600 mb-6">
+          <p className="text-gray-700 mb-6">
             Ce module n'est pas activé pour votre tenant. Contactez votre administrateur pour l'activer.
           </p>
           <Link href="/dashboard">

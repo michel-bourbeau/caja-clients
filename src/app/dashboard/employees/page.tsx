@@ -200,10 +200,10 @@ export default function EmployeesPage() {
                 const role = DEFAULT_ROLES.find((r) => r.id === emp.roleId);
                 return (
                   <tr key={emp.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
-                    <td className="px-6 py-3 text-slate-700 font-medium">
+                    <td className="px-6 py-3 text-gray-800 font-medium">
                       {emp.firstName} {emp.lastName}
                     </td>
-                    <td className="px-6 py-3 text-slate-700">{emp.email}</td>
+                    <td className="px-6 py-3 text-gray-800">{emp.email}</td>
                     <td className="px-6 py-3">
                       {hasPermission("employees.edit") ? (
                         <select

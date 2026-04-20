@@ -36,7 +36,7 @@ export default function SuperAdminLoginPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-purple-600">🔐</h1>
           <h2 className="text-2xl font-bold text-gray-900 mt-2">SuperAdmin</h2>
-          <p className="text-slate-600 text-sm mt-2">Console de Gestion</p>
+          <p className="text-gray-700 text-sm mt-2">Console de Gestión</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -61,7 +61,7 @@ export default function SuperAdminLoginPage() {
         </form>
 
         <div className="mt-6 p-4 bg-purple-50 rounded border border-purple-200">
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-gray-700">
             <strong>ℹ️ Accès superadmin:</strong> Vous pouvez créer des tenants, gérer les modules, et configurer les utilisateurs administrateurs.
           </p>
         </div>

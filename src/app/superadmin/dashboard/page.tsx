@@ -158,7 +158,7 @@ export default function SuperAdminDashboard() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-4xl font-bold text-purple-600">🔐 SuperAdmin Console</h1>
-            <p className="text-slate-600 mt-2">Gestion des Tenants et Modules</p>
+            <p className="text-gray-700 mt-2">Gestion des Tenants et Modules</p>
           </div>
           <Button onClick={handleLogout} className="bg-red-600">
             Déconnexion
@@ -254,9 +254,9 @@ export default function SuperAdminDashboard() {
         <div>
           <h2 className="text-2xl font-bold mb-4 text-gray-900">Tenants Actifs</h2>
           {loading ? (
-            <p className="text-slate-600">Chargement...</p>
+            <p className="text-gray-800">Chargement...</p>
           ) : tenants.length === 0 ? (
-            <Card className="p-8 text-center text-slate-600">
+            <Card className="p-8 text-center text-gray-800">
               Aucun tenant créé. Cliquez sur "Créer un Tenant" pour commencer.
             </Card>
           ) : (
@@ -266,7 +266,7 @@ export default function SuperAdminDashboard() {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{tenant.name}</h3>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-gray-700">
                         Slug: <code className="bg-slate-100 px-2 py-1 rounded">{tenant.slug}</code>
                       </p>
                       <p className="text-xs text-gray-700 mt-1">

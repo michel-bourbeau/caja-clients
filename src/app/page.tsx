@@ -24,7 +24,7 @@ export default function Home() {
           <Card className="p-8 text-center">
             <div className="text-5xl mb-4">👤</div>
             <h2 className="text-2xl font-bold mb-4 text-gray-900">Acceso de Usuario</h2>
-            <p className="text-slate-600 mb-6">
+            <p className="text-gray-700 mb-6">
               Accede con tu usuario y contraseña para usar el sistema.
             </p>
             <Link href="/login">
@@ -36,7 +36,7 @@ export default function Home() {
           <Card className="p-8 text-center border-2 border-purple-500">
             <div className="text-5xl mb-4">🔐</div>
             <h2 className="text-2xl font-bold mb-4 text-gray-900">SuperAdmin</h2>
-            <p className="text-slate-600 mb-6">
+            <p className="text-gray-700 mb-6">
               Crea tenants, configura módulos y gestiona la plataforma.
             </p>
             <Link href="/superadmin/login">
