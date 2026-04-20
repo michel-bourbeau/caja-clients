@@ -195,19 +195,19 @@ export default function TransactionsPage() {
 
       <Card>
         {/* ACCORDION FILTERS */}
-        <div className="mb-6">
+        <div className="mb-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 py-3 px-4 hover:bg-slate-50 transition-colors w-full"
+            className="flex items-center gap-2 py-1 px-3 hover:bg-slate-50 transition-colors w-full"
           >
-            <span className="text-lg font-semibold text-slate-700">
+            <span className="text-sm font-semibold text-slate-700">
               {showFilters ? "▼" : "▶"} Filtros
             </span>
           </button>
 
           {showFilters && (
-            <div className="px-4 pb-4 border-t border-slate-200 pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="px-3 pb-2 border-t border-slate-200 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                 <Input
                   type="date"
                   placeholder="Desde"
@@ -221,7 +221,7 @@ export default function TransactionsPage() {
                   onChange={(e) => handleFilterChange("toDate", e.target.value)}
                 />
                 <select
-                  className="px-3 py-2 border border-slate-300 rounded text-slate-900"
+                  className="px-3 py-1 border border-slate-300 rounded text-sm text-slate-900"
                   value={filters.paymentMethod}
                   onChange={(e) => handleFilterChange("paymentMethod", e.target.value)}
                 >
