@@ -14,6 +14,13 @@ export default function DashboardLayout({
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
+  // Redirect to login if not authenticated (after render completes)
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isLoading, router]);
+
   // Show loading state initially
   if (isLoading) {
     return (
@@ -23,9 +30,8 @@ export default function DashboardLayout({
     );
   }
 
-  // Redirect to login if not authenticated
+  // Show redirect message if user just logged out
   if (!user) {
-    router.push("/login");
     return (
       <div className="flex items-center justify-center h-screen">
         <p>Redirigiendo...</p>
