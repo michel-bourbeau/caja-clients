@@ -1,7 +1,7 @@
 // POS Service - Handle sales operations
 
 import { CartItem, Product, Transaction } from "@/lib/types";
-import { calculateTotal } from "@/lib/utils/calculations";
+import { calculateTotal } from "@/features/pos/utils/calculations";
 
 const API_BASE = "/api/tenants";
 
