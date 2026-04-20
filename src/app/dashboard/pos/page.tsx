@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
+import { TaxService, type Tax } from "@/features/taxes/services";
 import { CartItem, Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { useTenantId } from "@/lib/utils/tenant";
@@ -19,6 +20,7 @@ export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [taxes, setTaxes] = useState<Tax[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -29,12 +31,14 @@ export default function POSPage() {
       if (!tenantId) return;
       setLoading(true);
       try {
-        const [productsData, categoriesData] = await Promise.all([
+        const [productsData, categoriesData, taxesData] = await Promise.all([
           POSService.fetchProducts(tenantId),
           fetch(`/api/tenants/${tenantId}/categories`).then((res) => res.json()),
+          TaxService.fetchTaxes(tenantId),
         ]);
         setProducts(productsData);
         setCategories(categoriesData);
+        setTaxes(taxesData);
         if (categoriesData.length > 0) {
           setSelectedCategory(categoriesData[0].id);
         }
@@ -48,7 +52,30 @@ export default function POSPage() {
     loadData();
   }, [tenantId]);
 
-  const cartTotal = useMemo(() => POSService.calculateCartTotal(cart), [cart]);
+  const cartTotal = useMemo(
+    () => {
+      const baseTotal = POSService.calculateCartTotal(cart);
+      if (taxes.length === 0) {
+        // Sem taxes: não calcular nenhuma taxa
+        return { 
+          subtotal: baseTotal.subtotal, 
+          tax: 0, 
+          total: baseTotal.subtotal, 
+          taxes: {} 
+        };
+      }
+      const taxCalculations = TaxService.calculateTaxes(baseTotal.subtotal, taxes);
+      return {
+        subtotal: baseTotal.subtotal,
+        tax: 0, // Não usar a taxa padrão
+        total: taxCalculations.total,
+        taxes: Object.fromEntries(
+          taxes.map((tax) => [tax.name, taxCalculations[tax.name] || 0])
+        ),
+      };
+    },
+    [cart, taxes]
+  );
 
   const productsByCategory = useMemo(() => {
     const grouped: Record<string, Product[]> = {};
@@ -244,10 +271,23 @@ export default function POSPage() {
                   <span>Subtotal</span>
                   <span>{formatCurrency(cartTotal.subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>IVA (21%)</span>
-                  <span>{formatCurrency(cartTotal.tax)}</span>
-                </div>
+                {taxes.length > 0 ? (
+                  <>
+                    {taxes.map((tax) => (
+                      <div key={tax.id} className="flex justify-between text-slate-600">
+                        <span>{tax.name} ({tax.rate}%)</span>
+                        <span>{formatCurrency((cartTotal.taxes as any)[tax.name] || 0)}</span>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">
+                    Aucune taxe configurée.{" "}
+                    <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
+                      Configurer les taxes
+                    </a>
+                  </p>
+                )}
                 <div className="flex justify-between text-lg font-bold text-slate-900 border-t pt-2">
                   <span>Total</span>
                   <span>{formatCurrency(cartTotal.total)}</span>

@@ -68,7 +68,7 @@ export class POSService {
   /**
    * Calculate cart total
    */
-  static calculateCartTotal(items: CartItem[]): { subtotal: number; tax: number; total: number } {
+  static calculateCartTotal(items: CartItem[]): { subtotal: number; tax: number; total: number; taxes?: Record<string, number> } {
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
     return calculateTotal(subtotal);
   }

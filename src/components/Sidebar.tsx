@@ -14,6 +14,7 @@ export const Sidebar: React.FC = () => {
   const { tenantName } = useTenantName();
 
   const canManageRoles = hasPermission("settings.manage_roles");
+  const canManageSettings = hasPermission("manage_settings");
 
   const handleLogout = () => {
     logout();
@@ -78,12 +79,17 @@ export const Sidebar: React.FC = () => {
           </NavSection>
         )}
 
-        {/* Admin Section - Vérifie si activé */}
-        {features.settings && canManageRoles && (
+        {/* Admin Section - Vérifie si l'utilisateur est admin */}
+        {(canManageRoles || canManageSettings) && (
           <NavSection label="Admin">
-            <NavLink href="/admin/users" label="Gestionar Usuarios" icon="👤" />
-            <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
-            <NavLink href={ROUTES.SETTINGS} label="Configuración" icon="⚙️" />
+            {canManageRoles && (
+              <>
+                <NavLink href="/admin/users" label="Gestionar Usuarios" icon="👤" />
+                <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
+              </>
+            )}
+            {features.settings && <NavLink href={ROUTES.SETTINGS} label="Configuración" icon="⚙️" />}
+            <NavLink href="/dashboard/settings/taxes" label="Impuestos" icon="💳" />
           </NavSection>
         )}
       </nav>

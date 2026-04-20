@@ -2,9 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { CartItem, Transaction } from "@/lib/types";
 
-function calculateTotals(items: CartItem[]) {
+interface Tax {
+  name: string;
+  rate: number;
+  is_active: boolean;
+}
+
+function calculateTotals(items: CartItem[], taxes: Tax[] = []) {
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const tax = Math.round(subtotal * 0.21 * 100) / 100;
+  
+  // Only calculate tax if taxes are configured and active
+  const activeTaxes = taxes.filter((t) => t.is_active);
+  let tax = 0;
+  
+  if (activeTaxes.length > 0) {
+    // Sum all active tax rates
+    const totalTaxRate = activeTaxes.reduce((sum, t) => sum + (t.rate || 0), 0);
+    tax = Math.round(subtotal * (totalTaxRate / 100) * 100) / 100;
+  }
+  
   const total = Math.round((subtotal + tax) * 100) / 100;
   return { subtotal, tax, total };
 }
@@ -39,8 +55,11 @@ export async function POST(
 ) {
   try {
     const { tenantId } = await params;
+    console.log("[transactions POST] Creating transaction for tenant:", tenantId);
+    
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
+    console.log("[transactions POST] Request body:", body);
 
     const items: CartItem[] = body.items;
     const paymentMethod: Transaction["paymentMethod"] = body.paymentMethod;
@@ -53,11 +72,14 @@ export async function POST(
     const productIds = items.map((item) => item.productId);
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
-      .select("id, quantity, price")
+      .select("id, stock_quantity, price")
       .in("id", productIds)
       .eq("tenant_id", tenantId);
 
-    if (productsError) throw productsError;
+    if (productsError) {
+      console.error("[transactions POST] Products error:", productsError);
+      throw productsError;
+    }
     if (!products || products.length !== items.length) {
       return NextResponse.json({ error: "Certains produits sont introuvables" }, { status: 400 });
     }
@@ -72,13 +94,25 @@ export async function POST(
       if (item.quantity <= 0) {
         return NextResponse.json({ error: "La quantité doit être supérieure à 0" }, { status: 400 });
       }
-      if (item.quantity > product.quantity) {
+      if (item.quantity > product.stock_quantity) {
         return NextResponse.json({ error: `Stock insuffisant pour ${item.productId}` }, { status: 400 });
       }
     }
 
+    // Fetch configured taxes for this tenant
+    const { data: taxesData, error: taxesError } = await supabaseAdmin
+      .from("tenant_taxes")
+      .select("*")
+      .eq("tenant_id", tenantId);
+
+    if (taxesError) {
+      console.error("[transactions POST] Taxes fetch error:", taxesError);
+    }
+
+    const configuredTaxes: Tax[] = taxesData || [];
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const { subtotal, tax, total } = calculateTotals(items);
+    const { subtotal, tax, total } = calculateTotals(items, configuredTaxes);
+    console.log("[transactions POST] Totals calculated:", { subtotal, tax, total, configuredTaxes });
 
     const { data, error } = await supabaseAdmin
       .from("transactions")
@@ -99,23 +133,18 @@ export async function POST(
       .select()
       .single();
 
-    if (error) throw error;
-
-    await Promise.all(
-      items.map((item) => {
-        const product = productMap.get(item.productId);
-        return supabaseAdmin
-          .from("products")
-          .update({ quantity: product.quantity - item.quantity })
-          .eq("id", item.productId)
-          .eq("tenant_id", tenantId);
-      })
-    );
-
+    if (error) {
+      console.error("[transactions POST] Insert error:", error);
+      throw error;
+    }
+    
+    console.log("[transactions POST] Transaction created successfully:", transactionId);
     return NextResponse.json(data);
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("[transactions POST] Error:", errorMsg);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: errorMsg },
       { status: 500 }
     );
   }

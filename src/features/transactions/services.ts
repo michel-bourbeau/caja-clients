@@ -1,0 +1,106 @@
+import { Transaction, CartItem } from "@/lib/types";
+
+export const TransactionService = {
+  async fetchTransactions(tenantId: string): Promise<Transaction[]> {
+    const response = await fetch(`/api/tenants/${tenantId}/transactions`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch transactions: ${response.statusText}`);
+    }
+    const data = await response.json();
+    
+    // Map API response to Transaction type
+    return Array.isArray(data)
+      ? data.map((tx: any) => ({
+          id: tx.id,
+          items: tx.items || [],
+          subtotal: tx.subtotal,
+          tax: tx.tax,
+          total: tx.total,
+          paymentMethod: tx.payment_method || "CASH",
+          timestamp: tx.created_at ? new Date(tx.created_at) : new Date(),
+          cashierId: tx.cashier_id || "unknown",
+          status: tx.status || "COMPLETED",
+        }))
+      : [];
+  },
+
+  async createTransaction(
+    tenantId: string,
+    items: CartItem[],
+    paymentMethod: "CASH" | "CARD" | "TRANSFER",
+    cashierId: string = "unknown"
+  ): Promise<Transaction> {
+    const response = await fetch(`/api/tenants/${tenantId}/transactions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items,
+        paymentMethod,
+        cashierId,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create transaction");
+    }
+
+    const data = await response.json();
+    return {
+      id: data.id,
+      items: data.items || [],
+      subtotal: data.subtotal,
+      tax: data.tax,
+      total: data.total,
+      paymentMethod: data.payment_method || "CASH",
+      timestamp: data.created_at ? new Date(data.created_at) : new Date(),
+      cashierId: data.cashier_id || "unknown",
+      status: data.status || "COMPLETED",
+    };
+  },
+
+  async deleteTransaction(tenantId: string, transactionId: string): Promise<void> {
+    const response = await fetch(
+      `/api/tenants/${tenantId}/transactions/${transactionId}`,
+      { method: "DELETE" }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to delete transaction");
+    }
+  },
+
+  async updateTransaction(
+    tenantId: string,
+    transactionId: string,
+    updates: { payment_method?: string; created_at?: string }
+  ): Promise<Transaction> {
+    const response = await fetch(
+      `/api/tenants/${tenantId}/transactions/${transactionId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to update transaction");
+    }
+
+    const data = await response.json();
+    return {
+      id: data.id,
+      items: data.items || [],
+      subtotal: data.subtotal,
+      tax: data.tax,
+      total: data.total,
+      paymentMethod: data.payment_method || "CASH",
+      timestamp: data.created_at ? new Date(data.created_at) : new Date(),
+      cashierId: data.cashier_id || "unknown",
+      status: data.status || "COMPLETED",
+    };
+  },
+};
