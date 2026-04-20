@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSuperAdmin } from "@/context/SuperAdminContext";
 import { Button, Input, Card } from "@/components/ui";
 import { useRouter } from "next/navigation";
@@ -11,10 +11,12 @@ export default function SuperAdminLoginPage() {
   const { login, isLoading, isSuperAdmin } = useSuperAdmin();
   const router = useRouter();
 
-  if (isSuperAdmin) {
-    router.push("/superadmin/dashboard");
-    return null;
-  }
+  // Redirect if already logged in (using useEffect to avoid render conflicts)
+  useEffect(() => {
+    if (isSuperAdmin) {
+      router.push("/superadmin/dashboard");
+    }
+  }, [isSuperAdmin, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ export default function SuperAdminLoginPage() {
 
     try {
       await login(password);
-      router.push("/superadmin/dashboard");
+      // Redirect will happen automatically via useEffect when isSuperAdmin changes
     } catch (err) {
       setError("Mot de passe incorrect");
     }
