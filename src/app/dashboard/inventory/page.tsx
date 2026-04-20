@@ -249,8 +249,8 @@ export default function InventoryPage() {
 
       {/* Add Category Form */}
       {showAddCategory && (
-        <Card className="p-4 bg-blue-50">
-          <h2 className="font-bold mb-4">Nouvelle Catégorie</h2>
+        <Card className="p-4 bg-white border-2 border-blue-400">
+          <h2 className="font-bold mb-4 text-gray-900 text-lg">Nouvelle Catégorie</h2>
           <div className="space-y-3">
             <Input
               label="Nom"
@@ -278,8 +278,8 @@ export default function InventoryPage() {
 
       {/* Add Product Form */}
       {showAddProduct && (
-        <Card className="p-4 bg-green-50">
-          <h2 className="font-bold mb-4">Nouveau Produit</h2>
+        <Card className="p-4 bg-white border-2 border-green-400">
+          <h2 className="font-bold mb-4 text-gray-900 text-lg">Nouveau Produit</h2>
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Nom *"
