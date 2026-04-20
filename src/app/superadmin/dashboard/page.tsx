@@ -269,7 +269,7 @@ export default function SuperAdminDashboard() {
                       <p className="text-sm text-slate-600">
                         Slug: <code className="bg-slate-100 px-2 py-1 rounded">{tenant.slug}</code>
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-gray-700 mt-1">
                         ID: {tenant.id}
                       </p>
                     </div>

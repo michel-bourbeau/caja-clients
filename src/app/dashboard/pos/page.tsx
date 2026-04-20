@@ -139,9 +139,9 @@ export default function POSPage() {
         <div className="lg:col-span-2">
           <Card title="Produits par Catégorie">
             {loading ? (
-              <p className="text-slate-500">Chargement...</p>
+              <p className="text-gray-800">Chargement...</p>
             ) : categories.length === 0 ? (
-              <p className="text-slate-500">Aucune catégorie disponible. Créez d'abord une catégorie dans l'inventaire.</p>
+              <p className="text-gray-800">Aucune catégorie disponible. Créez d'abord une catégorie dans l'inventaire.</p>
             ) : (
               <>
                 {/* Category Tabs */}
@@ -166,7 +166,7 @@ export default function POSPage() {
 
                 {/* Products Grid */}
                 {displayedProducts.length === 0 ? (
-                  <p className="text-slate-500 text-center py-8">
+                  <p className="text-gray-800 text-center py-8">
                     Aucun produit dans cette catégorie.
                   </p>
                 ) : (
@@ -180,12 +180,12 @@ export default function POSPage() {
                           <div className="mb-3">
                             <p className="font-semibold text-slate-900">{product.name}</p>
                             {product.description && (
-                              <p className="text-xs text-slate-500">{product.description}</p>
+                              <p className="text-xs text-gray-700">{product.description}</p>
                             )}
                             <p className="mt-2 text-lg font-bold text-blue-600">
                               {formatCurrency(product.price)}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-gray-700">
                               Stock: {product.quantity}
                             </p>
                           </div>
@@ -211,7 +211,7 @@ export default function POSPage() {
             <div className="space-y-4">
               <div className="border-b pb-4">
                 {cart.length === 0 ? (
-                  <p className="text-slate-500 text-center">Panier vide</p>
+                  <p className="text-gray-800 text-center">Panier vide</p>
                 ) : (
                   cart.map((item) => {
                     const product = products.find((p) => p.id === item.productId);

@@ -24,7 +24,7 @@ export function DataTable<T extends { id: string | number }>({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <p className="text-slate-500">Cargando...</p>
+        <p className="text-gray-800">Cargando...</p>
       </div>
     );
   }
@@ -32,7 +32,7 @@ export function DataTable<T extends { id: string | number }>({
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
-        <p className="text-slate-500">{emptyMessage}</p>
+        <p className="text-gray-800">{emptyMessage}</p>
       </div>
     );
   }

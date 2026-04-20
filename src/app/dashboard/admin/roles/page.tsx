@@ -172,7 +172,7 @@ export default function RolesPage() {
                             />
                             <div className="flex-1">
                               <p className="text-sm font-medium text-slate-900">{perm.name}</p>
-                              <p className="text-xs text-slate-500">{perm.description}</p>
+                              <p className="text-xs text-gray-700">{perm.description}</p>
                             </div>
                           </label>
                         ))}
@@ -212,7 +212,7 @@ export default function RolesPage() {
 
         <div className="space-y-4">
           {filteredRoles.length === 0 ? (
-            <p className="text-slate-500 text-center py-8">No hay roles disponibles</p>
+            <p className="text-gray-800 text-center py-8">No hay roles disponibles</p>
           ) : (
             filteredRoles.map((role) => (
               <div

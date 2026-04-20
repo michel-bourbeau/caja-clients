@@ -22,7 +22,7 @@ export default function DashboardPage() {
               <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded">
                 <div>
                   <p className="font-medium text-slate-900">Venta #{i}</p>
-                  <p className="text-sm text-slate-500">Hace 2 horas</p>
+                  <p className="text-sm text-gray-700">Hace 2 horas</p>
                 </div>
                 <p className="font-semibold text-slate-900">$450.00</p>
               </div>

@@ -56,7 +56,7 @@ export default function Home() {
         )}
 
         {/* Info */}
-        <div className="mt-12 text-center text-slate-400 text-sm">
+        <div className="mt-12 text-center text-gray-600 text-sm">
           <p>© 2026 Caja - Todos los derechos reservados</p>
         </div>
       </div>

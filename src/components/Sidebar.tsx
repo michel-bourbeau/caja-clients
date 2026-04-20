@@ -29,10 +29,10 @@ export const Sidebar: React.FC = () => {
             🏢 {tenantName}
           </p>
         )}
-        <p className="text-sm text-slate-400 mt-2">
+        <p className="text-sm text-gray-300 mt-2">
           {user?.firstName} {user?.lastName}
         </p>
-        <p className="text-xs text-slate-500 mt-1">{user?.roleId}</p>
+        <p className="text-xs text-gray-400 mt-1">{user?.roleId}</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-2">
@@ -105,7 +105,7 @@ const NavSection: React.FC<{ label: string; children: React.ReactNode }> = ({
   children,
 }) => (
   <div className="mt-4">
-    <h3 className="text-xs font-semibold uppercase text-slate-400 px-3 mb-2">{label}</h3>
+    <h3 className="text-xs font-semibold uppercase text-gray-300 px-3 mb-2">{label}</h3>
     <div className="space-y-1">{children}</div>
   </div>
 );
