@@ -34,7 +34,8 @@ export class TenantService {
    */
   static async getTenantById(tenantId: string): Promise<Tenant | null> {
     try {
-      const { data, error } = await supabase
+      const supabaseAdmin = getSupabaseAdmin();
+      const { data, error } = await supabaseAdmin
         .from("tenants")
         .select("*")
         .eq("id", tenantId)

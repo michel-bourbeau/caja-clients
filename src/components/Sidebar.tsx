@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
+import { useTenantName } from "@/lib/utils/tenantName";
 import { ROUTES } from "@/lib/constants";
 
 export const Sidebar: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const { features } = useTenantFeatures();
+  const { tenantName } = useTenantName();
 
   const canManageRoles = hasPermission("settings.manage_roles");
 
@@ -15,7 +17,12 @@ export const Sidebar: React.FC = () => {
     <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
       <div className="p-6 border-b border-slate-700">
         <h1 className="text-2xl font-bold">Caja</h1>
-        <p className="text-sm text-slate-400">
+        {tenantName && (
+          <p className="text-sm font-semibold text-amber-400 mt-2">
+            🏢 {tenantName}
+          </p>
+        )}
+        <p className="text-sm text-slate-400 mt-2">
           {user?.firstName} {user?.lastName}
         </p>
         <p className="text-xs text-slate-500 mt-1">{user?.roleId}</p>
