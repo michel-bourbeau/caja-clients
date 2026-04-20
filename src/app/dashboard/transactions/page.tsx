@@ -185,73 +185,23 @@ export default function TransactionsPage() {
             No hay transacciones disponibles
           </p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredTransactions.map((transaction) => (
-              <div key={transaction.id} className="border border-slate-200 rounded-lg overflow-hidden">
-                {/* Encabezado de la transacción */}
-                <div className="bg-slate-50 p-4">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-                    <div>
-                      <p className="text-xs text-slate-600 font-semibold">ID Transacción</p>
-                      <p className="text-sm font-mono text-slate-900">{transaction.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600 font-semibold">Fecha/Hora</p>
-                      <p className="text-sm text-slate-900">{formatDateTime(transaction.timestamp)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600 font-semibold">Total</p>
-                      <p className="text-sm font-bold text-slate-900">{formatCurrency(transaction.total)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600 font-semibold">Método de Pago</p>
-                      <p className="text-sm text-slate-900">{transaction.paymentMethod}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600 font-semibold">Estado</p>
-                      <p className="text-sm text-slate-900">{transaction.status}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Detalles de dinero */}
-                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2 text-xs mb-4 p-2 bg-white rounded">
-                    <div>
-                      <span className="text-slate-600">Subtotal:</span> {formatCurrency(transaction.subtotal)}
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Descuento:</span> {formatCurrency(transaction.discount || 0)}
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Impuesto:</span> {formatCurrency(transaction.tax)}
-                    </div>
+              <div key={transaction.id} className="border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-colors">
+                {/* Header con fecha/hora y productos */}
+                <div className="bg-white p-4">
+                  {/* Fecha/Hora - Solo una vez para el grupo */}
+                  <div className="mb-3 pb-3 border-b border-slate-100">
+                    <p className="text-sm font-semibold text-slate-700">
+                      📅 {formatDateTime(transaction.timestamp)}
+                    </p>
                   </div>
 
-                  {/* Botones de acción */}
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      onClick={() => handleOpenDetails(transaction)}
-                    >
-                      Ver Detalle
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="danger"
-                      onClick={() => handleDeleteTransaction(transaction.id)}
-                    >
-                      Revertir
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Productos vendidos */}
-                {transaction.items && transaction.items.length > 0 && (
-                  <div className="p-4 bg-white border-t border-slate-200">
-                    <p className="text-sm font-semibold text-slate-700 mb-3">Productos Vendidos:</p>
-                    <div className="space-y-2">
+                  {/* Productos Vendidos */}
+                  {transaction.items && transaction.items.length > 0 ? (
+                    <div className="space-y-2 mb-4">
                       {transaction.items.map((item: any, index: number) => (
-                        <div key={index} className="flex justify-between items-start p-2 bg-slate-50 rounded text-sm">
+                        <div key={index} className="flex justify-between items-start p-2 bg-slate-50 rounded text-sm border border-slate-100 hover:bg-slate-100 transition-colors">
                           <div className="flex-1">
                             <p className="font-medium text-slate-900">{item.name || item.productId}</p>
                             <p className="text-xs text-slate-600">
@@ -264,14 +214,52 @@ export default function TransactionsPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic mb-4">Sin productos</p>
+                  )}
 
+                  {/* Resumen de la transacción - fila compacta */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs p-2 bg-slate-50 rounded border border-slate-100 mb-4">
+                    <div>
+                      <span className="text-slate-600">Subtotal:</span>
+                      <p className="font-medium text-slate-900">{formatCurrency(transaction.subtotal)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Descuento:</span>
+                      <p className="font-medium text-slate-900">{formatCurrency(transaction.discount || 0)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Impuesto:</span>
+                      <p className="font-medium text-slate-900">{formatCurrency(transaction.tax)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Total:</span>
+                      <p className="font-bold text-slate-900">{formatCurrency(transaction.total)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Método:</span>
+                      <p className="font-medium text-slate-900">{transaction.paymentMethod}</p>
+                    </div>
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={() => handleOpenDetails(transaction)}
+                    >
+                      📋 Detalles
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="danger"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                    >
+                      Revertir
+                    </Button>
+                  </div>
+                </div>
       {/* Modal de detalles */}
       {selectedTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
