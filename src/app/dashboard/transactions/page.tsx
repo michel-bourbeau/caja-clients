@@ -249,12 +249,12 @@ export default function TransactionsPage() {
             {Object.entries(groupTransactionsByDate(filteredTransactions)).map(([dateKey, dayTransactions]) => (
               <div key={dateKey}>
                 {/* Date Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-slate-600 to-slate-700 text-white px-4 py-3 rounded-t-lg">
+                <div className="sticky top-0 bg-gradient-to-r from-slate-600 to-slate-700 text-white px-4 py-2 rounded-t-lg">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-bold capitalize">
+                    <h3 className="text-sm font-bold capitalize">
                       📅 {formatDateHeader(dateKey)}
                     </h3>
-                    <span className="text-sm bg-slate-500 px-3 py-1 rounded">
+                    <span className="text-xs bg-slate-500 px-2 py-0.5 rounded">
                       {dayTransactions.length} venta{dayTransactions.length > 1 ? 's' : ''}
                     </span>
                   </div>
