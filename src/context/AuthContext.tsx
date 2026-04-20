@@ -101,6 +101,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     setUser(null);
     clearSession();
+    // Clear tenant from sessionStorage
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("defaultTenantId");
+    }
   }, []);
 
   const hasPermission = useCallback(

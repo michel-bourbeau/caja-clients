@@ -13,6 +13,34 @@ interface StoredSession {
   tenantId?: string;
 }
 
+/**
+ * Restore tenant ID from storage immediately (synchronously)
+ * Called on app start to ensure tenantId is available in sessionStorage
+ */
+export function restoreTenantIdFromStorage(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    // Check if tenantId already in sessionStorage
+    if (sessionStorage.getItem("defaultTenantId")) {
+      return; // Already restored
+    }
+
+    // Try to restore from localStorage
+    const stored = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) return;
+
+    const session: StoredSession = JSON.parse(stored);
+
+    // Only restore if session is still valid
+    if (Date.now() <= session.expiresAt && session.tenantId) {
+      sessionStorage.setItem("defaultTenantId", session.tenantId);
+    }
+  } catch (error) {
+    // Silent fail - not critical
+  }
+}
+
 export function saveSession(email: string, rememberMe: boolean, tenantId?: string): void {
   if (!rememberMe || typeof window === "undefined") {
     return;

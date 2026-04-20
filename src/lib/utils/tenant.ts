@@ -10,6 +10,7 @@ import { useCallback } from "react";
 
 /**
  * Extract tenant ID from URL or storage
+ * Restores from localStorage if needed (for session persistence)
  */
 export function useTenantId(): string | null {
   const searchParams = useSearchParams();
@@ -22,12 +23,21 @@ export function useTenantId(): string | null {
   if (typeof window !== "undefined") {
     const tenantFromSession = sessionStorage.getItem("defaultTenantId");
     if (tenantFromSession) return tenantFromSession;
-  }
 
-  // 3. Try from localStorage
-  if (typeof window !== "undefined") {
-    const tenantFromStorage = localStorage.getItem("tenantId");
-    if (tenantFromStorage) return tenantFromStorage;
+    // 3. If not in sessionStorage, try localStorage and restore to sessionStorage
+    // This handles page reloads where sessionStorage is cleared
+    const storedSession = localStorage.getItem("caja_session");
+    if (storedSession) {
+      try {
+        const session = JSON.parse(storedSession);
+        if (session.tenantId) {
+          sessionStorage.setItem("defaultTenantId", session.tenantId);
+          return session.tenantId;
+        }
+      } catch (e) {
+        // Invalid JSON, ignore
+      }
+    }
   }
 
   // 4. Try from subdomain (chocorico.caja.com)

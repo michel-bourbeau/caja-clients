@@ -5,7 +5,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { TenantContext as TenantContextType, Tenant } from "@/lib/types/tenant";
 import { useTenantId, setTenantId } from "@/lib/utils/tenant";
-import { TenantService } from "@/features/tenants/services";
 
 interface TenantContextState extends TenantContextType {
   tenant: Tenant | null;
@@ -38,13 +37,18 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsLoading(true);
       setError(null);
 
-      const tenantData = await TenantService.getTenantById(id);
-      if (!tenantData) {
-        setError("Tenant not found");
-        setTenant(null);
-        return;
+      // Use API route instead of direct service (which requires admin client)
+      const response = await fetch(`/api/tenants/${id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError("Tenant not found");
+          setTenant(null);
+          return;
+        }
+        throw new Error(`Failed to fetch tenant: ${response.statusText}`);
       }
 
+      const tenantData = await response.json();
       setTenant(tenantData);
       setTenantId(id);
     } catch (err) {
