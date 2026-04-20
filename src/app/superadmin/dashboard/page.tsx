@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useSuperAdmin } from "@/context/SuperAdminContext";
 import { Button, Input, Card } from "@/components/ui";
 import { useRouter } from "next/navigation";
+import { SUPERADMIN_IMPERSONATION_KEY } from "@/context/AuthContext";
 
 interface Tenant {
   id: string;
@@ -37,6 +38,10 @@ export default function SuperAdminDashboard() {
     name: "",
     slug: "",
     plan: "basic",
+    adminFirstName: "",
+    adminLastName: "",
+    adminEmail: "",
+    adminPassword: "",
   });
 
   const [selectedModules, setSelectedModules] = useState<Record<string, boolean>>({
@@ -94,16 +99,21 @@ export default function SuperAdminDashboard() {
           slug: formData.slug,
           plan: formData.plan,
           features: selectedModules,
+          adminEmail: formData.adminEmail || undefined,
+          adminPassword: formData.adminPassword || undefined,
+          adminFirstName: formData.adminFirstName || undefined,
+          adminLastName: formData.adminLastName || undefined,
         }),
       });
 
       if (response.ok) {
         const newTenant = await response.json();
         setTenants([newTenant, ...tenants]);
-        setMessage(`✅ Tenant créé: ${newTenant.id}`);
-        setFormData({ name: "", slug: "", plan: "basic" });
+        const adminMsg = newTenant.adminCreated ? ` — Admin: ${newTenant.adminEmail}` : "";
+        setMessage(`✅ Tenant créé: ${newTenant.id}${adminMsg}`);
+        setFormData({ name: "", slug: "", plan: "basic", adminFirstName: "", adminLastName: "", adminEmail: "", adminPassword: "" });
         setShowCreateForm(false);
-        setTimeout(() => setMessage(""), 3000);
+        setTimeout(() => setMessage(""), 6000);
       } else {
         const error = await response.json();
         setMessage(`❌ ${error.message}`);
@@ -145,6 +155,16 @@ export default function SuperAdminDashboard() {
   const handleLogout = () => {
     logout();
     router.push("/superadmin/login");
+  };
+
+  const enterTenant = (tenant: Tenant) => {
+    sessionStorage.setItem(
+      SUPERADMIN_IMPERSONATION_KEY,
+      JSON.stringify({ tenantId: tenant.id, tenantName: tenant.name, superadmin: true })
+    );
+    sessionStorage.setItem("defaultTenantId", tenant.id);
+    // Full reload so AuthContext re-initialises and detects the impersonation key
+    window.location.href = "/dashboard";
   };
 
   if (!isSuperAdmin) {
@@ -243,6 +263,42 @@ export default function SuperAdminDashboard() {
                 </div>
               </div>
 
+              {/* Admin Account */}
+              <div className="border border-purple-200 rounded-lg p-4 bg-purple-50">
+                <h3 className="font-bold text-purple-800 mb-3">👤 Compte Admin du Tenant</h3>
+                <p className="text-xs text-purple-600 mb-3">
+                  Facultatif — si renseigné, un compte admin sera créé avec tous les droits dans ce tenant.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Prénom Admin"
+                    placeholder="Jean"
+                    value={formData.adminFirstName}
+                    onChange={(e) => setFormData({ ...formData, adminFirstName: e.target.value })}
+                  />
+                  <Input
+                    label="Nom Admin"
+                    placeholder="Dupont"
+                    value={formData.adminLastName}
+                    onChange={(e) => setFormData({ ...formData, adminLastName: e.target.value })}
+                  />
+                  <Input
+                    label="Email Admin"
+                    type="email"
+                    placeholder="admin@entreprise.com"
+                    value={formData.adminEmail}
+                    onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
+                  />
+                  <Input
+                    label="Mot de passe (min 6 car.)"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.adminPassword}
+                    onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                  />
+                </div>
+              </div>
+
               <Button type="submit" className="w-full bg-purple-600">
                 Créer le Tenant
               </Button>
@@ -273,10 +329,19 @@ export default function SuperAdminDashboard() {
                         ID: {tenant.id}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="flex flex-col items-end gap-2">
                       <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-semibold">
                         Plan: {tenant.plan}
                       </span>
+                      <button
+                        onClick={() => enterTenant(tenant)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        Accéder
+                      </button>
                     </div>
                   </div>
 

@@ -1,5 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { NextResponse } from "next/server";
+import { DEFAULT_PERMISSIONS } from "@/lib/types/roles";
+
+const ALL_PERMISSIONS = DEFAULT_PERMISSIONS.map((p) => p.id);
 
 /**
  * GET /api/superadmin/tenants
@@ -27,16 +30,28 @@ export async function GET() {
 
 /**
  * POST /api/superadmin/tenants
- * Crée un nouveau tenant avec les modules configurés
+ * Crée un nouveau tenant avec les modules configurés + un admin tenant
  */
 export async function POST(request: Request) {
   try {
-    const { name, slug, plan, features } = await request.json();
+    const { name, slug, plan, features, adminEmail, adminPassword, adminFirstName, adminLastName } = await request.json();
 
     // Validations
     if (!name || !slug) {
       return NextResponse.json(
         { message: "Nom et slug sont requis" },
+        { status: 400 }
+      );
+    }
+    if (adminEmail && !adminPassword) {
+      return NextResponse.json(
+        { message: "Un mot de passe est requis pour créer l'admin" },
+        { status: 400 }
+      );
+    }
+    if (adminPassword && adminPassword.length < 6) {
+      return NextResponse.json(
+        { message: "Le mot de passe admin doit contenir au moins 6 caractères" },
         { status: 400 }
       );
     }
@@ -58,7 +73,7 @@ export async function POST(request: Request) {
     }
 
     // Créer le tenant
-    const { data, error } = await supabase
+    const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
       .insert({
         name,
@@ -69,9 +84,64 @@ export async function POST(request: Request) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (tenantError) throw tenantError;
 
-    return NextResponse.json(data, { status: 201 });
+    // ── Créer l'admin du tenant si email fourni ────────────────────────────────
+    if (adminEmail) {
+      let authUserId: string | null = null;
+
+      try {
+        // 1. Créer le compte Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: adminEmail,
+          password: adminPassword,
+          email_confirm: true,
+          user_metadata: {
+            first_name: adminFirstName || "Admin",
+            last_name: adminLastName || name,
+            role_id: "admin",
+            tenant_id: tenant.id,
+          },
+        });
+
+        if (authError) throw authError;
+        authUserId = authData.user.id;
+
+        // 2. Créer l'enregistrement dans la table users
+        const { error: userError } = await supabase
+          .from("users")
+          .insert({
+            id: authUserId,
+            tenant_id: tenant.id,
+            email: adminEmail,
+            first_name: adminFirstName || "Admin",
+            last_name: adminLastName || name,
+            role_id: "admin",
+            permissions: ALL_PERMISSIONS,
+            status: "ACTIVE",
+          });
+
+        if (userError) {
+          // Rollback: supprimer le compte Auth créé
+          await supabase.auth.admin.deleteUser(authUserId);
+          throw userError;
+        }
+      } catch (adminError) {
+        // Rollback: supprimer le tenant si l'admin n'a pas pu être créé
+        await supabase.from("tenants").delete().eq("id", tenant.id);
+        return NextResponse.json(
+          { message: `Tenant supprimé — erreur création admin: ${adminError instanceof Error ? adminError.message : "Erreur inconnue"}` },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(
+        { ...tenant, adminEmail, adminCreated: true },
+        { status: 201 }
+      );
+    }
+
+    return NextResponse.json(tenant, { status: 201 });
   } catch (error) {
     console.error("Erreur création tenant:", error);
     return NextResponse.json(

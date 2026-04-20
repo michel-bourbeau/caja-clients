@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
+import { SUPERADMIN_IMPERSONATION_KEY, ImpersonationSession } from "@/context/AuthContext";
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,16 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [impersonation, setImpersonation] = useState<ImpersonationSession | null>(null);
+
+  // Detect impersonation session
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = sessionStorage.getItem(SUPERADMIN_IMPERSONATION_KEY);
+    if (raw) {
+      try { setImpersonation(JSON.parse(raw)); } catch { /* ignore */ }
+    }
+  }, []);
 
   // Redirect to login if not authenticated (after render completes)
   useEffect(() => {
@@ -27,6 +38,13 @@ export default function DashboardLayout({
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [pathname]);
+
+  const exitImpersonation = () => {
+    sessionStorage.removeItem(SUPERADMIN_IMPERSONATION_KEY);
+    sessionStorage.removeItem("defaultTenantId");
+    // Full reload to reset AuthContext state
+    window.location.href = "/superadmin/dashboard";
+  };
 
   // Show loading state initially
   if (isLoading) {
@@ -69,6 +87,27 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto flex flex-col w-full">
+
+          {/* SuperAdmin impersonation banner */}
+          {impersonation && (
+            <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2 bg-purple-700 text-white text-sm font-medium shadow-md">
+              <div className="flex items-center gap-2">
+                <span className="text-purple-200">🔐</span>
+                <span>Mode SuperAdmin</span>
+                <span className="text-purple-300">—</span>
+                <span className="font-bold">{impersonation.tenantName}</span>
+              </div>
+              <button
+                onClick={exitImpersonation}
+                className="flex items-center gap-1.5 px-3 py-1 bg-purple-900 hover:bg-purple-800 rounded text-xs font-semibold transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Quitter
+              </button>
+            </div>
+          )}
 
           {/* Top bar with burger button */}
           <header className="sticky top-0 z-30 flex items-center gap-4 px-4 py-3 bg-white border-b border-slate-200 shadow-sm">

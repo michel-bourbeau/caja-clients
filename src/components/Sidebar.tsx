@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { useTenantName } from "@/lib/utils/tenantName";
 import { ROUTES } from "@/lib/constants";
+import { DEFAULT_ROLES } from "@/lib/types/roles";
 
 export const Sidebar: React.FC = () => {
   const router = useRouter();
@@ -15,6 +16,7 @@ export const Sidebar: React.FC = () => {
 
   const canManageRoles = hasPermission("settings.manage_roles");
   const canManageSettings = hasPermission("manage_settings");
+  const roleName = DEFAULT_ROLES.find((r) => r.id === user?.roleId)?.name ?? user?.roleId ?? "";
 
   const handleLogout = () => {
     logout();
@@ -30,10 +32,15 @@ export const Sidebar: React.FC = () => {
             🏢 {tenantName}
           </p>
         )}
-        <p className="text-sm text-gray-300 mt-2">
+        <p className="text-sm text-gray-300 mt-2 font-medium">
           {user?.firstName} {user?.lastName}
         </p>
-        <p className="text-xs text-gray-400 mt-1">{user?.roleId}</p>
+        <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
+        {roleName && (
+          <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-slate-700 text-slate-300 rounded-full">
+            {roleName}
+          </span>
+        )}
       </div>
 
       <nav className="flex-1 p-4 space-y-2">

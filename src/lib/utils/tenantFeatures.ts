@@ -13,8 +13,13 @@ interface TenantFeatures {
   [key: string]: boolean | undefined;
 }
 
+const ALL_FEATURES_ON: TenantFeatures = {
+  pos: true, inventory: true, employees: true,
+  schedules: true, payroll: true, reports: true, settings: true,
+};
+
 export function useTenantFeatures() {
-  const [features, setFeatures] = useState<TenantFeatures>({});
+  const [features, setFeatures] = useState<TenantFeatures>(ALL_FEATURES_ON);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,20 +69,13 @@ export function useTenantFeatures() {
       }
 
       const data = await response.json();
-      setFeatures(data.features || {});
+      // Merge with defaults so missing keys default to true (only explicitly false disables a feature)
+      setFeatures({ ...ALL_FEATURES_ON, ...(data.features || {}) });
     } catch (err) {
       console.error("Error fetching features:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
       // Default: show all modules on error
-      setFeatures({
-        pos: true,
-        inventory: true,
-        employees: true,
-        schedules: true,
-        payroll: true,
-        reports: true,
-        settings: true,
-      });
+      setFeatures(ALL_FEATURES_ON);
     } finally {
       setLoading(false);
     }

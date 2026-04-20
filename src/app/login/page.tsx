@@ -21,7 +21,7 @@ export default function LoginPage() {
       await login(email, password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
-      setError("Credenciales inválidas");
+      setError(err instanceof Error ? err.message : "Email ou mot de passe incorrect");
     }
   };
 
