@@ -188,7 +188,7 @@ export default function SuperAdminDashboard() {
         {/* Create Form */}
         {showCreateForm && (
           <Card className="p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-6">Créer un Nouveau Tenant</h2>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">Créer un Nouveau Tenant</h2>
             <form onSubmit={handleCreateTenant} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Input
@@ -252,7 +252,7 @@ export default function SuperAdminDashboard() {
 
         {/* Tenants List */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">Tenants Actifs</h2>
+          <h2 className="text-2xl font-bold mb-4 text-gray-900">Tenants Actifs</h2>
           {loading ? (
             <p className="text-slate-600">Chargement...</p>
           ) : tenants.length === 0 ? (
@@ -265,7 +265,7 @@ export default function SuperAdminDashboard() {
                 <Card key={tenant.id} className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-xl font-bold text-slate-900">{tenant.name}</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{tenant.name}</h3>
                       <p className="text-sm text-slate-600">
                         Slug: <code className="bg-slate-100 px-2 py-1 rounded">{tenant.slug}</code>
                       </p>

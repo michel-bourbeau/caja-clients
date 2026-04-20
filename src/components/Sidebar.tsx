@@ -23,7 +23,7 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
       <div className="p-6 border-b border-slate-700">
-        <h1 className="text-2xl font-bold">Caja</h1>
+        <h1 className="text-2xl font-bold text-white">Caja</h1>
         {tenantName && (
           <p className="text-sm font-semibold text-amber-400 mt-2">
             🏢 {tenantName}

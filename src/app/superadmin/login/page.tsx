@@ -35,7 +35,7 @@ export default function SuperAdminLoginPage() {
       <Card className="w-full max-w-md shadow-lg">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-purple-600">🔐</h1>
-          <h2 className="text-2xl font-bold text-slate-900 mt-2">SuperAdmin</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mt-2">SuperAdmin</h2>
           <p className="text-slate-600 text-sm mt-2">Console de Gestion</p>
         </div>
 

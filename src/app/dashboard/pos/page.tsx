@@ -126,7 +126,7 @@ export default function POSPage() {
     <div>
       <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Caisse - Nouvelle Vente</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Caisse - Nouvelle Vente</h1>
           <p className="text-sm text-slate-600 mt-1">Sélectionnez des produits, ajustez les quantités et finalisez la vente.</p>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { UserPermissionsCard } from "@/components/UserPermissionsCard";
 export default function DashboardPage() {
   return (
     <div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-8">Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard title="Ventas Hoy" value="$2,450.50" change="+12%" color="blue" />
@@ -65,7 +65,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, color }) => {
   return (
     <Card className={`${colors[color]}`}>
       <p className="text-sm font-medium opacity-75">{title}</p>
-      <p className="text-2xl font-bold mt-2">{value}</p>
+      <p className="text-2xl font-bold mt-2 text-gray-900">{value}</p>
       <p className="text-xs font-medium mt-2">{change}</p>
     </Card>
   );

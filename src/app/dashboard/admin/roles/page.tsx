@@ -107,7 +107,7 @@ export default function RolesPage() {
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Gestión de Roles</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Gestión de Roles</h1>
           <p className="text-slate-600 text-sm mt-1">
             Define roles personalizados según las necesidades de tu empresa
           </p>
@@ -117,7 +117,7 @@ export default function RolesPage() {
 
       {showForm && (
         <Card className="mb-8 border-2 border-blue-200">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">
             {editingRole ? "Editar Rol" : "Crear Nuevo Rol"}
           </h2>
 

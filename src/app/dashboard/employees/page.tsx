@@ -107,7 +107,7 @@ export default function EmployeesPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Empleados</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Empleados</h1>
         {hasPermission("employees.create") && (
           <Button onClick={handleAddEmployee}>+ Nuevo Empleado</Button>
         )}
@@ -115,7 +115,7 @@ export default function EmployeesPage() {
 
       {showForm && (
         <Card className="mb-8 border-2 border-blue-200">
-          <h2 className="text-xl font-bold text-slate-900 mb-6">Crear Nuevo Empleado</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Crear Nuevo Empleado</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

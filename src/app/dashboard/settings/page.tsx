@@ -3,7 +3,7 @@ import { Card, Button, Input } from "@/components/ui";
 export default function SettingsPage() {
   return (
     <div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-8">Configuración</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Configuración</h1>
 
       <div className="space-y-6 max-w-2xl">
         {/* Company Settings */}
