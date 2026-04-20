@@ -12,33 +12,33 @@ export const ROUTES = {
   DASHBOARD: "/dashboard",
   
   // POS
-  POS: "/pos",
-  TRANSACTIONS: "/transactions",
+  POS: "/dashboard/pos",
+  TRANSACTIONS: "/dashboard/transactions",
   
   // Inventory
-  INVENTORY: "/inventory",
-  PRODUCTS: "/inventory/products",
-  CATEGORIES: "/inventory/categories",
-  MOVEMENTS: "/inventory/movements",
+  INVENTORY: "/dashboard/inventory",
+  PRODUCTS: "/dashboard/inventory",
+  CATEGORIES: "/dashboard/inventory",
+  MOVEMENTS: "/dashboard/inventory",
   
   // Employees
-  EMPLOYEES: "/employees",
-  EMPLOYEE_DETAIL: "/employees/:id",
+  EMPLOYEES: "/dashboard/employees",
+  EMPLOYEE_DETAIL: "/dashboard/employees/:id",
   
   // Schedules
-  SCHEDULES: "/schedules",
+  SCHEDULES: "/dashboard/schedules",
   
   // Payroll
-  PAYROLL: "/payroll",
-  PAYROLL_PERIODS: "/payroll/periods",
-  PAYROLL_DETAIL: "/payroll/:id",
+  PAYROLL: "/dashboard/payroll",
+  PAYROLL_PERIODS: "/dashboard/payroll",
+  PAYROLL_DETAIL: "/dashboard/payroll/:id",
   
   // Auth
   LOGIN: "/login",
   LOGOUT: "/logout",
   
   // Settings
-  SETTINGS: "/settings",
+  SETTINGS: "/dashboard/settings",
 };
 
 export const EMPLOYEE_ROLES = {

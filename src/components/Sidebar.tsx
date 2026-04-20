@@ -37,9 +37,7 @@ export const Sidebar: React.FC = () => {
         {/* Inventory Module */}
         {hasPermission("inventory.view") && (
           <NavSection label="Inventario">
-            <NavLink href={ROUTES.PRODUCTS} label="Productos" icon="📦" />
-            <NavLink href={ROUTES.CATEGORIES} label="Categorías" icon="🏷️" />
-            <NavLink href={ROUTES.MOVEMENTS} label="Movimientos" icon="↔️" />
+            <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" icon="📦" />
           </NavSection>
         )}
 
