@@ -185,57 +185,90 @@ export default function TransactionsPage() {
             No hay transacciones disponibles
           </p>
         ) : (
-          <DataTable<Transaction>
-            columns={[
-              { key: "id", label: "ID Transacción" },
-              {
-                key: "timestamp",
-                label: "Fecha/Hora",
-                format: (value) => formatDateTime(value as Date),
-              },
-              {
-                key: "subtotal",
-                label: "Subtotal",
-                format: (value) => formatCurrency(value),
-              },
-              {
-                key: "discount",
-                label: "Descuento",
-                format: (value) => formatCurrency(value),
-              },
-              {
-                key: "tax",
-                label: "Impuesto",
-                format: (value) => formatCurrency(value),
-              },
-              {
-                key: "total",
-                label: "Total",
-                format: (value) => formatCurrency(value),
-              },
-              { key: "paymentMethod", label: "Método de Pago" },
-              { key: "status", label: "Estado" },
-            ]}
-            data={filteredTransactions}
-            actions={(item) => (
-              <>
-                <Button 
-                  size="sm" 
-                  variant="secondary"
-                  onClick={() => handleOpenDetails(item)}
-                >
-                  Ver Detalle
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="danger"
-                  onClick={() => handleDeleteTransaction(item.id)}
-                >
-                  Revertir
-                </Button>
-              </>
-            )}
-          />
+          <div className="space-y-4">
+            {filteredTransactions.map((transaction) => (
+              <div key={transaction.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                {/* Encabezado de la transacción */}
+                <div className="bg-slate-50 p-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-slate-600 font-semibold">ID Transacción</p>
+                      <p className="text-sm font-mono text-slate-900">{transaction.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 font-semibold">Fecha/Hora</p>
+                      <p className="text-sm text-slate-900">{formatDateTime(transaction.timestamp)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 font-semibold">Total</p>
+                      <p className="text-sm font-bold text-slate-900">{formatCurrency(transaction.total)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 font-semibold">Método de Pago</p>
+                      <p className="text-sm text-slate-900">{transaction.paymentMethod}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600 font-semibold">Estado</p>
+                      <p className="text-sm text-slate-900">{transaction.status}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Detalles de dinero */}
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2 text-xs mb-4 p-2 bg-white rounded">
+                    <div>
+                      <span className="text-slate-600">Subtotal:</span> {formatCurrency(transaction.subtotal)}
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Descuento:</span> {formatCurrency(transaction.discount || 0)}
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Impuesto:</span> {formatCurrency(transaction.tax)}
+                    </div>
+                  </div>
+
+                  {/* Botones de acción */}
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="secondary"
+                      onClick={() => handleOpenDetails(transaction)}
+                    >
+                      Ver Detalle
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="danger"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                    >
+                      Revertir
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Productos vendidos */}
+                {transaction.items && transaction.items.length > 0 && (
+                  <div className="p-4 bg-white border-t border-slate-200">
+                    <p className="text-sm font-semibold text-slate-700 mb-3">Productos Vendidos:</p>
+                    <div className="space-y-2">
+                      {transaction.items.map((item: any, index: number) => (
+                        <div key={index} className="flex justify-between items-start p-2 bg-slate-50 rounded text-sm">
+                          <div className="flex-1">
+                            <p className="font-medium text-slate-900">{item.name || item.productId}</p>
+                            <p className="text-xs text-slate-600">
+                              Cantidad: {item.quantity} × {formatCurrency(item.price)}
+                            </p>
+                          </div>
+                          <p className="font-semibold text-slate-900 ml-4 whitespace-nowrap">
+                            {formatCurrency(item.total)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </Card>
 
