@@ -1,17 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { useTenantName } from "@/lib/utils/tenantName";
 import { ROUTES } from "@/lib/constants";
 
 export const Sidebar: React.FC = () => {
-  const { user, hasPermission } = useAuth();
+  const router = useRouter();
+  const { user, hasPermission, logout } = useAuth();
   const { features } = useTenantFeatures();
   const { tenantName } = useTenantName();
 
   const canManageRoles = hasPermission("settings.manage_roles");
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
@@ -82,7 +89,10 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       <div className="p-4 border-t border-slate-700">
-        <button className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-medium">
+        <button
+          onClick={handleLogout}
+          className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-medium transition-colors"
+        >
           Cerrar Sesión
         </button>
       </div>
