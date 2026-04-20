@@ -41,9 +41,8 @@ export default function POSPage() {
         setProducts(productsData);
         setCategories(categoriesData);
         setTaxes(taxesData);
-        if (categoriesData.length > 0) {
-          setSelectedCategory(categoriesData[0].id);
-        }
+        // Don't select a category by default - display all products
+        setSelectedCategory(null);
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Erreur de chargement des produits");
       } finally {
@@ -101,7 +100,7 @@ export default function POSPage() {
 
   const displayedProducts = selectedCategory
     ? productsByCategory[selectedCategory] || []
-    : productsByCategory["uncategorized"] || [];
+    : Object.values(productsByCategory).flat();
 
   const handleAddProduct = (product: Product) => {
     setCart((current) => {
@@ -210,24 +209,21 @@ export default function POSPage() {
               <p className="text-gray-800">Aucune catégorie disponible. Créez d'abord une catégorie dans l'inventaire.</p>
             ) : (
               <>
-                {/* Category Tabs */}
-                <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`px-4 py-2 rounded-lg font-medium transition ${
-                        selectedCategory === cat.id
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      {cat.name}
-                      <span className="ml-2 text-xs">
-                        ({productsByCategory[cat.id]?.length || 0})
-                      </span>
-                    </button>
-                  ))}
+                {/* Category Dropdown */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Catégories</label>
+                  <select
+                    value={selectedCategory || ""}
+                    onChange={(e) => setSelectedCategory(e.target.value || null)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
+                  >
+                    <option value="">Tous les produits</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} ({productsByCategory[cat.id]?.length || 0})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Products Grid */}
