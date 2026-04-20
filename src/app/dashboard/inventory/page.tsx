@@ -139,16 +139,28 @@ export default function InventoryPage() {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name.trim() || !newProduct.price) {
-      setMessage("Remplissez au minimum le nom et le prix");
+    if (!newProduct.name.trim() || !newProduct.sku.trim() || !newProduct.price) {
+      setMessage("Remplissez tous les champs obligatoires");
       return;
     }
 
     try {
+      // Convert string values to proper types
+      const productData = {
+        name: newProduct.name.trim(),
+        sku: newProduct.sku.trim(),
+        price: parseFloat(newProduct.price as string),
+        quantity: newProduct.quantity ? parseInt(newProduct.quantity as string) : 0,
+        category_id: newProduct.category_id || null,
+        description: newProduct.description?.trim() || null,
+      };
+
+      console.log("Sending product data:", productData);
+
       const res = await fetch(`/api/tenants/${tenantId}/products`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProduct),
+        body: JSON.stringify(productData),
       });
 
       if (res.ok) {
@@ -165,10 +177,12 @@ export default function InventoryPage() {
         await fetchData();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Erreur lors de la création");
+        setMessage(error.error || `Erreur: ${res.status}`);
+        console.error("Error response:", error);
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      console.error("Fetch error:", error);
+      setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
     }
   };
 
