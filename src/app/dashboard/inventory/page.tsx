@@ -381,28 +381,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-
-            {
-              key: "price",
-              label: "Precio",
-              format: (value) => formatCurrency(value),
-            },
-            { key: "quantity", label: "Stock" },
-            { key: "category", label: "Categoría" },
-          ]}
-          data={mockProducts}
-          actions={(product) => (
-            <>
-              <Button size="sm" variant="secondary">
-                Editar
-              </Button>
-              <Button size="sm" variant="danger">
-                Eliminar
-              </Button>
-            </>
-          )}
-        />
-      </Card>
-    </div>
-  );
-}

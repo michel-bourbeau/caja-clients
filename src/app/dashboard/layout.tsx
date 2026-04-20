@@ -3,6 +3,7 @@
 import React from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { TenantProvider } from "@/context/TenantContext";
 import { redirect } from "next/navigation";
 
 export default function DashboardLayout({
@@ -25,13 +26,15 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          {children}
-        </div>
-      </main>
-    </div>
+    <TenantProvider>
+      <div className="flex h-screen bg-slate-100">
+        <Sidebar />
+        <main className="flex-1 overflow-auto">
+          <div className="p-6">
+            {children}
+          </div>
+        </main>
+      </div>
+    </TenantProvider>
   );
 }
