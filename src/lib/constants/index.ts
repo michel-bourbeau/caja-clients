@@ -66,5 +66,3 @@ export const PAYROLL_STATUS = {
 } as const;
 
 export const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-export const TAX_RATE = 0.21; // 21% IVA (Argentina)
