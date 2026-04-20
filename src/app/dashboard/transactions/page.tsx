@@ -283,7 +283,7 @@ export default function TransactionsPage() {
                         <div className="flex gap-3">
                           <span className="text-slate-600">Sub: {formatCurrency(transaction.subtotal)}</span>
                           {(transaction.discount || 0) > 0 && <span className="text-slate-600">Desc: {formatCurrency(transaction.discount || 0)}</span>}
-                          <span className="text-slate-600">Imp: {formatCurrency(transaction.tax)}</span>
+                          {(transaction.tax || 0) > 0 && <span className="text-slate-600">Imp: {formatCurrency(transaction.tax)}</span>}
                         </div>
                         <div className="flex gap-2">
                           <Button 
@@ -334,10 +334,12 @@ export default function TransactionsPage() {
               <p className="text-gray-900">{formatCurrency(selectedTransaction.discount || 0)}</p>
             </div>
 
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-600">Impuesto:</p>
-              <p className="text-gray-900">{formatCurrency(selectedTransaction.tax)}</p>
-            </div>
+            {(selectedTransaction.tax || 0) > 0 && (
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-slate-600">Impuesto:</p>
+                <p className="text-gray-900">{formatCurrency(selectedTransaction.tax)}</p>
+              </div>
+            )}
 
             <div className="mb-4">
               <p className="text-sm font-semibold text-slate-600">Total:</p>
