@@ -246,17 +246,17 @@ export default function TransactionsPage() {
                 {/* Transactions for this day */}
                 <div className="space-y-2 bg-slate-50 px-4 py-3 rounded-b-lg border border-slate-200 border-t-0">
                   {dayTransactions.map((transaction) => (
-                    <div key={transaction.id} className="border border-slate-300 rounded overflow-hidden hover:border-slate-400 transition-colors bg-white">
-                      {/* Hora y método de pago */}
-                      <div className="px-3 py-1 bg-white border-b border-slate-100 flex justify-between items-center">
+                    <div key={transaction.id} className="border border-slate-300 rounded overflow-hidden hover:border-slate-400 transition-colors bg-white flex flex-col">
+                      {/* HEADER - Hora y método de pago */}
+                      <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex justify-between items-center">
                         <span className="text-xs font-semibold text-slate-700">
                           🕐 {getTimeOnly(transaction.timestamp)}
                         </span>
-                        <span className="text-xs text-slate-600">{transaction.paymentMethod} • {formatCurrency(transaction.total)}</span>
+                        <span className="text-xs font-medium text-slate-600">{transaction.paymentMethod} • {formatCurrency(transaction.total)}</span>
                       </div>
 
-                      {/* Productos Vendidos - compacto */}
-                      <div className="px-3 py-2">
+                      {/* MIDDLE - Productos Vendidos */}
+                      <div className="px-3 py-2 flex-1">
                         {transaction.items && transaction.items.length > 0 ? (
                           <div className="space-y-1">
                             {transaction.items.map((item: any, index: number) => (
@@ -278,19 +278,19 @@ export default function TransactionsPage() {
                         )}
                       </div>
 
-                      {/* Resumen compacto */}
-                      <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs">
-                        <div className="flex gap-3">
-                          <span className="text-slate-600">Sub: {formatCurrency(transaction.subtotal)}</span>
-                          {(transaction.discount || 0) > 0 && <span className="text-slate-600">Desc: {formatCurrency(transaction.discount || 0)}</span>}
-                          {(transaction.tax || 0) > 0 && <span className="text-slate-600">Imp: {formatCurrency(transaction.tax)}</span>}
+                      {/* FOOTER - Resumen y botones */}
+                      <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 space-y-2">
+                        <div className="text-xs text-slate-600">
+                          <span className="font-semibold">Sub: {formatCurrency(transaction.subtotal)}</span>
+                          {(transaction.discount || 0) > 0 && <span className="ml-3">Desc: {formatCurrency(transaction.discount || 0)}</span>}
+                          {(transaction.tax || 0) > 0 && <span className="ml-3">Imp: {formatCurrency(transaction.tax)}</span>}
                         </div>
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
                             variant="secondary"
                             onClick={() => handleOpenDetails(transaction)}
-                            className="text-xs py-1 px-2"
+                            className="text-xs py-1 px-3 flex-1"
                           >
                             Detalles
                           </Button>
@@ -298,7 +298,7 @@ export default function TransactionsPage() {
                             size="sm" 
                             variant="danger"
                             onClick={() => handleDeleteTransaction(transaction.id)}
-                            className="text-xs py-1 px-2"
+                            className="text-xs py-1 px-3 flex-1"
                           >
                             Revertir
                           </Button>
