@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
-import { redirect } from "next/navigation";
 
 export default function DashboardLayout({
   children,
@@ -15,7 +14,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
-  // Redirect on initial load if no user (server-side redirect)
+  // Show loading state initially
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -24,16 +23,15 @@ export default function DashboardLayout({
     );
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
-    redirect("/login");
+    router.push("/login");
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p>Redirigiendo...</p>
+      </div>
+    );
   }
-
-  // Handle logout on client-side (after user state changes)
-  useEffect(() => {
-    if (!user && !isLoading) {
-      router.push("/login");
-    }
-  }, [user, isLoading, router]);
 
   return (
     <TenantProvider>
