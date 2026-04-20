@@ -18,13 +18,19 @@ export function useTenantId(): string | null {
   const tenantFromUrl = searchParams.get("tenant");
   if (tenantFromUrl) return tenantFromUrl;
 
-  // 2. Try from localStorage
+  // 2. Try from sessionStorage (set during login)
+  if (typeof window !== "undefined") {
+    const tenantFromSession = sessionStorage.getItem("defaultTenantId");
+    if (tenantFromSession) return tenantFromSession;
+  }
+
+  // 3. Try from localStorage
   if (typeof window !== "undefined") {
     const tenantFromStorage = localStorage.getItem("tenantId");
     if (tenantFromStorage) return tenantFromStorage;
   }
 
-  // 3. Try from subdomain (chocorico.caja.com)
+  // 4. Try from subdomain (chocorico.caja.com)
   if (typeof window !== "undefined") {
     const hostname = window.location.hostname;
     const subdomain = hostname.split(".")[0];

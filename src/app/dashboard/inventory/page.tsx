@@ -87,8 +87,16 @@ export default function InventoryPage() {
       return;
     }
 
+    if (!tenantId) {
+      setMessage("Erreur: Tenant ID non trouvé. Reconnectez-vous.");
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/tenants/${tenantId}/categories`, {
+      const url = `/api/tenants/${tenantId}/categories`;
+      console.log("POST to:", url);
+      
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newCategory),
@@ -101,10 +109,12 @@ export default function InventoryPage() {
         await fetchData();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Erreur lors de la création");
+        setMessage(error.error || `Erreur: ${res.status}`);
+        console.error("Error response:", error);
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      console.error("Fetch error:", error);
+      setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
     }
   };
 
