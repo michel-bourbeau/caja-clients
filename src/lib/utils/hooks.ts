@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 interface UseAsyncState<T> {
   data: T | null;
@@ -38,7 +38,7 @@ export function useAsync<T>(
   }, [asyncFunction]);
 
   // Auto-fetch on mount
-  React.useEffect(() => {
+  useEffect(() => {
     if (immediate) {
       refetch();
     }
@@ -124,5 +124,3 @@ export function useModal() {
 
   return { isOpen, open, close, toggle };
 }
-
-import React;

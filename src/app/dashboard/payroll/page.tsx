@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, Button, Input } from "@/components/ui";
 import { DataTable } from "@/components/DataTable";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";

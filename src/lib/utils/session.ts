@@ -64,7 +64,7 @@ export function clearSession(): void {
 }
 
 export function isSessionValid(session: StoredSession): boolean {
-  return Date.now() <= session.expiresAt && session.email && session.token;
+  return Date.now() <= session.expiresAt && !!session.email && !!session.token;
 }
 
 /**

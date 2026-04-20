@@ -64,6 +64,7 @@ export const Sidebar: React.FC = () => {
         {/* Admin Section */}
         {canManageRoles && (
           <NavSection label="Admin">
+            <NavLink href="/admin/users" label="Gestionar Usuarios" icon="👤" />
             <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
             <NavLink href={ROUTES.SETTINGS} label="Configuración" icon="⚙️" />
           </NavSection>

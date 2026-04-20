@@ -40,8 +40,3 @@ export function getSupabaseAdmin(): SupabaseClient {
   }
   return supabaseAdmin;
 }
-
-// Helper function for tenant-aware queries
-export function getTenantQuery(table: string, tenantId: string) {
-  return supabase.from(table).eq("tenant_id", tenantId);
-}

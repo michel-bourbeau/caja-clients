@@ -12,9 +12,9 @@ export function calculateTax(subtotal: number): number {
 /**
  * Calculate total including tax
  */
-export function calculateTotal(subtotal: number): { tax: number; total: number } {
+export function calculateTotal(subtotal: number): { subtotal: number; tax: number; total: number } {
   const tax = calculateTax(subtotal);
   const total = Math.round((subtotal + tax) * 100) / 100;
 
-  return { tax, total };
+  return { subtotal, tax, total };
 }

@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  * GET /api/tenants/[tenantId]/categories
  * Fetch all categories for a tenant
  */
-export async function GET(request: Request, { params }: { params: { tenantId: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
 
   const supabase = getSupabaseAdmin();
@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: { params: { tenantId: st
  * POST /api/tenants/[tenantId]/categories
  * Create a new category
  */
-export async function POST(request: Request, { params }: { params: { tenantId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
   const { name, description } = await request.json();
 
