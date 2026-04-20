@@ -1,6 +1,6 @@
 // POS Calculation utilities
 
-const TAX_RATE = 0.16; // 16% tax rate (adjustable)
+import { TAX_RATE } from "@/lib/constants";
 
 /**
  * Calculate tax amount

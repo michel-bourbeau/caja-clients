@@ -3,6 +3,10 @@
 export const APP_NAME = "Caja";
 export const APP_VERSION = "1.0.0";
 
+// Tax and currency settings
+export const TAX_RATE = 0.21; // 21% for Argentina
+export const CURRENCY = "ARS";
+
 export const ROUTES = {
   HOME: "/",
   DASHBOARD: "/dashboard",
