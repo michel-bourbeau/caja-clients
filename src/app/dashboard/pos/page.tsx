@@ -270,23 +270,23 @@ export default function POSPage() {
 
         <div>
           <Card title="Resumen de Venta">
-            <div className="space-y-4">
-              <div className="border-b pb-4">
+            <div className="space-y-2">
+              <div className="border-b pb-2">
                 {cart.length === 0 ? (
-                  <p className="text-gray-800 text-center">Carrito vacío</p>
+                  <p className="text-xs text-gray-800 text-center">Carrito vacío</p>
                 ) : (
                   cart.map((item) => {
                     const product = products.find((p) => p.id === item.productId);
                     return (
-                      <div key={item.productId} className="flex justify-between items-center py-2">
+                      <div key={item.productId} className="flex justify-between items-center py-1">
                         <div>
-                          <p className="font-medium text-slate-900">
+                          <p className="text-xs font-medium text-slate-900">
                             {item.quantity} × {product?.name || "Producto"}
                           </p>
-                          <p className="text-sm text-slate-600">{formatCurrency(item.price)}</p>
+                          <p className="text-xs text-slate-600">{formatCurrency(item.price)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-slate-900">{formatCurrency(item.total)}</p>
+                          <p className="text-xs font-medium text-slate-900">{formatCurrency(item.total)}</p>
                           <button
                             type="button"
                             onClick={() => handleRemoveItem(item.productId)}
@@ -301,33 +301,33 @@ export default function POSPage() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-slate-600">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-600">
                   <span>Subtotal</span>
                   <span>{formatCurrency(cartTotal.subtotal)}</span>
                 </div>
                 
                 {/* Discount field */}
-                <div className="border-t pt-2 mt-2">
-                  <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ($)</label>
+                <div className="border-t pt-1 mt-1">
+                  <label className="text-xs font-semibold text-slate-600 block mb-1">Descuento ($)</label>
                   <input
                     type="number"
                     value={discount}
                     onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
                     min="0"
                     max={cartTotal.subtotal}
-                    className="w-full px-3 py-2 border border-slate-300 rounded text-slate-900"
+                    className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900"
                     placeholder="0.00"
                   />
                   {discount > 0 && (
-                    <p className="text-sm text-blue-600 mt-1">
+                    <p className="text-xs text-blue-600 mt-0.5">
                       -{formatCurrency(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
                     </p>
                   )}
                 </div>
 
                 {cartTotal.discount > 0 && (
-                  <div className="flex justify-between text-slate-600 pt-1">
+                  <div className="flex justify-between text-xs text-slate-600 pt-0.5">
                     <span>Después de descuento</span>
                     <span>{formatCurrency(cartTotal.subtotalAfterDiscount)}</span>
                   </div>
@@ -336,7 +336,7 @@ export default function POSPage() {
                 {taxes.length > 0 ? (
                   <>
                     {taxes.map((tax) => (
-                      <div key={tax.id} className="flex justify-between text-slate-600">
+                      <div key={tax.id} className="flex justify-between text-xs text-slate-600">
                         <span>{tax.name} ({tax.rate}%)</span>
                         <span>{formatCurrency((cartTotal.taxes as any)[tax.name] || 0)}</span>
                       </div>
@@ -346,21 +346,21 @@ export default function POSPage() {
                   <p className="text-xs text-gray-500 italic">
                     Sin impuestos configurados.{" "}
                     <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
-                      Configurar impuestos
+                      Configurar
                     </a>
                   </p>
                 )}
-                <div className="flex justify-between text-lg font-bold text-slate-900 border-t pt-2">
+                <div className="flex justify-between text-sm font-bold text-slate-900 border-t pt-1">
                   <span>Total</span>
                   <span>{formatCurrency(cartTotal.total)}</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-1">
                 <select
                   value={paymentMethod}
                   onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-slate-900"
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900"
                 >
                   <option value="CASH">EFFECTIVO</option>
                   <option value="CARD">TARJETA</option>
@@ -369,7 +369,7 @@ export default function POSPage() {
 
                 <Button
                   onClick={handleCompleteSale}
-                  size="lg"
+                  size="sm"
                   className="w-full bg-green-600 hover:bg-green-700"
                   disabled={cart.length === 0 || loading}
                 >
@@ -377,6 +377,7 @@ export default function POSPage() {
                 </Button>
                 <Button
                   className="w-full"
+                  size="sm"
                   variant="secondary"
                   onClick={() => setCart([])}
                   disabled={cart.length === 0 || loading}
