@@ -10,9 +10,10 @@ interface StoredSession {
   email: string;
   token: string;
   expiresAt: number;
+  tenantId?: string;
 }
 
-export function saveSession(email: string, rememberMe: boolean): void {
+export function saveSession(email: string, rememberMe: boolean, tenantId?: string): void {
   if (!rememberMe || typeof window === "undefined") {
     return;
   }
@@ -20,10 +21,14 @@ export function saveSession(email: string, rememberMe: boolean): void {
   const token = generateToken(email);
   const expiresAt = Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
-  const session: StoredSession = { email, token, expiresAt };
+  const session: StoredSession = { email, token, expiresAt, tenantId };
 
   try {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    // Also save tenantId in sessionStorage for immediate access
+    if (tenantId && typeof window !== "undefined") {
+      sessionStorage.setItem("defaultTenantId", tenantId);
+    }
   } catch (error) {
     console.warn("Failed to save session:", error);
   }

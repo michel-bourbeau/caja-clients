@@ -52,6 +52,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           permissions: MOCK_PERMISSIONS,
         };
         setUser(mockUser);
+
+        // Restore tenantId if available
+        if (storedSession.tenantId && typeof window !== "undefined") {
+          sessionStorage.setItem("defaultTenantId", storedSession.tenantId);
+        }
       }
       setIsLoading(false);
     };
@@ -83,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Save session if "Remember me" is checked
       if (rememberMe) {
-        saveSession(email, true);
+        saveSession(email, true, defaultTenantId);
       }
     } catch (error) {
       console.error("Login error:", error);
