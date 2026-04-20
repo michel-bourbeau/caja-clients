@@ -199,6 +199,11 @@ export default function TransactionsPage() {
                 format: (value) => formatCurrency(value),
               },
               {
+                key: "discount",
+                label: "Descuento",
+                format: (value) => formatCurrency(value),
+              },
+              {
                 key: "tax",
                 label: "Impuesto",
                 format: (value) => formatCurrency(value),
@@ -248,6 +253,11 @@ export default function TransactionsPage() {
             <div className="mb-4">
               <p className="text-sm font-semibold text-slate-600">Subtotal:</p>
               <p className="text-gray-900">{formatCurrency(selectedTransaction.subtotal)}</p>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-slate-600">Descuento:</p>
+              <p className="text-gray-900">{formatCurrency(selectedTransaction.discount || 0)}</p>
             </div>
 
             <div className="mb-4">

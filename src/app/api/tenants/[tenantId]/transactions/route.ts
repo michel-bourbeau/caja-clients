@@ -8,8 +8,12 @@ interface Tax {
   is_active: boolean;
 }
 
-function calculateTotals(items: CartItem[], taxes: Tax[] = []) {
+function calculateTotals(items: CartItem[], taxes: Tax[] = [], discount: number = 0) {
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  
+  // Apply discount
+  const discountAmount = Math.min(discount, subtotal);
+  const subtotalAfterDiscount = subtotal - discountAmount;
   
   // Only calculate tax if taxes are configured and active
   const activeTaxes = taxes.filter((t) => t.is_active);
@@ -18,11 +22,11 @@ function calculateTotals(items: CartItem[], taxes: Tax[] = []) {
   if (activeTaxes.length > 0) {
     // Sum all active tax rates
     const totalTaxRate = activeTaxes.reduce((sum, t) => sum + (t.rate || 0), 0);
-    tax = Math.round(subtotal * (totalTaxRate / 100) * 100) / 100;
+    tax = Math.round(subtotalAfterDiscount * (totalTaxRate / 100) * 100) / 100;
   }
   
-  const total = Math.round((subtotal + tax) * 100) / 100;
-  return { subtotal, tax, total };
+  const total = Math.round((subtotalAfterDiscount + tax) * 100) / 100;
+  return { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total };
 }
 
 export async function GET(
@@ -64,6 +68,7 @@ export async function POST(
     const items: CartItem[] = body.items;
     const paymentMethod: Transaction["paymentMethod"] = body.paymentMethod;
     const cashierId: string = body.cashierId || "unknown";
+    const discount: number = Math.max(0, body.discount || 0);
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Aucun article dans le panier" }, { status: 400 });
@@ -111,8 +116,8 @@ export async function POST(
 
     const configuredTaxes: Tax[] = taxesData || [];
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const { subtotal, tax, total } = calculateTotals(items, configuredTaxes);
-    console.log("[transactions POST] Totals calculated:", { subtotal, tax, total, configuredTaxes });
+    const { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals(items, configuredTaxes, discount);
+    console.log("[transactions POST] Totals calculated:", { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total, configuredTaxes });
 
     const { data, error } = await supabaseAdmin
       .from("transactions")
@@ -123,6 +128,7 @@ export async function POST(
           cashier_id: cashierId,
           items,
           subtotal,
+          discount: discountAmount,
           tax,
           total,
           payment_method: paymentMethod,

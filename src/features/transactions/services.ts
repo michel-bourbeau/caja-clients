@@ -14,6 +14,7 @@ export const TransactionService = {
           id: tx.id,
           items: tx.items || [],
           subtotal: tx.subtotal,
+          discount: tx.discount,
           tax: tx.tax,
           total: tx.total,
           paymentMethod: tx.payment_method || "CASH",
@@ -28,7 +29,8 @@ export const TransactionService = {
     tenantId: string,
     items: CartItem[],
     paymentMethod: "CASH" | "CARD" | "TRANSFER",
-    cashierId: string = "unknown"
+    cashierId: string = "unknown",
+    discount: number = 0
   ): Promise<Transaction> {
     const response = await fetch(`/api/tenants/${tenantId}/transactions`, {
       method: "POST",
@@ -37,6 +39,7 @@ export const TransactionService = {
         items,
         paymentMethod,
         cashierId,
+        discount,
       }),
     });
 
@@ -50,6 +53,7 @@ export const TransactionService = {
       id: data.id,
       items: data.items || [],
       subtotal: data.subtotal,
+      discount: data.discount,
       tax: data.tax,
       total: data.total,
       paymentMethod: data.payment_method || "CASH",

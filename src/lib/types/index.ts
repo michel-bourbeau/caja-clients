@@ -42,6 +42,7 @@ export interface Transaction {
   id: string;
   items: CartItem[];
   subtotal: number;
+  discount?: number;
   tax: number;
   total: number;
   paymentMethod: "CASH" | "CARD" | "TRANSFER";

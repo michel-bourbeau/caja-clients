@@ -22,8 +22,10 @@ export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [taxes, setTaxes] = useState<Tax[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
+  const [discount, setDiscount] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,26 +57,34 @@ export default function POSPage() {
   const cartTotal = useMemo(
     () => {
       const baseTotal = POSService.calculateCartTotal(cart);
+      
+      // Apply discount
+      const discountAmount = Math.min(discount, baseTotal.subtotal);
+      const subtotalAfterDiscount = baseTotal.subtotal - discountAmount;
+      
       if (taxes.length === 0) {
-        // Sem taxes: não calcular nenhuma taxa
         return { 
-          subtotal: baseTotal.subtotal, 
+          subtotal: baseTotal.subtotal,
+          discount: discountAmount,
+          subtotalAfterDiscount,
           tax: 0, 
-          total: baseTotal.subtotal, 
+          total: subtotalAfterDiscount, 
           taxes: {} 
         };
       }
-      const taxCalculations = TaxService.calculateTaxes(baseTotal.subtotal, taxes);
+      const taxCalculations = TaxService.calculateTaxes(subtotalAfterDiscount, taxes);
       return {
         subtotal: baseTotal.subtotal,
-        tax: 0, // Não usar a taxa padrão
+        discount: discountAmount,
+        subtotalAfterDiscount,
+        tax: 0,
         total: taxCalculations.total,
         taxes: Object.fromEntries(
           taxes.map((tax) => [tax.name, taxCalculations[tax.name] || 0])
         ),
       };
     },
-    [cart, taxes]
+    [cart, taxes, discount]
   );
 
   const productsByCategory = useMemo(() => {
@@ -127,23 +137,34 @@ export default function POSPage() {
   const handleCompleteSale = async () => {
     if (!tenantId) {
       setMessage("Aucun tenant sélectionné.");
+      setMessageType("error");
       return;
     }
 
     if (cart.length === 0) {
       setMessage("Le panier est vide.");
+      setMessageType("error");
       return;
     }
 
     try {
       setLoading(true);
-      await POSService.createTransaction(tenantId, cart, paymentMethod, "cashier-001");
+      await POSService.createTransaction(tenantId, cart, paymentMethod, "cashier-001", discount);
       setCart([]);
-      setMessage("Vente enregistrée avec succès !");
+      setDiscount(0);
+      setMessage("✓ Vente enregistrée avec succès!");
+      setMessageType("success");
       const refreshed = await POSService.fetchProducts(tenantId);
       setProducts(refreshed);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setMessage(null);
+        setMessageType(null);
+      }, 3000);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erreur lors de la transaction");
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -159,7 +180,13 @@ export default function POSPage() {
       </div>
 
       {message ? (
-        <div className="mb-6 rounded border border-amber-300 bg-amber-50 p-4 text-amber-900">{message}</div>
+        <div className={`mb-6 rounded border p-4 ${
+          messageType === "success"
+            ? "border-green-300 bg-green-50 text-green-900"
+            : "border-amber-300 bg-amber-50 text-amber-900"
+        }`}>
+          {message}
+        </div>
       ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -271,6 +298,33 @@ export default function POSPage() {
                   <span>Subtotal</span>
                   <span>{formatCurrency(cartTotal.subtotal)}</span>
                 </div>
+                
+                {/* Discount field */}
+                <div className="border-t pt-2 mt-2">
+                  <label className="text-sm font-semibold text-slate-600 block mb-1">Rabais ($)</label>
+                  <input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+                    min="0"
+                    max={cartTotal.subtotal}
+                    className="w-full px-3 py-2 border border-slate-300 rounded text-slate-900"
+                    placeholder="0.00"
+                  />
+                  {discount > 0 && (
+                    <p className="text-sm text-blue-600 mt-1">
+                      -{formatCurrency(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
+                    </p>
+                  )}
+                </div>
+
+                {cartTotal.discount > 0 && (
+                  <div className="flex justify-between text-slate-600 pt-1">
+                    <span>Après rabais</span>
+                    <span>{formatCurrency(cartTotal.subtotalAfterDiscount)}</span>
+                  </div>
+                )}
+                
                 {taxes.length > 0 ? (
                   <>
                     {taxes.map((tax) => (

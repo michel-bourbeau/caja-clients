@@ -43,14 +43,15 @@ export class POSService {
     tenantId: string,
     items: CartItem[],
     paymentMethod: "CASH" | "CARD" | "TRANSFER",
-    cashierId: string
+    cashierId: string,
+    discount: number = 0
   ): Promise<Transaction> {
     const response = await fetch(`${API_BASE}/${tenantId}/transactions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ items, paymentMethod, cashierId }),
+      body: JSON.stringify({ items, paymentMethod, cashierId, discount }),
     });
 
     if (!response.ok) {
