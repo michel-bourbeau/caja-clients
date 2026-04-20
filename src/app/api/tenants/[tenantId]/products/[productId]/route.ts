@@ -40,7 +40,13 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json(data);
+    // Map stock_quantity to quantity for compatibility with frontend
+    const mappedData = {
+      ...data,
+      quantity: data.stock_quantity,
+    };
+
+    return NextResponse.json(mappedData);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

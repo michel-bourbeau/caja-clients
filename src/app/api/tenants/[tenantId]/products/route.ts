@@ -17,7 +17,13 @@ export async function GET(
 
     if (error) throw error;
 
-    return NextResponse.json(data || []);
+    // Map stock_quantity to quantity for compatibility with frontend
+    const mappedData = (data || []).map((product: any) => ({
+      ...product,
+      quantity: product.stock_quantity,
+    }));
+
+    return NextResponse.json(mappedData);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
@@ -75,7 +81,14 @@ export async function POST(
     }
 
     console.log("[POST /products] Success:", data);
-    return NextResponse.json(data, { status: 201 });
+    
+    // Map stock_quantity to quantity for compatibility with frontend
+    const mappedData = {
+      ...data,
+      quantity: data.stock_quantity,
+    };
+    
+    return NextResponse.json(mappedData, { status: 201 });
   } catch (error) {
     console.error("[POST /products] Exception:", error);
     return NextResponse.json(
