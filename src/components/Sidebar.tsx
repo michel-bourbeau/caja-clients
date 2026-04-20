@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { ROUTES } from "@/lib/constants";
 
 export const Sidebar: React.FC = () => {
   const { user, hasPermission } = useAuth();
+  const { features } = useTenantFeatures();
 
   const canManageRoles = hasPermission("settings.manage_roles");
 
@@ -22,8 +24,8 @@ export const Sidebar: React.FC = () => {
       <nav className="flex-1 p-4 space-y-2">
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" icon="📊" />
 
-        {/* POS Module */}
-        {(hasPermission("pos.view") || hasPermission("pos.create")) && (
+        {/* POS Module - Vérifie si activé */}
+        {features.pos && (hasPermission("pos.view") || hasPermission("pos.create")) && (
           <NavSection label="Cajas">
             {hasPermission("pos.create") && (
               <NavLink href={ROUTES.POS} label="Nueva Venta" icon="🛒" />
@@ -34,35 +36,36 @@ export const Sidebar: React.FC = () => {
           </NavSection>
         )}
 
-        {/* Inventory Module */}
-        {hasPermission("inventory.view") && (
+        {/* Inventory Module - Vérifie si activé */}
+        {features.inventory && hasPermission("inventory.view") && (
           <NavSection label="Inventario">
             <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" icon="📦" />
           </NavSection>
         )}
 
-        {/* Employee Management */}
-        {(hasPermission("employees.view") || hasPermission("schedules.view")) && (
+        {/* Employee Management - Vérifie si activé */}
+        {(features.employees || features.schedules) && 
+         (hasPermission("employees.view") || hasPermission("schedules.view")) && (
           <NavSection label="Personal">
-            {hasPermission("employees.view") && (
+            {features.employees && hasPermission("employees.view") && (
               <NavLink href={ROUTES.EMPLOYEES} label="Empleados" icon="👥" />
             )}
-            {hasPermission("schedules.view") && (
+            {features.schedules && hasPermission("schedules.view") && (
               <NavLink href={ROUTES.SCHEDULES} label="Horarios" icon="📅" />
             )}
           </NavSection>
         )}
 
-        {/* Payroll Module */}
-        {(hasPermission("payroll.view") || hasPermission("payroll.create")) && (
+        {/* Payroll Module - Vérifie si activé */}
+        {features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")) && (
           <NavSection label="Nómina">
             <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos" icon="📆" />
             <NavLink href={ROUTES.PAYROLL} label="Recibos" icon="💰" />
           </NavSection>
         )}
 
-        {/* Admin Section */}
-        {canManageRoles && (
+        {/* Admin Section - Vérifie si activé */}
+        {features.settings && canManageRoles && (
           <NavSection label="Admin">
             <NavLink href="/admin/users" label="Gestionar Usuarios" icon="👤" />
             <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
