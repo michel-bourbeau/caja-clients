@@ -36,9 +36,13 @@ export async function POST(
 ) {
   try {
     const { tenantId } = await params;
-    const { name, sku, price, quantity, category_id, description, image } = await request.json();
+    const body = await request.json();
+    console.log("[POST /products] Request body:", body);
+    
+    const { name, sku, price, quantity, category_id, description } = body;
 
-    if (!name?.trim() || !sku?.trim() || !price) {
+    if (!name?.trim() || !sku?.trim() || price === undefined) {
+      console.log("[POST /products] Validation failed:", { name, sku, price });
       return NextResponse.json(
         { error: "Nom, SKU et prix sont requis" },
         { status: 400 }
@@ -47,27 +51,33 @@ export async function POST(
 
     const supabaseAdmin = getSupabaseAdmin();
 
+    const productData = {
+      tenant_id: tenantId,
+      name: name.trim(),
+      sku: sku.trim().toUpperCase(),
+      price: parseFloat(price),
+      stock_quantity: quantity ? parseInt(quantity) : 0,
+      category_id: category_id || null,
+      description: description?.trim() || null,
+    };
+
+    console.log("[POST /products] Inserting data:", productData);
+
     const { data, error } = await supabaseAdmin
       .from("products")
-      .insert([
-        {
-          tenant_id: tenantId,
-          name: name.trim(),
-          sku: sku.trim().toUpperCase(),
-          price: parseFloat(price),
-          quantity: parseInt(quantity) || 0,
-          category_id: category_id || null,
-          description: description?.trim() || null,
-          image: image || null,
-        },
-      ])
+      .insert([productData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("[POST /products] Database error:", error);
+      throw error;
+    }
 
+    console.log("[POST /products] Success:", data);
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
+    console.error("[POST /products] Exception:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

@@ -176,9 +176,16 @@ export default function InventoryPage() {
         setShowAddProduct(false);
         await fetchData();
       } else {
-        const error = await res.json();
-        setMessage(error.error || `Erreur: ${res.status}`);
-        console.error("Error response:", error);
+        const text = await res.text();
+        console.error("Response text:", text);
+        try {
+          const error = JSON.parse(text);
+          setMessage(error.error || `Erreur: ${res.status}`);
+          console.error("Error response:", error);
+        } catch {
+          setMessage(`Erreur serveur: ${res.status} - ${text}`);
+          console.error("Non-JSON response:", text);
+        }
       }
     } catch (error) {
       console.error("Fetch error:", error);
