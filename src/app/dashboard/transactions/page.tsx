@@ -248,11 +248,11 @@ export default function TransactionsPage() {
                   {dayTransactions.map((transaction) => (
                     <div key={transaction.id} className="border border-slate-300 rounded overflow-hidden hover:border-slate-400 transition-colors bg-white">
                       {/* Hora y método de pago */}
-                      <div className="px-3 py-2 bg-white border-b border-slate-100 flex justify-between items-center">
-                        <span className="text-sm font-semibold text-slate-700">
+                      <div className="px-3 py-1 bg-white border-b border-slate-100 flex justify-between items-center">
+                        <span className="text-xs font-semibold text-slate-700">
                           🕐 {getTimeOnly(transaction.timestamp)}
                         </span>
-                        <span className="text-sm text-slate-600">{transaction.paymentMethod} • {formatCurrency(transaction.total)}</span>
+                        <span className="text-xs text-slate-600">{transaction.paymentMethod} • {formatCurrency(transaction.total)}</span>
                       </div>
 
                       {/* Productos Vendidos - compacto */}
