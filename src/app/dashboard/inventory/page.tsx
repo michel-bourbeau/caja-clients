@@ -26,12 +26,14 @@ interface Product {
   description?: string;
   has_variants?: boolean;
   variants?: ProductVariant[];
+  sort_order?: number;
 }
 
 interface Category {
   id: string;
   name: string;
   description?: string;
+  sort_order?: number;
 }
 
 /**
@@ -73,6 +75,8 @@ export default function InventoryPage() {
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantQty, setEditingVariantQty] = useState<string>("");
+  const [reorderMode, setReorderMode] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -324,6 +328,52 @@ export default function InventoryPage() {
     }
   };
 
+  const moveCategory = async (catId: string, direction: -1 | 1) => {
+    const idx = categories.findIndex((c) => c.id === catId);
+    if (idx < 0) return;
+    const next = idx + direction;
+    if (next < 0 || next >= categories.length) return;
+    const updated = [...categories];
+    [updated[idx], updated[next]] = [updated[next], updated[idx]];
+    const withOrder = updated.map((c, i) => ({ ...c, sort_order: i }));
+    setCategories(withOrder);
+    setSavingOrder(true);
+    try {
+      await fetch(`/api/tenants/${tenantId}/categories`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: withOrder.map((c) => ({ id: c.id, sort_order: c.sort_order })) }),
+      });
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
+  const moveProduct = async (productId: string, catId: string | undefined, direction: -1 | 1) => {
+    const group = products.filter((p) => (p.category_id ?? null) === (catId ?? null));
+    const idx = group.findIndex((p) => p.id === productId);
+    if (idx < 0) return;
+    const next = idx + direction;
+    if (next < 0 || next >= group.length) return;
+    const updated = [...group];
+    [updated[idx], updated[next]] = [updated[next], updated[idx]];
+    const withOrder = updated.map((p, i) => ({ ...p, sort_order: i }));
+    setProducts((prev) => {
+      const others = prev.filter((p) => (p.category_id ?? null) !== (catId ?? null));
+      return [...others, ...withOrder];
+    });
+    setSavingOrder(true);
+    try {
+      await fetch(`/api/tenants/${tenantId}/products`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: withOrder.map((p) => ({ id: p.id, sort_order: p.sort_order })) }),
+      });
+    } finally {
+      setSavingOrder(false);
+    }
+  };
+
   const filteredProducts = useMemo(() => {
     let list = filterCategory
       ? products.filter((p) => p.category_id === filterCategory)
@@ -356,6 +406,12 @@ export default function InventoryPage() {
           <p className="text-sm text-slate-600 mt-1">{products.length} producto{products.length !== 1 ? "s" : ""} en inventario</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            onClick={() => setReorderMode((v) => !v)}
+            className={reorderMode ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-200 text-slate-700 hover:bg-slate-300"}
+          >
+            {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
+          </Button>
           <Button onClick={() => setShowAddCategory(!showAddCategory)} className="bg-blue-600 hover:bg-blue-700">
             + Categoría
           </Button>
@@ -537,7 +593,100 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {/* Reorder mode — grouped by category with ↑↓ buttons */}
+      {reorderMode && (
+        <div className="bg-white rounded-lg border-2 border-amber-400 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200">
+            <p className="text-sm font-semibold text-amber-800">
+              Modo ordenar — usa las flechas para reorganizar categorías y productos
+            </p>
+            {savingOrder && <span className="text-xs text-amber-600 animate-pulse">Guardando...</span>}
+          </div>
+
+          {/* Uncategorized products */}
+          {products.filter((p) => !p.category_id).length > 0 && (
+            <div className="border-b border-slate-100">
+              <div className="px-4 py-2 bg-slate-100 text-xs font-bold uppercase tracking-wide text-slate-500">
+                Sin categoría
+              </div>
+              {products
+                .filter((p) => !p.category_id)
+                .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                .map((product, idx, arr) => (
+                  <div key={product.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50 hover:bg-slate-50">
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        disabled={idx === 0}
+                        onClick={() => moveProduct(product.id, undefined, -1)}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                      >▲</button>
+                      <button
+                        disabled={idx === arr.length - 1}
+                        onClick={() => moveProduct(product.id, undefined, 1)}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                      >▼</button>
+                    </div>
+                    <span className="text-sm font-medium text-slate-800 flex-1">{product.name}</span>
+                    <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Categories with their products */}
+          {categories.map((cat, catIdx) => {
+            const catProducts = products
+              .filter((p) => p.category_id === cat.id)
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+            return (
+              <div key={cat.id} className="border-b border-slate-100 last:border-0">
+                {/* Category header with move buttons */}
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100">
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      disabled={catIdx === 0}
+                      onClick={() => moveCategory(cat.id, -1)}
+                      className="p-0.5 rounded text-slate-500 hover:text-slate-900 disabled:opacity-20 text-xs font-bold"
+                    >▲</button>
+                    <button
+                      disabled={catIdx === categories.length - 1}
+                      onClick={() => moveCategory(cat.id, 1)}
+                      className="p-0.5 rounded text-slate-500 hover:text-slate-900 disabled:opacity-20 text-xs font-bold"
+                    >▼</button>
+                  </div>
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-600 flex-1">{cat.name}</span>
+                  <span className="text-xs text-slate-400">{catProducts.length} prod.</span>
+                </div>
+                {/* Products in this category */}
+                {catProducts.map((product, pIdx) => (
+                  <div key={product.id} className="flex items-center gap-3 px-4 py-2.5 pl-12 border-b border-slate-50 hover:bg-slate-50">
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        disabled={pIdx === 0}
+                        onClick={() => moveProduct(product.id, cat.id, -1)}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                      >▲</button>
+                      <button
+                        disabled={pIdx === catProducts.length - 1}
+                        onClick={() => moveProduct(product.id, cat.id, 1)}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
+                      >▼</button>
+                    </div>
+                    <span className="text-sm font-medium text-slate-800 flex-1">{product.name}</span>
+                    <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
+                  </div>
+                ))}
+                {catProducts.length === 0 && (
+                  <p className="px-12 py-2 text-xs text-slate-400 italic">Sin productos en esta categoría</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Products table */}
+      {!reorderMode && (
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
 
         {/* Toolbar */}
@@ -790,6 +939,7 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

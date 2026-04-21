@@ -10,6 +10,7 @@ export interface Product {
   category: string;
   description?: string;
   image?: string;
+  sort_order?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +19,7 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
+  sort_order?: number;
 }
 
 export interface InventoryMovement {

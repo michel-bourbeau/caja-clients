@@ -13,7 +13,8 @@ export async function GET(
       .from("products")
       .select("*, product_variants(*)")
       .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
 
     if (error) throw error;
 
@@ -92,6 +93,44 @@ export async function POST(
     return NextResponse.json(mappedData, { status: 201 });
   } catch (error) {
     console.error("[POST /products] Exception:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/tenants/[tenantId]/products
+ * Bulk update sort_order for products
+ * Body: { order: [{ id, sort_order }] }
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ tenantId: string }> }
+) {
+  try {
+    const { tenantId } = await params;
+    const { order } = await request.json();
+
+    if (!Array.isArray(order)) {
+      return NextResponse.json({ error: "order array required" }, { status: 400 });
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
+
+    await Promise.all(
+      order.map(({ id, sort_order }: { id: string; sort_order: number }) =>
+        supabaseAdmin
+          .from("products")
+          .update({ sort_order })
+          .eq("id", id)
+          .eq("tenant_id", tenantId)
+      )
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

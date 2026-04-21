@@ -113,6 +113,40 @@ export default function POSPage() {
     return grouped;
   }, [products]);
 
+  // Rows for the product table — either grouped (with category header rows) or flat
+  type HeaderRow = { type: "header"; catId: string; catName: string };
+  type ProductRow = { type: "product"; product: Product };
+  type TableRow = HeaderRow | ProductRow;
+
+  const tableRows = useMemo((): TableRow[] => {
+    // Flat mode: searching or a category is selected
+    if (search.trim() || selectedCategory) {
+      const base = selectedCategory
+        ? productsByCategory[selectedCategory] ?? []
+        : Object.values(productsByCategory).flat();
+      const q = search.toLowerCase();
+      const filtered = search.trim()
+        ? base.filter((p) => p.name.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q))
+        : base;
+      return filtered.map((p) => ({ type: "product", product: p }));
+    }
+    // Grouped mode: no search, no category selected
+    const rows: TableRow[] = [];
+    const uncategorized = productsByCategory["uncategorized"] ?? [];
+    if (uncategorized.length) {
+      rows.push({ type: "header", catId: "uncategorized", catName: "Sin categoría" });
+      uncategorized.forEach((p) => rows.push({ type: "product", product: p }));
+    }
+    categories.forEach((cat) => {
+      const ps = productsByCategory[cat.id] ?? [];
+      if (ps.length) {
+        rows.push({ type: "header", catId: cat.id, catName: cat.name });
+        ps.forEach((p) => rows.push({ type: "product", product: p }));
+      }
+    });
+    return rows;
+  }, [search, selectedCategory, productsByCategory, categories]);
+
   const displayedProducts = useMemo(() => {
     const base = selectedCategory
       ? productsByCategory[selectedCategory] ?? []
@@ -220,8 +254,8 @@ export default function POSPage() {
     <div>
       <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Caja - Nueva Venta</h1>
-          <p className="text-sm text-slate-600 mt-1">Selecciona productos, ajusta cantidades y finaliza la venta.</p>
+          <h1 className="text-3xl font-bold text-gray-900">Caja</h1>
+        
         </div>
 
         {/* Cart toggle button — hidden on lg (cart always visible) */}
@@ -275,19 +309,32 @@ export default function POSPage() {
               className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          {/* Category filter */}
-          <select
-            value={selectedCategory || ""}
-            onChange={(e) => setSelectedCategory(e.target.value || null)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Todas las categorías</option>
+          {/* Category filter — pill buttons */}
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                selectedCategory === null
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
+              }`}
+            >
+              Todas
+            </button>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name} ({productsByCategory[cat.id]?.length ?? 0})
-              </option>
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  selectedCategory === cat.id
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
+                }`}
+              >
+                {cat.name}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
         {productsLoading ? (
@@ -319,7 +366,17 @@ export default function POSPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {displayedProducts.map((product) => {
+                {tableRows.map((row) => {
+                  if (row.type === "header") {
+                    return (
+                      <tr key={`header-${row.catId}`} className="bg-slate-100 border-t-2 border-slate-200">
+                        <td colSpan={5} className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                          {row.catName}
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const { product } = row;
                   const inCart = cart.find((i) => !i.variantId && i.productId === product.id);
                   const category = categories.find((c) => c.id === (product as any).category_id);
                   const outOfStock = product.quantity <= 0;

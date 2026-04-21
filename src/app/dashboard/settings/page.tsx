@@ -323,7 +323,7 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        <Card title="Configuracion de Cajas">
+        {/* <Card title="Configuracion de Cajas">
           {loadingSettings ? (
             <p className="text-sm text-slate-500">Cargando...</p>
           ) : (
@@ -349,9 +349,9 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-        </Card>
+        </Card> */}
 
-        <Card title="Configuracion de Nomina">
+        {/* <Card title="Configuracion de Nomina">
           {loadingSettings ? (
             <p className="text-sm text-slate-500">Cargando...</p>
           ) : (
@@ -423,9 +423,9 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-        </Card>
+        </Card> */}
 
-        <Card title="Datos y Respaldos">
+        {/* <Card title="Datos y Respaldos">
           <div className="space-y-4">
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm font-semibold text-blue-900 mb-1">Exportar datos</p>
@@ -443,7 +443,7 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-        </Card>
+        </Card> */}
 
       </div>
     </div>
