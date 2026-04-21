@@ -175,9 +175,6 @@ export async function GET(
     const employees: { id: string; first_name: string; last_name: string; salary: number }[] = empRes.data ?? [];
     const entries: { employee_id: string; check_in: string; check_out: string | null }[] = entRes.data ?? [];
 
-    // Standard monthly hours → hourly rate
-    const MONTHLY_HOURS = 160;
-
     const summary = employees.map((emp) => {
       const empEntries = entries.filter((e) => e.employee_id === emp.id);
       let totalMinutes = 0;
@@ -187,16 +184,15 @@ export async function GET(
           totalMinutes += Math.max(0, Math.floor(diff / 60000));
         }
       }
-      const hoursWorked   = Math.round((totalMinutes / 60) * 100) / 100;
-      const hourlyRate    = emp.salary > 0 ? Math.round((emp.salary / MONTHLY_HOURS) * 100) / 100 : 0;
-      const salaryDue     = Math.round(hoursWorked * hourlyRate * 100) / 100;
-      const shiftsCount   = empEntries.length;
+      const hoursWorked = Math.round((totalMinutes / 60) * 100) / 100;
+      const hourlyRate  = emp.salary ?? 0;   // salary column stores the hourly rate
+      const salaryDue   = Math.round(hoursWorked * hourlyRate * 100) / 100;
+      const shiftsCount = empEntries.length;
 
       return {
         employeeId:   emp.id,
         firstName:    emp.first_name,
         lastName:     emp.last_name,
-        monthlySalary: emp.salary,
         hourlyRate,
         hoursWorked,
         shiftsCount,

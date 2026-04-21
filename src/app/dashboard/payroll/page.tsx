@@ -25,7 +25,6 @@ interface EmployeeSummary {
   employeeId: string;
   firstName: string;
   lastName: string;
-  monthlySalary: number;
   hourlyRate: number;
   hoursWorked: number;
   shiftsCount: number;
@@ -239,7 +238,9 @@ function PayrollContent() {
                           <td className="px-5 py-3 text-right text-slate-700 font-medium">
                             {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
                           </td>
-                          <td className="px-5 py-3 text-right text-slate-500">{fmt(emp.hourlyRate)}</td>
+                          <td className="px-5 py-3 text-right text-slate-500">
+                            {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
+                          </td>
                           <td className="px-5 py-3 text-right font-bold text-slate-900">
                             {emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}
                           </td>
@@ -249,8 +250,7 @@ function PayrollContent() {
                     {summary.length > 1 && (
                       <tfoot>
                         <tr className="bg-slate-50 border-t-2 border-slate-200">
-                          <td className="px-5 py-3 text-sm font-bold text-slate-700" colSpan={2}>Total</td>
-                          <td className="px-5 py-3 text-right font-bold text-slate-900">{fmtHours(totalHours)}</td>
+                          <td className="px-5 py-3 text-sm font-bold text-slate-700" colSpan={3}>Total</td>
                           <td></td>
                           <td className="px-5 py-3 text-right font-bold text-blue-700 text-base">{fmt(totalSalaryDue)}</td>
                         </tr>
@@ -262,7 +262,7 @@ function PayrollContent() {
 
               {/* Disclaimer */}
               <p className="mt-3 text-xs text-slate-400">
-                * Calculo basado en salario mensual ÷ 160 horas × horas registradas en asistencia.
+                * Calculo basado en tarifa por hora × horas registradas en asistencia.
                 Las entradas sin hora de salida no se incluyen en el calculo.
               </p>
             </>

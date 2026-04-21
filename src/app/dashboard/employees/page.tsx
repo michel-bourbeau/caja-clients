@@ -17,6 +17,17 @@ interface Employee {
   hire_date: string | null;
 }
 
+interface SalaryPayment {
+  id: string;
+  period_start: string;
+  period_end: string;
+  hours_worked: number;
+  hourly_rate: number;
+  amount: number;
+  notes: string | null;
+  paid_at: string;
+}
+
 const EMPTY_FORM = {
   firstName: "",
   lastName: "",
@@ -24,6 +35,7 @@ const EMPTY_FORM = {
   phone: "",
   roleId: "cashier",
   salary: "",
+  hireDate: new Date().toISOString().split("T")[0],
   password: "",
   confirmPassword: "",
 };
@@ -48,6 +60,15 @@ export default function EmployeesPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [showPassword, setShowPassword] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Ficha (employee detail)
+  const [fichaEmp, setFichaEmp] = useState<Employee | null>(null);
+  const [fichaTab, setFichaTab] = useState<"payments" | "aguinaldo" | "vacaciones">("payments");
+  const [fichaPayments, setFichaPayments] = useState<SalaryPayment[]>([]);
+  const [fichaLoading, setFichaLoading] = useState(false);
+  const [fichaPayForm, setFichaPayForm] = useState({ periodStart: "", periodEnd: "", hoursWorked: "", amount: "", notes: "" });
+  const [fichaPaySaving, setFichaPaySaving] = useState(false);
+  const [fichaPayDelConfirm, setFichaPayDelConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -95,6 +116,7 @@ export default function EmployeesPage() {
       phone: emp.phone ?? "",
       roleId: emp.role_id,
       salary: String(emp.salary),
+      hireDate: emp.hire_date ?? new Date().toISOString().split("T")[0],
       password: "",
       confirmPassword: "",
     });
@@ -125,6 +147,7 @@ export default function EmployeesPage() {
         phone: form.phone,
         roleId: form.roleId,
         salary: form.salary,
+        hireDate: form.hireDate,
       };
       if (form.password) payload.password = form.password;
 
@@ -179,6 +202,101 @@ export default function EmployeesPage() {
       setDeleteConfirmId(null);
     }
   };
+
+  const openFicha = async (emp: Employee) => {
+    setFichaEmp(emp);
+    setFichaTab("payments");
+    setFichaPayments([]);
+    setFichaPayForm({ periodStart: "", periodEnd: "", hoursWorked: "", amount: "", notes: "" });
+    setFichaPayDelConfirm(null);
+    if (!tenantId) return;
+    setFichaLoading(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/employees/${emp.id}/payments`);
+      setFichaPayments(await res.json());
+    } finally {
+      setFichaLoading(false);
+    }
+  };
+
+  const handleAddPayment = async () => {
+    if (!tenantId || !fichaEmp) return;
+    const { periodStart, periodEnd, hoursWorked, amount, notes } = fichaPayForm;
+    if (!periodStart || !periodEnd || !amount) return;
+    setFichaPaySaving(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          periodStart, periodEnd,
+          hoursWorked: parseFloat(hoursWorked) || 0,
+          hourlyRate: fichaEmp.salary,
+          amount: parseFloat(amount),
+          notes: notes || null,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const newPay = await res.json();
+      setFichaPayments((prev) => [newPay, ...prev]);
+      setFichaPayForm({ periodStart: "", periodEnd: "", hoursWorked: "", amount: "", notes: "" });
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Error", "error");
+    } finally {
+      setFichaPaySaving(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!tenantId || !fichaEmp) return;
+    await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/payments/${paymentId}`, { method: "DELETE" });
+    setFichaPayments((prev) => prev.filter((p) => p.id !== paymentId));
+    setFichaPayDelConfirm(null);
+  };
+
+  // ── Nicaragua: 13th month (aguinaldo) ──────────────────────────────────────
+  // Period: Dec 1 (prev year) → Nov 30 (current year)
+  // Amount = sum of salaries paid in that cycle / 12 (pro-rated if hired later)
+  const aguinaldoData = (() => {
+    if (!fichaEmp) return null;
+    const today = new Date();
+    const cycleYear = today.getMonth() < 11 ? today.getFullYear() : today.getFullYear();
+    const cycleStart = new Date(cycleYear - 1, 11, 1); // Dec 1 prev year
+    const cycleEnd   = new Date(cycleYear, 10, 30);    // Nov 30 current year
+    const hireDate   = fichaEmp.hire_date ? new Date(fichaEmp.hire_date) : null;
+    const effectiveStart = hireDate && hireDate > cycleStart ? hireDate : cycleStart;
+
+    const totalMonths = 12;
+    const msPerMonth = (cycleEnd.getTime() - cycleStart.getTime()) / totalMonths;
+    const monthsWorked = Math.max(0,
+      Math.min(totalMonths, (Math.min(today.getTime(), cycleEnd.getTime()) - effectiveStart.getTime()) / msPerMonth)
+    );
+
+    // Sum payments within cycle
+    const cyclePayments = fichaPayments.filter((p) => {
+      const d = new Date(p.paid_at);
+      return d >= cycleStart && d <= cycleEnd;
+    });
+    const totalPaid = cyclePayments.reduce((s, p) => s + p.amount, 0);
+    const estimated = monthsWorked > 0 ? Math.round((totalPaid / monthsWorked) * monthsWorked / 12 * 100) / 100 : 0;
+    const prorated  = Math.round(monthsWorked / 12 * 100) / 100;
+
+    return { cycleStart, cycleEnd, monthsWorked, totalPaid, estimated: Math.round(totalPaid / 12 * 100) / 100, prorated };
+  })();
+
+  // ── Vacation accrual: 2.5 days/month from hire date ────────────────────────
+  const vacationData = (() => {
+    if (!fichaEmp?.hire_date) return null;
+    const hire  = new Date(fichaEmp.hire_date);
+    const today = new Date();
+    const diffMs = today.getTime() - hire.getTime();
+    const months = Math.max(0, diffMs / (1000 * 60 * 60 * 24 * 30.44));
+    const daysAccrued = Math.floor(months * 2.5 * 100) / 100;
+    const fullYears   = Math.floor(months / 12);
+    return { daysAccrued, months: Math.floor(months), fullYears };
+  })();
+
+  const fmtDate = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
     <div>
@@ -257,7 +375,7 @@ export default function EmployeesPage() {
                   <th className="px-4 py-2.5 text-left">Empleado</th>
                   <th className="px-4 py-2.5 text-left hidden md:table-cell">Email</th>
                   <th className="px-4 py-2.5 text-left hidden sm:table-cell">Rol</th>
-                  <th className="px-4 py-2.5 text-right hidden lg:table-cell">Salario</th>
+                  <th className="px-4 py-2.5 text-right hidden lg:table-cell">Tarifa/h</th>
                   <th className="px-4 py-2.5 text-center">Estado</th>
                   <th className="px-4 py-2.5 text-center w-24"></th>
                 </tr>
@@ -287,6 +405,11 @@ export default function EmployeesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => openFicha(emp)} title="Ficha" className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </button>
                           <button onClick={() => openEdit(emp)} title="Editar" className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -359,9 +482,14 @@ export default function EmployeesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Salario *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tarifa por hora *</label>
                   <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de contratacion *</label>
+                <input type="date" value={form.hireDate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
 
               <div className="border-t border-slate-200 pt-4">
@@ -420,6 +548,205 @@ export default function EmployeesPage() {
               <button onClick={() => handleDelete(deleteConfirmId)} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-60">
                 {saving ? "Eliminando..." : "Eliminar"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Ficha Modal ──────────────────────────────────────────────────────── */}
+      {fichaEmp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setFichaEmp(null)} />
+          <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl shrink-0">
+              <div>
+                <h2 className="text-base font-semibold">{fichaEmp.first_name} {fichaEmp.last_name}</h2>
+                <p className="text-xs text-slate-300">
+                  {fichaEmp.hire_date ? `Contratado el ${fmtDate(fichaEmp.hire_date)}` : "Sin fecha de contratacion"}
+                  {" · "}{fmt(fichaEmp.salary)}/h
+                </p>
+              </div>
+              <button onClick={() => setFichaEmp(null)} className="text-slate-400 hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 px-4 pt-3 pb-0 bg-white border-b border-slate-200 shrink-0">
+              {(["payments", "aguinaldo", "vacaciones"] as const).map((t) => (
+                <button key={t} onClick={() => setFichaTab(t)}
+                  className={`px-4 py-2 text-sm font-semibold rounded-t-md transition-colors ${
+                    fichaTab === t ? "bg-white border border-b-white border-slate-200 text-slate-900 -mb-px" : "text-slate-500 hover:text-slate-700"
+                  }`}>
+                  {t === "payments" ? "Historial de Pagos" : t === "aguinaldo" ? "13° Mes" : "Vacaciones"}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5">
+
+              {/* ── Payments tab ── */}
+              {fichaTab === "payments" && (
+                <div className="space-y-4">
+                  {/* Add payment form */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-semibold text-slate-800">Registrar nuevo pago</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Periodo inicio *</label>
+                        <input type="date" value={fichaPayForm.periodStart}
+                          onChange={(e) => setFichaPayForm((f) => ({ ...f, periodStart: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Periodo fin *</label>
+                        <input type="date" value={fichaPayForm.periodEnd}
+                          onChange={(e) => setFichaPayForm((f) => ({ ...f, periodEnd: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Horas trabajadas</label>
+                        <input type="number" min="0" step="0.5" value={fichaPayForm.hoursWorked}
+                          onChange={(e) => {
+                            const h = e.target.value;
+                            const calc = h && fichaEmp.salary > 0 ? String(Math.round(parseFloat(h) * fichaEmp.salary * 100) / 100) : fichaPayForm.amount;
+                            setFichaPayForm((f) => ({ ...f, hoursWorked: h, amount: calc }));
+                          }}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Monto a pagar *</label>
+                        <input type="number" min="0" step="0.01" value={fichaPayForm.amount}
+                          onChange={(e) => setFichaPayForm((f) => ({ ...f, amount: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Notas (opcional)</label>
+                      <input type="text" value={fichaPayForm.notes}
+                        onChange={(e) => setFichaPayForm((f) => ({ ...f, notes: e.target.value }))}
+                        placeholder="Semana del 14 al 20 de abril..."
+                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <button onClick={handleAddPayment} disabled={fichaPaySaving || !fichaPayForm.periodStart || !fichaPayForm.periodEnd || !fichaPayForm.amount}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors">
+                      {fichaPaySaving ? "Guardando..." : "Registrar Pago"}
+                    </button>
+                  </div>
+
+                  {/* Payments list */}
+                  {fichaLoading ? (
+                    <p className="text-sm text-slate-400 text-center py-6">Cargando...</p>
+                  ) : fichaPayments.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-6">Sin pagos registrados</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {fichaPayments.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{fmt(p.amount)}</p>
+                            <p className="text-xs text-slate-500">
+                              {fmtDate(p.period_start)} – {fmtDate(p.period_end)}
+                              {p.hours_worked > 0 && ` · ${p.hours_worked}h`}
+                              {p.notes && ` · ${p.notes}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-slate-400">Pagado {fmtDate(p.paid_at)}</p>
+                            {fichaPayDelConfirm === p.id ? (
+                              <span className="flex gap-1">
+                                <button onClick={() => handleDeletePayment(p.id)} className="text-xs text-red-600 font-semibold hover:underline">Confirmar</button>
+                                <button onClick={() => setFichaPayDelConfirm(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
+                              </span>
+                            ) : (
+                              <button onClick={() => setFichaPayDelConfirm(p.id)} className="text-xs text-slate-300 hover:text-red-500 transition-colors">x</button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-xs text-slate-400 text-right pt-1">
+                        Total pagado: <span className="font-bold text-slate-700">{fmt(fichaPayments.reduce((s, p) => s + p.amount, 0))}</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Aguinaldo tab ── */}
+              {fichaTab === "aguinaldo" && (
+                <div className="space-y-4">
+                  {!fichaEmp.hire_date ? (
+                    <p className="text-sm text-amber-600">Agrega la fecha de contratacion para calcular el aguinaldo.</p>
+                  ) : aguinaldoData && (
+                    <>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-2">Ciclo actual</p>
+                        <p className="text-sm text-slate-700">
+                          {fmtDate(aguinaldoData.cycleStart.toISOString().split("T")[0])} – {fmtDate(aguinaldoData.cycleEnd.toISOString().split("T")[0])}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {Math.floor(aguinaldoData.monthsWorked)} mes{Math.floor(aguinaldoData.monthsWorked) !== 1 ? "es" : ""} trabajados en este ciclo
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500 mb-1">Total salarios pagados (ciclo)</p>
+                          <p className="text-2xl font-bold text-slate-900">{fmt(aguinaldoData.totalPaid)}</p>
+                        </div>
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                          <p className="text-xs text-emerald-700 mb-1">Aguinaldo estimado (1/12)</p>
+                          <p className="text-2xl font-bold text-emerald-700">{fmt(aguinaldoData.estimated)}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        * Ley 185 Nicaragua: el aguinaldo equivale a un mes de salario ordinario por cada año trabajado,
+                        calculado sobre el total de salarios del ciclo Dic–Nov dividido entre 12.
+                        Si no ha completado el ciclo se paga proporcional a los meses trabajados.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── Vacaciones tab ── */}
+              {fichaTab === "vacaciones" && (
+                <div className="space-y-4">
+                  {!fichaEmp.hire_date ? (
+                    <p className="text-sm text-amber-600">Agrega la fecha de contratacion para calcular las vacaciones.</p>
+                  ) : vacationData && (
+                    <>
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-1">Desde contratacion</p>
+                        <p className="text-sm text-slate-700">
+                          {fmtDate(fichaEmp.hire_date!)} – hoy
+                          {" · "}{vacationData.months} mes{vacationData.months !== 1 ? "es" : ""}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500 mb-1">Meses trabajados</p>
+                          <p className="text-2xl font-bold text-slate-900">{vacationData.months}</p>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                          <p className="text-xs text-amber-700 mb-1">Días acumulados</p>
+                          <p className="text-2xl font-bold text-amber-700">{vacationData.daysAccrued}</p>
+                          <p className="text-xs text-amber-600">(2.5 días / mes)</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        * Art. 76 Código Laboral Nicaragua: todo trabajador tiene derecho a 15 días de descanso
+                        (vacaciones) por cada 6 meses de trabajo continuo = 2.5 días por mes.
+                        Este cálculo muestra los días acumulados desde la contratación y no descuenta
+                        vacaciones ya tomadas.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
         </div>

@@ -12,18 +12,19 @@ export async function PUT(
   try {
     const { tenantId, employeeId } = await params;
     const body = await request.json();
-    const { firstName, lastName, email, phone, roleId, salary, status, password } = body;
+    const { firstName, lastName, email, phone, roleId, salary, status, password, hireDate } = body;
 
     const supabase = getSupabaseAdmin();
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (firstName !== undefined) updates.first_name = firstName.trim();
-    if (lastName !== undefined) updates.last_name = lastName.trim();
-    if (email !== undefined) updates.email = email.trim().toLowerCase();
-    if (phone !== undefined) updates.phone = phone?.trim() || null;
-    if (roleId !== undefined) updates.role_id = roleId;
-    if (salary !== undefined) updates.salary = parseFloat(salary);
-    if (status !== undefined) updates.status = status;
+    if (firstName  !== undefined) updates.first_name = firstName.trim();
+    if (lastName   !== undefined) updates.last_name  = lastName.trim();
+    if (email      !== undefined) updates.email      = email.trim().toLowerCase();
+    if (phone      !== undefined) updates.phone      = phone?.trim() || null;
+    if (roleId     !== undefined) updates.role_id    = roleId;
+    if (salary     !== undefined) updates.salary     = parseFloat(salary);
+    if (status     !== undefined) updates.status     = status;
+    if (hireDate   !== undefined) updates.hire_date  = hireDate || null;
 
     const { data, error } = await supabase
       .from("employees")
