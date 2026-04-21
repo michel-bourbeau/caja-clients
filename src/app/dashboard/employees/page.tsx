@@ -254,46 +254,63 @@ export default function EmployeesPage() {
     setFichaPayDelConfirm(null);
   };
 
+  // ── Average hours per calendar month (from all recorded payments) ──────────
+  const avgHoursPerMonth = (() => {
+    if (fichaPayments.length === 0) return 0;
+    // Sum hours per calendar month (keyed by "YYYY-MM" of period_start)
+    const byMonth: Record<string, number> = {};
+    fichaPayments.forEach((p) => {
+      const key = p.period_start.substring(0, 7);
+      byMonth[key] = (byMonth[key] || 0) + p.hours_worked;
+    });
+    const months = Object.values(byMonth);
+    return months.reduce((s, h) => s + h, 0) / months.length;
+  })();
+
   // ── Nicaragua: 13th month (aguinaldo) ──────────────────────────────────────
-  // Period: Dec 1 (prev year) → Nov 30 (current year)
-  // Amount = sum of salaries paid in that cycle / 12 (pro-rated if hired later)
+  // Method: average monthly hours × hourly rate = average monthly salary
+  // Aguinaldo = average monthly salary × (months worked in cycle / 12)
   const aguinaldoData = (() => {
     if (!fichaEmp) return null;
     const today = new Date();
-    const cycleYear = today.getMonth() < 11 ? today.getFullYear() : today.getFullYear();
-    const cycleStart = new Date(cycleYear - 1, 11, 1); // Dec 1 prev year
-    const cycleEnd   = new Date(cycleYear, 10, 30);    // Nov 30 current year
+    const cycleStart = new Date(today.getFullYear() - 1, 11, 1); // Dec 1 prev year
+    const cycleEnd   = new Date(today.getFullYear(), 10, 30);    // Nov 30 current year
     const hireDate   = fichaEmp.hire_date ? new Date(fichaEmp.hire_date) : null;
     const effectiveStart = hireDate && hireDate > cycleStart ? hireDate : cycleStart;
 
-    const totalMonths = 12;
-    const msPerMonth = (cycleEnd.getTime() - cycleStart.getTime()) / totalMonths;
+    const msPerMonth = (cycleEnd.getTime() - cycleStart.getTime()) / 12;
     const monthsWorked = Math.max(0,
-      Math.min(totalMonths, (Math.min(today.getTime(), cycleEnd.getTime()) - effectiveStart.getTime()) / msPerMonth)
+      Math.min(12, (Math.min(today.getTime(), cycleEnd.getTime()) - effectiveStart.getTime()) / msPerMonth)
     );
 
-    // Sum payments within cycle
+    // Average monthly salary from payment history
+    const avgMonthlySalary = Math.round(avgHoursPerMonth * fichaEmp.salary * 100) / 100;
+    // Aguinaldo = 1 month of avg salary, pro-rated to months worked in cycle
+    const aguinaldo = Math.round(avgMonthlySalary * (monthsWorked / 12) * 100) / 100;
+
+    // Also show total paid in cycle for reference
     const cyclePayments = fichaPayments.filter((p) => {
       const d = new Date(p.paid_at);
       return d >= cycleStart && d <= cycleEnd;
     });
     const totalPaid = cyclePayments.reduce((s, p) => s + p.amount, 0);
-    const estimated = monthsWorked > 0 ? Math.round((totalPaid / monthsWorked) * monthsWorked / 12 * 100) / 100 : 0;
-    const prorated  = Math.round(monthsWorked / 12 * 100) / 100;
 
-    return { cycleStart, cycleEnd, monthsWorked, totalPaid, estimated: Math.round(totalPaid / 12 * 100) / 100, prorated };
+    return { cycleStart, cycleEnd, monthsWorked, avgHoursPerMonth, avgMonthlySalary, aguinaldo, totalPaid };
   })();
 
   // ── Vacation accrual: 2.5 days/month from hire date ────────────────────────
+  // Monetary value = accrued days × avg daily hours (avg_h/month ÷ 30) × hourly rate
   const vacationData = (() => {
     if (!fichaEmp?.hire_date) return null;
     const hire  = new Date(fichaEmp.hire_date);
     const today = new Date();
-    const diffMs = today.getTime() - hire.getTime();
-    const months = Math.max(0, diffMs / (1000 * 60 * 60 * 24 * 30.44));
+    const months = Math.max(0, (today.getTime() - hire.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
     const daysAccrued = Math.floor(months * 2.5 * 100) / 100;
-    const fullYears   = Math.floor(months / 12);
-    return { daysAccrued, months: Math.floor(months), fullYears };
+    const avgDailyHours = avgHoursPerMonth / 30;
+    const monetaryValue = avgDailyHours > 0
+      ? Math.round(daysAccrued * avgDailyHours * fichaEmp.salary * 100) / 100
+      : 0;
+    return { daysAccrued, months: Math.floor(months), avgHoursPerMonth, avgDailyHours, monetaryValue };
   })();
 
   const fmtDate = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" });
@@ -682,6 +699,11 @@ export default function EmployeesPage() {
                     <p className="text-sm text-amber-600">Agrega la fecha de contratacion para calcular el aguinaldo.</p>
                   ) : aguinaldoData && (
                     <>
+                      {avgHoursPerMonth === 0 && (
+                        <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          Registra pagos con horas trabajadas para calcular el aguinaldo basado en el promedio mensual.
+                        </p>
+                      )}
                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                         <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-2">Ciclo actual</p>
                         <p className="text-sm text-slate-700">
@@ -689,22 +711,29 @@ export default function EmployeesPage() {
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
                           {Math.floor(aguinaldoData.monthsWorked)} mes{Math.floor(aguinaldoData.monthsWorked) !== 1 ? "es" : ""} trabajados en este ciclo
+                          {" · "}{Math.round(aguinaldoData.avgHoursPerMonth * 10) / 10} h/mes promedio
                         </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-3">
                         <div className="bg-white border border-slate-200 rounded-xl p-4">
-                          <p className="text-xs text-slate-500 mb-1">Total salarios pagados (ciclo)</p>
-                          <p className="text-2xl font-bold text-slate-900">{fmt(aguinaldoData.totalPaid)}</p>
+                          <p className="text-xs text-slate-500 mb-1">Horas promedio / mes</p>
+                          <p className="text-2xl font-bold text-slate-900">{Math.round(aguinaldoData.avgHoursPerMonth * 10) / 10}</p>
+                          <p className="text-xs text-slate-400">h</p>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-xl p-4">
+                          <p className="text-xs text-slate-500 mb-1">Salario mensual prom.</p>
+                          <p className="text-xl font-bold text-slate-900">{fmt(aguinaldoData.avgMonthlySalary)}</p>
+                          <p className="text-xs text-slate-400">h × {fmt(fichaEmp.salary)}/h</p>
                         </div>
                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                          <p className="text-xs text-emerald-700 mb-1">Aguinaldo estimado (1/12)</p>
-                          <p className="text-2xl font-bold text-emerald-700">{fmt(aguinaldoData.estimated)}</p>
+                          <p className="text-xs text-emerald-700 mb-1">Aguinaldo acumulado</p>
+                          <p className="text-xl font-bold text-emerald-700">{fmt(aguinaldoData.aguinaldo)}</p>
+                          <p className="text-xs text-emerald-600">{Math.floor(aguinaldoData.monthsWorked)}/12 meses</p>
                         </div>
                       </div>
                       <p className="text-xs text-slate-400">
-                        * Ley 185 Nicaragua: el aguinaldo equivale a un mes de salario ordinario por cada año trabajado,
-                        calculado sobre el total de salarios del ciclo Dic–Nov dividido entre 12.
-                        Si no ha completado el ciclo se paga proporcional a los meses trabajados.
+                        * Ley 185 Nicaragua: aguinaldo = 1 mes de salario ordinario por año trabajado.
+                        Calculado como promedio de horas/mes × tarifa/h, pro-rateado a los meses trabajados en el ciclo Dic–Nov.
                       </p>
                     </>
                   )}
@@ -718,6 +747,11 @@ export default function EmployeesPage() {
                     <p className="text-sm text-amber-600">Agrega la fecha de contratacion para calcular las vacaciones.</p>
                   ) : vacationData && (
                     <>
+                      {vacationData.avgHoursPerMonth === 0 && (
+                        <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          Registra pagos con horas trabajadas para calcular el valor monetario de las vacaciones.
+                        </p>
+                      )}
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                         <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-1">Desde contratacion</p>
                         <p className="text-sm text-slate-700">
@@ -725,22 +759,32 @@ export default function EmployeesPage() {
                           {" · "}{vacationData.months} mes{vacationData.months !== 1 ? "es" : ""}
                         </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white border border-slate-200 rounded-xl p-4">
-                          <p className="text-xs text-slate-500 mb-1">Meses trabajados</p>
-                          <p className="text-2xl font-bold text-slate-900">{vacationData.months}</p>
+                          <p className="text-xs text-slate-500 mb-1">Horas promedio / mes</p>
+                          <p className="text-2xl font-bold text-slate-900">{Math.round(vacationData.avgHoursPerMonth * 10) / 10}</p>
+                          <p className="text-xs text-slate-400">h</p>
                         </div>
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                           <p className="text-xs text-amber-700 mb-1">Días acumulados</p>
                           <p className="text-2xl font-bold text-amber-700">{vacationData.daysAccrued}</p>
-                          <p className="text-xs text-amber-600">(2.5 días / mes)</p>
+                          <p className="text-xs text-amber-600">2.5 días × {vacationData.months} mes{vacationData.months !== 1 ? "es" : ""}</p>
                         </div>
                       </div>
+                      {vacationData.avgHoursPerMonth > 0 && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-1">Valor monetario acumulado</p>
+                            <p className="text-xs text-emerald-600">
+                              {vacationData.daysAccrued} días × {Math.round(vacationData.avgDailyHours * 100) / 100} h/día × {fmt(fichaEmp.salary)}/h
+                            </p>
+                          </div>
+                          <p className="text-2xl font-bold text-emerald-700">{fmt(vacationData.monetaryValue)}</p>
+                        </div>
+                      )}
                       <p className="text-xs text-slate-400">
-                        * Art. 76 Código Laboral Nicaragua: todo trabajador tiene derecho a 15 días de descanso
-                        (vacaciones) por cada 6 meses de trabajo continuo = 2.5 días por mes.
-                        Este cálculo muestra los días acumulados desde la contratación y no descuenta
-                        vacaciones ya tomadas.
+                        * Art. 76 Código Laboral Nicaragua: 15 días por cada 6 meses = 2.5 días/mes.
+                        Valor monetario = días acumulados × horas promedio por día (promedio mensual ÷ 30) × tarifa/h.
                       </p>
                     </>
                   )}
