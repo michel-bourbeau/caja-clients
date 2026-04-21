@@ -45,12 +45,12 @@ export const Sidebar: React.FC = () => {
 
         {/* Employee Management - Vérifie si activé */}
         {(features.employees || features.schedules) && 
-         (hasPermission("employees.view") || hasPermission("schedules.view")) && (
+         (hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
           <NavSection label="Personal">
             {features.employees && hasPermission("employees.view") && (
               <NavLink href={ROUTES.EMPLOYEES} label="Empleados" icon="👥" />
             )}
-            {features.schedules && hasPermission("schedules.view") && (
+            {features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
               <NavLink href={ROUTES.SCHEDULES} label="Asistencia" icon="🕐" />
             )}
           </NavSection>
