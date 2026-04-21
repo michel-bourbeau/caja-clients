@@ -210,196 +210,194 @@ function PayrollContent() {
         </a>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      {/* ── Period navigator ──────────────────────────────────────────────── */}
+      {!loadingPeriods && periods.length > 0 && (() => {
+        const idx = selectedPeriod ? periods.findIndex((p) => p.id === selectedPeriod.id) : 0;
+        const canPrev = idx < periods.length - 1;
+        const canNext = idx > 0;
+        return (
+          <div className="flex items-center gap-2 mb-6">
+            <button
+              onClick={() => canPrev && setSelectedPeriod(periods[idx + 1])}
+              disabled={!canPrev}
+              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title="Periodo anterior"
+            >
+              <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
 
-        {/* ── Period List ───────────────────────────────────────────────────── */}
-        <div className="w-full lg:w-64 shrink-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 px-1">Periodos</p>
-          {loadingPeriods ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-12 bg-slate-100 animate-pulse rounded-lg" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-1">
+            <select
+              value={selectedPeriod?.id ?? ""}
+              onChange={(e) => {
+                const p = periods.find((p) => p.id === e.target.value);
+                if (p) setSelectedPeriod(p);
+              }}
+              className="flex-1 px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
+            >
               {periods.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPeriod(p)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors border ${
-                    selectedPeriod?.id === p.id
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
-                  }`}
-                >
-                  <span className="block font-medium">{p.label}</span>
-                  {p.isCurrent && (
-                    <span className={`text-xs ${selectedPeriod?.id === p.id ? "text-blue-300" : "text-blue-600"}`}>
-                      Periodo actual
-                    </span>
-                  )}
-                </button>
+                <option key={p.id} value={p.id}>
+                  {p.label}{p.isCurrent ? " (actual)" : ""}
+                </option>
               ))}
-            </div>
-          )}
-        </div>
+            </select>
 
-        {/* ── Period Detail ─────────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0">
-          {!selectedPeriod ? (
-            <div className="py-16 text-center text-slate-400">
-              <p className="text-3xl mb-2">📆</p>
-              <p>Selecciona un periodo</p>
-            </div>
-          ) : (
-            <>
-              {/* Period header */}
-              <div className="bg-white rounded-xl border border-slate-200 p-5 mb-4 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
+            <button
+              onClick={() => canNext && setSelectedPeriod(periods[idx - 1])}
+              disabled={!canNext}
+              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              title="Periodo siguiente"
+            >
+              <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        );
+      })()}
+
+      {selectedPeriod && (
+        <div className="flex flex-col gap-4">
+          {/* Period stats + pay-all */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              {!loadingSummary && summary.length > 0 && (
+                <div className="flex flex-wrap gap-6">
                   <div>
-                    <p className="text-lg font-bold text-slate-900">{selectedPeriod.label}</p>
-                    <p className="text-sm text-slate-500">{selectedPeriod.startDate} → {selectedPeriod.endDate}</p>
+                    <p className="text-xs text-slate-500">Total horas</p>
+                    <p className="text-xl font-bold text-slate-900">{fmtHours(totalHours)}</p>
                   </div>
-                  {!loadingSummary && unpaidCount > 0 && (
-                    <button
-                      onClick={payAll}
-                      disabled={payingAll}
-                      className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
-                    >
-                      {payingAll ? "Pagando..." : `✓ Pagar todos (${unpaidCount})`}
-                    </button>
-                  )}
-                </div>
-                {!loadingSummary && summary.length > 0 && (
-                  <div className="flex flex-wrap gap-6 mt-3 pt-3 border-t border-slate-100">
-                    <div>
-                      <p className="text-xs text-slate-500">Total horas</p>
-                      <p className="text-xl font-bold text-slate-900">{fmtHours(totalHours)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Total a pagar</p>
-                      <p className="text-xl font-bold text-slate-700">{fmt(totalSalaryDue)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Pagado</p>
-                      <p className="text-xl font-bold text-emerald-600">{fmt(totalPaid)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500">Pendiente</p>
-                      <p className="text-xl font-bold text-amber-600">{fmt(Math.max(0, totalSalaryDue - totalPaid))}</p>
-                    </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Total a pagar</p>
+                    <p className="text-xl font-bold text-slate-700">{fmt(totalSalaryDue)}</p>
                   </div>
-                )}
-              </div>
-
-              {/* Employee table */}
-              {loadingSummary ? (
-                <div className="py-10 text-center text-slate-400 text-sm">Calculando horas...</div>
-              ) : summary.length === 0 ? (
-                <div className="py-10 text-center text-slate-400">
-                  <p className="text-3xl mb-2">👥</p>
-                  <p>No hay empleados activos</p>
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                        <th className="px-5 py-3 text-left">Empleado</th>
-                        <th className="px-5 py-3 text-right">Horas</th>
-                        <th className="px-5 py-3 text-right">Tarifa/h</th>
-                        <th className="px-5 py-3 text-right font-bold text-slate-700">A pagar</th>
-                        <th className="px-5 py-3 text-center">Estado</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {summary.map((emp) => {
-                        const payment = periodPayments.find((p) => p.employee_id === emp.employeeId);
-                        const isPaid  = !!payment;
-                        const isPayingThis = payingId === emp.employeeId;
-                        return (
-                          <tr key={emp.employeeId}
-                            className={`transition-colors ${
-                              isPaid ? "bg-emerald-50 hover:bg-emerald-100" :
-                              emp.hoursWorked === 0 ? "opacity-40 hover:opacity-60" :
-                              "hover:bg-slate-50"
-                            }`}>
-                            <td className="px-5 py-3">
-                              <span className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</span>
-                              {emp.hasOpenShift && (
-                                <span className="ml-2 text-xs text-amber-600 font-medium">turno abierto</span>
-                              )}
-                              {payment?.notes && (
-                                <p className="text-xs text-slate-400 mt-0.5">{payment.notes}</p>
-                              )}
-                            </td>
-                            <td className="px-5 py-3 text-right text-slate-700 font-medium">
-                              {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
-                            </td>
-                            <td className="px-5 py-3 text-right text-slate-500">
-                              {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
-                            </td>
-                            <td className="px-5 py-3 text-right font-bold text-slate-900">
-                              {emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              {isPaid ? (
-                                <span className="inline-flex items-center gap-2">
-                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                                    ✓ Pagado
-                                  </span>
-                                  {deleteConfirm === payment.id ? (
-                                    <span className="inline-flex gap-1">
-                                      <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
-                                      <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
-                                    </span>
-                                  ) : (
-                                    <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
-                                  )}
-                                </span>
-                              ) : emp.salaryDue > 0 ? (
-                                <button
-                                  onClick={() => payEmployee(emp)}
-                                  disabled={isPayingThis || payingAll}
-                                  className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-                                >
-                                  {isPayingThis ? "..." : "Pagar"}
-                                </button>
-                              ) : (
-                                <span className="text-xs text-slate-300">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    {summary.length > 1 && (
-                      <tfoot>
-                        <tr className="bg-slate-50 border-t-2 border-slate-200">
-                          <td className="px-5 py-3 text-sm font-bold text-slate-700" colSpan={2}>Total</td>
-                          <td></td>
-                          <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">{fmt(totalSalaryDue)}</td>
-                          <td className="px-5 py-3 text-center text-xs text-emerald-700 font-semibold">
-                            {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e=>e.salaryDue>0).length} pagados`}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    )}
-                  </table>
+                  <div>
+                    <p className="text-xs text-slate-500">Pagado</p>
+                    <p className="text-xl font-bold text-emerald-600">{fmt(totalPaid)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Pendiente</p>
+                    <p className="text-xl font-bold text-amber-600">{fmt(Math.max(0, totalSalaryDue - totalPaid))}</p>
+                  </div>
                 </div>
               )}
+              {!loadingSummary && unpaidCount > 0 && (
+                <button
+                  onClick={payAll}
+                  disabled={payingAll}
+                  className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+                >
+                  {payingAll ? "Pagando..." : `✓ Pagar todos (${unpaidCount})`}
+                </button>
+              )}
+            </div>
+          </div>
 
-              {/* Disclaimer */}
-              <p className="mt-3 text-xs text-slate-400">
-                * Calculo basado en tarifa por hora × horas registradas en asistencia.
-                Las entradas sin hora de salida no se incluyen. Los pagos quedan registrados en el historial
-                de cada empleado y se usan para calcular vacaciones y 13° mes.
-              </p>
-            </>
+          {/* Employee table */}
+          {loadingSummary ? (
+            <div className="py-10 text-center text-slate-400 text-sm">Calculando horas...</div>
+          ) : summary.length === 0 ? (
+            <div className="py-10 text-center text-slate-400">
+              <p className="text-3xl mb-2">👥</p>
+              <p>No hay empleados activos</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-5 py-3 text-left">Empleado</th>
+                    <th className="px-5 py-3 text-right">Horas</th>
+                    <th className="px-5 py-3 text-right">Tarifa/h</th>
+                    <th className="px-5 py-3 text-right font-bold text-slate-700">A pagar</th>
+                    <th className="px-5 py-3 text-center">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {summary.map((emp) => {
+                    const payment = periodPayments.find((p) => p.employee_id === emp.employeeId);
+                    const isPaid  = !!payment;
+                    const isPayingThis = payingId === emp.employeeId;
+                    return (
+                      <tr key={emp.employeeId}
+                        className={`transition-colors ${
+                          isPaid ? "bg-emerald-50 hover:bg-emerald-100" :
+                          emp.hoursWorked === 0 ? "opacity-40 hover:opacity-60" :
+                          "hover:bg-slate-50"
+                        }`}>
+                        <td className="px-5 py-3">
+                          <span className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</span>
+                          {emp.hasOpenShift && (
+                            <span className="ml-2 text-xs text-amber-600 font-medium">turno abierto</span>
+                          )}
+                          {payment?.notes && (
+                            <p className="text-xs text-slate-400 mt-0.5">{payment.notes}</p>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-700 font-medium">
+                          {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-right text-slate-500">
+                          {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
+                        </td>
+                        <td className="px-5 py-3 text-right font-bold text-slate-900">
+                          {emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                                ✓ Pagado
+                              </span>
+                              {deleteConfirm === payment.id ? (
+                                <span className="inline-flex gap-1">
+                                  <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
+                                  <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                </span>
+                              ) : (
+                                <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
+                              )}
+                            </span>
+                          ) : emp.salaryDue > 0 ? (
+                            <button
+                              onClick={() => payEmployee(emp)}
+                              disabled={isPayingThis || payingAll}
+                              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+                            >
+                              {isPayingThis ? "..." : "Pagar"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                {summary.length > 1 && (
+                  <tfoot>
+                    <tr className="bg-slate-50 border-t-2 border-slate-200">
+                      <td className="px-5 py-3 text-sm font-bold text-slate-700" colSpan={2}>Total</td>
+                      <td></td>
+                      <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">{fmt(totalSalaryDue)}</td>
+                      <td className="px-5 py-3 text-center text-xs text-emerald-700 font-semibold">
+                        {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e => e.salaryDue > 0).length} pagados`}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
           )}
+
+          <p className="text-xs text-slate-400">
+            * Calculo basado en tarifa por hora × horas registradas en asistencia.
+            Las entradas sin hora de salida no se incluyen. Los pagos quedan registrados en el historial
+            de cada empleado y se usan para calcular vacaciones y 13° mes.
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 }
