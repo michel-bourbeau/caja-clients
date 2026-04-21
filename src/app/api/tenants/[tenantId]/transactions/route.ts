@@ -74,33 +74,67 @@ export async function POST(
       return NextResponse.json({ error: "Aucun article dans le panier" }, { status: 400 });
     }
 
-    const productIds = items.map((item) => item.productId);
-    const { data: products, error: productsError } = await supabaseAdmin
-      .from("products")
-      .select("id, stock_quantity, price")
-      .in("id", productIds)
-      .eq("tenant_id", tenantId);
+    // Separate variant items from regular items
+    const variantItems = items.filter((i) => i.variantId);
+    const regularItems = items.filter((i) => !i.variantId);
 
-    if (productsError) {
-      console.error("[transactions POST] Products error:", productsError);
-      throw productsError;
-    }
-    if (!products || products.length !== items.length) {
-      return NextResponse.json({ error: "Certains produits sont introuvables" }, { status: 400 });
-    }
+    // Fetch regular products stock
+    const productIds = regularItems.map((item) => item.productId);
+    const productMap = new Map<string, any>();
 
-    const productMap = new Map(products.map((product: any) => [product.id, product]));
+    if (productIds.length > 0) {
+      const { data: products, error: productsError } = await supabaseAdmin
+        .from("products")
+        .select("id, stock_quantity, price")
+        .in("id", productIds)
+        .eq("tenant_id", tenantId);
 
-    for (const item of items) {
-      const product = productMap.get(item.productId);
-      if (!product) {
-        return NextResponse.json({ error: `Produit introuvable: ${item.productId}` }, { status: 400 });
+      if (productsError) throw productsError;
+      if (!products || products.length !== productIds.length) {
+        return NextResponse.json({ error: "Certains produits sont introuvables" }, { status: 400 });
       }
+      products.forEach((p: any) => productMap.set(p.id, p));
+    }
+
+    // Fetch variant stock
+    const variantIds = variantItems.map((i) => i.variantId!);
+    const variantMap = new Map<string, any>();
+
+    if (variantIds.length > 0) {
+      const { data: variants, error: variantsError } = await supabaseAdmin
+        .from("product_variants")
+        .select("id, product_id, stock_quantity, price")
+        .in("id", variantIds)
+        .eq("tenant_id", tenantId);
+
+      if (variantsError) throw variantsError;
+      if (!variants || variants.length !== variantIds.length) {
+        return NextResponse.json({ error: "Certains formats sont introuvables" }, { status: 400 });
+      }
+      variants.forEach((v: any) => variantMap.set(v.id, v));
+    }
+
+    // Validate stock for all items
+    for (const item of items) {
       if (item.quantity <= 0) {
         return NextResponse.json({ error: "La quantité doit être supérieure à 0" }, { status: 400 });
       }
-      if (item.quantity > product.stock_quantity) {
-        return NextResponse.json({ error: `Stock insuffisant pour ${item.productId}` }, { status: 400 });
+      if (item.variantId) {
+        const variant = variantMap.get(item.variantId);
+        if (!variant) {
+          return NextResponse.json({ error: `Format introuvable: ${item.variantId}` }, { status: 400 });
+        }
+        if (item.quantity > variant.stock_quantity) {
+          return NextResponse.json({ error: `Stock insuffisant pour le format ${item.variantId}` }, { status: 400 });
+        }
+      } else {
+        const product = productMap.get(item.productId);
+        if (!product) {
+          return NextResponse.json({ error: `Produit introuvable: ${item.productId}` }, { status: 400 });
+        }
+        if (item.quantity > product.stock_quantity) {
+          return NextResponse.json({ error: `Stock insuffisant pour ${item.productId}` }, { status: 400 });
+        }
       }
     }
 
@@ -164,13 +198,23 @@ export async function POST(
     // Decrement stock for each sold item
     await Promise.all(
       items.map((item) => {
-        const current = productMap.get(item.productId);
-        const newQty = (current?.stock_quantity ?? 0) - item.quantity;
-        return supabaseAdmin
-          .from("products")
-          .update({ stock_quantity: Math.max(0, newQty) })
-          .eq("id", item.productId)
-          .eq("tenant_id", tenantId);
+        if (item.variantId) {
+          const current = variantMap.get(item.variantId);
+          const newQty = (current?.stock_quantity ?? 0) - item.quantity;
+          return supabaseAdmin
+            .from("product_variants")
+            .update({ stock_quantity: Math.max(0, newQty) })
+            .eq("id", item.variantId)
+            .eq("tenant_id", tenantId);
+        } else {
+          const current = productMap.get(item.productId);
+          const newQty = (current?.stock_quantity ?? 0) - item.quantity;
+          return supabaseAdmin
+            .from("products")
+            .update({ stock_quantity: Math.max(0, newQty) })
+            .eq("id", item.productId)
+            .eq("tenant_id", tenantId);
+        }
       })
     );
     

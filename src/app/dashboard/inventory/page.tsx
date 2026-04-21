@@ -7,6 +7,15 @@ import { useRouter } from "next/navigation";
 import { Button, Input, Card } from "@/components/ui";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  sku: string;
+  price: number;
+  stock_quantity: number;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -15,6 +24,8 @@ interface Product {
   quantity: number;
   category_id?: string;
   description?: string;
+  has_variants?: boolean;
+  variants?: ProductVariant[];
 }
 
 interface Category {
@@ -59,6 +70,9 @@ export default function InventoryPage() {
   const [editingQuantity, setEditingQuantity] = useState<string>("");
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("");
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [editingVariantQty, setEditingVariantQty] = useState<string>("");
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -69,6 +83,12 @@ export default function InventoryPage() {
     category_id: "",
     description: "",
   });
+
+  // Multi-format / variants state for add-product form
+  const [isMultiFormat, setIsMultiFormat] = useState(false);
+  const [variantRows, setVariantRows] = useState<{ label: string; price: string; quantity: string }[]>([
+    { label: "", price: "", quantity: "" },
+  ]);
 
   const [newCategory, setNewCategory] = useState({
     name: "",
@@ -145,23 +165,28 @@ export default function InventoryPage() {
   };
 
   const handleAddProduct = async () => {
-    if (!newProduct.name.trim() || !newProduct.sku.trim() || !newProduct.price) {
-      setMessage("Remplissez tous les champs obligatoires");
+    if (!newProduct.name.trim() || !newProduct.sku.trim()) {
+      setMessage("El nombre y SKU son obligatorios");
+      return;
+    }
+    if (!isMultiFormat && !newProduct.price) {
+      setMessage("El precio es obligatorio");
+      return;
+    }
+    if (isMultiFormat && variantRows.some((v) => !v.label.trim() || !v.price)) {
+      setMessage("Cada formato necesita un nombre y precio");
       return;
     }
 
     try {
-      // Convert string values to proper types
       const productData = {
         name: newProduct.name.trim(),
         sku: newProduct.sku.trim(),
-        price: parseFloat(newProduct.price as string),
-        quantity: newProduct.quantity ? parseInt(newProduct.quantity as string) : 0,
+        price: isMultiFormat ? 0 : parseFloat(newProduct.price as string),
+        quantity: isMultiFormat ? 0 : (newProduct.quantity ? parseInt(newProduct.quantity as string) : 0),
         category_id: newProduct.category_id || null,
         description: newProduct.description?.trim() || null,
       };
-
-      console.log("Sending product data:", productData);
 
       const res = await fetch(`/api/tenants/${tenantId}/products`, {
         method: "POST",
@@ -169,32 +194,44 @@ export default function InventoryPage() {
         body: JSON.stringify(productData),
       });
 
-      if (res.ok) {
-        setMessage("Produit créé avec succès");
-        setNewProduct({
-          name: "",
-          sku: "",
-          price: "",
-          quantity: "",
-          category_id: "",
-          description: "",
-        });
-        setShowAddProduct(false);
-        await fetchData();
-      } else {
+      if (!res.ok) {
         const text = await res.text();
-        console.error("Response text:", text);
         try {
           const error = JSON.parse(text);
           setMessage(error.error || `Erreur: ${res.status}`);
-          console.error("Error response:", error);
         } catch {
           setMessage(`Erreur serveur: ${res.status} - ${text}`);
-          console.error("Non-JSON response:", text);
         }
+        return;
       }
+
+      const created = await res.json();
+
+      // If multi-format, create each variant
+      if (isMultiFormat) {
+        await Promise.all(
+          variantRows.map((v, i) =>
+            fetch(`/api/tenants/${tenantId}/products/${created.id}/variants`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                label: v.label.trim(),
+                sku: `${newProduct.sku.trim().toUpperCase()}-V${i + 1}`,
+                price: parseFloat(v.price),
+                stock_quantity: v.quantity ? parseInt(v.quantity) : 0,
+              }),
+            })
+          )
+        );
+      }
+
+      setMessage("Producto creado con éxito");
+      setNewProduct({ name: "", sku: "", price: "", quantity: "", category_id: "", description: "" });
+      setIsMultiFormat(false);
+      setVariantRows([{ label: "", price: "", quantity: "" }]);
+      setShowAddProduct(false);
+      await fetchData();
     } catch (error) {
-      console.error("Fetch error:", error);
       setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
     }
   };
@@ -243,6 +280,47 @@ export default function InventoryPage() {
     } catch (error) {
       setMessage("Erreur réseau");
       console.error(error);
+    }
+  };
+
+  const handleUpdateVariantQty = async (productId: string, variantId: string, qty: string) => {
+    if (!qty || isNaN(parseInt(qty))) {
+      setMessage("Quantité invalide");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stock_quantity: parseInt(qty) }),
+      });
+      if (res.ok) {
+        setMessage("Stock mis à jour");
+        setEditingVariantId(null);
+        setEditingVariantQty("");
+        await fetchData();
+      } else {
+        setMessage("Erreur lors de la mise à jour");
+      }
+    } catch {
+      setMessage("Erreur réseau");
+    }
+  };
+
+  const handleDeleteVariant = async (productId: string, variantId: string) => {
+    if (!confirm("Supprimer ce format?")) return;
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setMessage("Format supprimé");
+        await fetchData();
+      } else {
+        setMessage("Erreur suppression");
+      }
+    } catch {
+      setMessage("Erreur réseau");
     }
   };
 
@@ -340,20 +418,6 @@ export default function InventoryPage() {
               className="bg-slate-50 cursor-not-allowed opacity-75"
               title="El SKU se genera automáticamente a partir del nombre"
             />
-            <Input
-              label="Precio *"
-              type="number"
-              placeholder="Precio unitario"
-              value={newProduct.price}
-              onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-            />
-            <Input
-              label="Cantidad"
-              type="number"
-              placeholder="Stock inicial"
-              value={newProduct.quantity}
-              onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
-            />
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
               <select
@@ -374,9 +438,101 @@ export default function InventoryPage() {
               onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
             />
           </div>
+
+          {/* Multi-format toggle */}
+          <label className="inline-flex items-center gap-2 mt-4 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isMultiFormat}
+              onChange={(e) => {
+                setIsMultiFormat(e.target.checked);
+                setVariantRows([{ label: "", price: "", quantity: "" }]);
+              }}
+              className="w-4 h-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+            />
+            <span className="text-sm font-semibold text-slate-700">Multi-formato (varios tamaños / presentaciones)</span>
+          </label>
+
+          {/* Single product price+qty OR variant rows */}
+          {isMultiFormat ? (
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-semibold text-slate-600 mb-1">Formatos:</p>
+              {variantRows.map((v, i) => (
+                <div key={i} className="flex flex-wrap gap-2 items-end">
+                  <div className="flex-1 min-w-[120px]">
+                    <Input
+                      label={i === 0 ? "Formato *" : ""}
+                      placeholder="Ej: 15g"
+                      value={v.label}
+                      onChange={(e) => {
+                        const copy = [...variantRows];
+                        copy[i] = { ...copy[i], label: e.target.value };
+                        setVariantRows(copy);
+                      }}
+                    />
+                  </div>
+                  <div className="w-28">
+                    <Input
+                      label={i === 0 ? "Precio *" : ""}
+                      type="number"
+                      placeholder="Precio"
+                      value={v.price}
+                      onChange={(e) => {
+                        const copy = [...variantRows];
+                        copy[i] = { ...copy[i], price: e.target.value };
+                        setVariantRows(copy);
+                      }}
+                    />
+                  </div>
+                  <div className="w-24">
+                    <Input
+                      label={i === 0 ? "Stock" : ""}
+                      type="number"
+                      placeholder="Stock"
+                      value={v.quantity}
+                      onChange={(e) => {
+                        const copy = [...variantRows];
+                        copy[i] = { ...copy[i], quantity: e.target.value };
+                        setVariantRows(copy);
+                      }}
+                    />
+                  </div>
+                  {variantRows.length > 1 && (
+                    <button
+                      onClick={() => setVariantRows(variantRows.filter((_, idx) => idx !== i))}
+                      className="px-2 py-1 text-red-500 hover:text-red-700 text-lg font-bold"
+                      title="Eliminar formato"
+                    >×</button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={() => setVariantRows([...variantRows, { label: "", price: "", quantity: "" }])}
+                className="mt-1 text-sm text-green-700 hover:text-green-900 font-semibold"
+              >+ Agregar formato</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <Input
+                label="Precio *"
+                type="number"
+                placeholder="Precio unitario"
+                value={newProduct.price}
+                onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+              />
+              <Input
+                label="Cantidad"
+                type="number"
+                placeholder="Stock inicial"
+                value={newProduct.quantity}
+                onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
+              />
+            </div>
+          )}
+
           <div className="flex gap-2 mt-4">
             <Button onClick={handleAddProduct} className="bg-green-600 hover:bg-green-700 text-white">Agregar</Button>
-            <Button onClick={() => setShowAddProduct(false)} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
+            <Button onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); }} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
           </div>
         </div>
       )}
@@ -436,13 +592,38 @@ export default function InventoryPage() {
                 {filteredProducts.map((product) => {
                   const category = categories.find((c) => c.id === product.category_id);
                   const isEditing = editingProductId === product.id;
+                  const isExpanded = expandedProductId === product.id;
+                  const hasVariants = product.has_variants && (product.variants?.length ?? 0) > 0;
                   return (
-                    <tr key={product.id} className="group hover:bg-blue-50 transition-colors">
+                    <React.Fragment key={product.id}>
+                    <tr className="group hover:bg-blue-50 transition-colors">
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-slate-900">{product.name}</p>
-                        {product.description && (
-                          <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {hasVariants && (
+                            <button
+                              onClick={() => setExpandedProductId(isExpanded ? null : product.id)}
+                              className="text-slate-400 hover:text-slate-700 transition-colors"
+                              title={isExpanded ? "Ocultar formatos" : "Ver formatos"}
+                            >
+                              <svg className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {product.name}
+                              {hasVariants && (
+                                <span className="ml-2 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                  {product.variants!.length} formatos
+                                </span>
+                              )}
+                            </p>
+                            {product.description && (
+                              <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 hidden md:table-cell">
                         <span className="font-mono text-sm text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -459,10 +640,12 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
-                        {fmt(product.price)}
+                        {hasVariants ? <span className="text-slate-400 text-sm">—</span> : fmt(product.price)}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        {isEditing ? (
+                        {hasVariants ? (
+                          <span className="text-slate-400 text-sm">—</span>
+                        ) : isEditing ? (
                           <input
                             type="number"
                             value={editingQuantity}
@@ -484,34 +667,30 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        {isEditing ? (
+                        {!hasVariants && isEditing ? (
                           <div className="flex gap-1 justify-center">
                             <button
                               onClick={() => handleUpdateQuantity(product.id, editingQuantity)}
                               className="inline-flex items-center px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
-                              title="Guardar"
-                            >
-                              ✓
-                            </button>
+                            >✓</button>
                             <button
                               onClick={() => { setEditingProductId(null); setEditingQuantity(""); }}
                               className="inline-flex items-center px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
-                              title="Cancelar"
-                            >
-                              ✕
-                            </button>
+                            >✕</button>
                           </div>
                         ) : (
                           <div className="flex gap-1 justify-center">
-                            <button
-                              onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
-                              className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-                              title="Editar stock"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
-                              </svg>
-                            </button>
+                            {!hasVariants && (
+                              <button
+                                onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
+                                className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                                title="Editar stock"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                                </svg>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDeleteProduct(product.id)}
                               className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-semibold rounded-lg transition-colors"
@@ -525,6 +704,81 @@ export default function InventoryPage() {
                         )}
                       </td>
                     </tr>
+                    {/* Variant sub-rows */}
+                    {hasVariants && isExpanded && product.variants!.map((variant) => {
+                      const isEditingV = editingVariantId === variant.id;
+                      return (
+                        <tr key={variant.id} className="bg-purple-50 border-b border-purple-100">
+                          <td className="px-4 py-2 pl-12">
+                            <span className="text-sm font-medium text-purple-800">{variant.label}</span>
+                            <span className="ml-2 font-mono text-xs text-slate-400 bg-slate-100 px-1 rounded">{variant.sku}</span>
+                          </td>
+                          <td className="px-4 py-2 hidden md:table-cell"></td>
+                          <td className="px-4 py-2 hidden lg:table-cell"></td>
+                          <td className="px-4 py-2 text-right font-semibold text-purple-700 text-sm whitespace-nowrap">
+                            {fmt(variant.price)}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            {isEditingV ? (
+                              <input
+                                type="number"
+                                value={editingVariantQty}
+                                onChange={(e) => setEditingVariantQty(e.target.value)}
+                                className="w-16 px-2 py-1 border border-purple-400 rounded text-center text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                min="0"
+                                autoFocus
+                              />
+                            ) : (
+                              <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
+                                variant.stock_quantity <= 0
+                                  ? "bg-red-100 text-red-700"
+                                  : variant.stock_quantity <= 5
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}>
+                                {variant.stock_quantity}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            {isEditingV ? (
+                              <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={() => handleUpdateVariantQty(product.id, variant.id, editingVariantQty)}
+                                  className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg"
+                                >✓</button>
+                                <button
+                                  onClick={() => { setEditingVariantId(null); setEditingVariantQty(""); }}
+                                  className="px-2.5 py-1 bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg"
+                                >✕</button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={() => { setEditingVariantId(variant.id); setEditingVariantQty(variant.stock_quantity.toString()); }}
+                                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"
+                                  title="Editar stock"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteVariant(product.id, variant.id)}
+                                  className="px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-semibold rounded-lg"
+                                  title="Eliminar formato"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

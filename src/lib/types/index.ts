@@ -33,6 +33,7 @@ export interface InventoryMovement {
 // ========== POS/Transactions ==========
 export interface CartItem {
   productId: string;
+  variantId?: string;       // set when the cart item is a product variant
   name?: string;
   quantity: number;
   price: number;

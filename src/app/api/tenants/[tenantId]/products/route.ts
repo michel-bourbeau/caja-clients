@@ -11,7 +11,7 @@ export async function GET(
 
     const { data, error } = await supabaseAdmin
       .from("products")
-      .select("*")
+      .select("*, product_variants(*)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
 
@@ -21,6 +21,7 @@ export async function GET(
     const mappedData = (data || []).map((product: any) => ({
       ...product,
       quantity: product.stock_quantity,
+      variants: product.product_variants ?? [],
     }));
 
     return NextResponse.json(mappedData);

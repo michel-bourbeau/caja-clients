@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
@@ -13,6 +13,15 @@ type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 interface Category {
   id: string;
   name: string;
+}
+
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  sku: string;
+  price: number;
+  stock_quantity: number;
 }
 
 export default function POSPage() {
@@ -117,30 +126,36 @@ export default function POSPage() {
     );
   }, [selectedCategory, productsByCategory, search]);
 
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = (product: Product, variant?: ProductVariant) => {
+    const itemId = variant ? variant.id : product.id;
+    const itemName = variant ? `${product.name} — ${variant.label}` : product.name;
+    const itemPrice = variant ? variant.price : product.price;
+    const itemStock = variant ? variant.stock_quantity : product.quantity;
+
     setCart((current) => {
-      const existing = current.find((item) => item.productId === product.id);
+      const existing = current.find((item) => (variant ? item.variantId === variant.id : (!item.variantId && item.productId === product.id)));
       if (existing) {
-        if (existing.quantity >= product.quantity) return current;
-        return current.map((item) =>
-          item.productId === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-                total: Number(((item.quantity + 1) * item.price).toFixed(2)),
-              }
-            : item
-        );
+        if (existing.quantity >= itemStock) return current;
+        return current.map((item) => {
+          const matches = variant ? item.variantId === variant.id : (!item.variantId && item.productId === product.id);
+          if (!matches) return item;
+          return {
+            ...item,
+            quantity: item.quantity + 1,
+            total: Number(((item.quantity + 1) * item.price).toFixed(2)),
+          };
+        });
       }
 
       return [
         ...current,
         {
           productId: product.id,
-          name: product.name,
+          variantId: variant ? variant.id : undefined,
+          name: itemName,
           quantity: 1,
-          price: product.price,
-          total: Number(product.price.toFixed(2)),
+          price: itemPrice,
+          total: Number(itemPrice.toFixed(2)),
         },
       ];
     });
@@ -301,17 +316,26 @@ export default function POSPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {displayedProducts.map((product) => {
-                  const inCart = cart.find((i) => i.productId === product.id);
+                  const inCart = cart.find((i) => !i.variantId && i.productId === product.id);
                   const category = categories.find((c) => c.id === (product as any).category_id);
                   const outOfStock = product.quantity <= 0;
                   const stockReached = !!inCart && inCart.quantity >= product.quantity;
+                  const variants: ProductVariant[] = (product as any).variants ?? [];
+                  const hasVariants = (product as any).has_variants && variants.length > 0;
                   return (
+                    <React.Fragment key={product.id}>
                     <tr
-                      key={product.id}
-                      className={`group transition-colors ${outOfStock ? "opacity-50" : "hover:bg-blue-50"}`}
+                      className={`group transition-colors ${outOfStock && !hasVariants ? "opacity-50" : "hover:bg-blue-50"}`}
                     >
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-slate-900">{product.name}</p>
+                        <p className="font-medium text-slate-900">
+                          {product.name}
+                          {hasVariants && (
+                            <span className="ml-2 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                              {variants.length} formatos
+                            </span>
+                          )}
+                        </p>
                         {product.description && (
                           <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
@@ -326,21 +350,27 @@ export default function POSPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
-                        {fmt(product.price)}
+                        {hasVariants ? <span className="text-slate-400 text-sm">varios</span> : fmt(product.price)}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
-                          product.quantity <= 0
-                            ? "bg-red-100 text-red-700"
-                            : product.quantity <= 5
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-green-100 text-green-700"
-                        }`}>
-                          {product.quantity}
-                        </span>
+                        {hasVariants ? (
+                          <span className="text-slate-400 text-sm">—</span>
+                        ) : (
+                          <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
+                            product.quantity <= 0
+                              ? "bg-red-100 text-red-700"
+                              : product.quantity <= 5
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                            {product.quantity}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
-                        {outOfStock ? (
+                        {hasVariants ? (
+                          <span className="text-xs text-slate-400">↓ formatos</span>
+                        ) : outOfStock ? (
                           <span className="text-sm text-slate-400 font-medium">Agotado</span>
                         ) : stockReached ? (
                           <span className="text-sm text-amber-600 font-medium">Máx. {product.quantity}</span>
@@ -349,25 +379,60 @@ export default function POSPage() {
                             onClick={() => handleAddProduct(product)}
                             className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-colors"
                           >
-                            {inCart ? (
-                              <>
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                {inCart.quantity}
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Agregar
-                              </>
-                            )}
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            {inCart ? inCart.quantity : "Agregar"}
                           </button>
                         )}
                       </td>
                     </tr>
+                    {/* Variant rows */}
+                    {hasVariants && variants.map((variant) => {
+                      const inCartV = cart.find((i) => i.variantId === variant.id);
+                      const vOutOfStock = variant.stock_quantity <= 0;
+                      const vStockReached = !!inCartV && inCartV.quantity >= variant.stock_quantity;
+                      return (
+                        <tr key={variant.id} className="bg-purple-50 hover:bg-purple-100 transition-colors">
+                          <td className="px-4 py-2 pl-10">
+                            <span className="text-sm font-medium text-purple-800">{variant.label}</span>
+                          </td>
+                          <td className="px-4 py-2 hidden md:table-cell"></td>
+                          <td className="px-4 py-2 text-right font-semibold text-purple-700 text-sm whitespace-nowrap">
+                            {fmt(variant.price)}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
+                              variant.stock_quantity <= 0
+                                ? "bg-red-100 text-red-700"
+                                : variant.stock_quantity <= 5
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-green-100 text-green-700"
+                            }`}>
+                              {variant.stock_quantity}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            {vOutOfStock ? (
+                              <span className="text-sm text-slate-400 font-medium">Agotado</span>
+                            ) : vStockReached ? (
+                              <span className="text-sm text-amber-600 font-medium">Máx. {variant.stock_quantity}</span>
+                            ) : (
+                              <button
+                                onClick={() => handleAddProduct(product, variant)}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-sm font-semibold rounded-lg transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                {inCartV ? inCartV.quantity : "Agregar"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
