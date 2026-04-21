@@ -27,6 +27,23 @@ export default function LoyaltyPage() {
     email: "",
   });
 
+  // Generate random 5-digit card number
+  const generateCardNumber = () => {
+    const randomNumber = Math.floor(Math.random() * 90000) + 10000; // 5 digits from 10000-99999
+    return randomNumber.toString();
+  };
+
+  // Reset form and generate new card number when modal opens
+  const handleOpenAddModal = () => {
+    setFormData({
+      card_number: generateCardNumber(),
+      name: "",
+      phone: "",
+      email: "",
+    });
+    setShowAddModal(true);
+  };
+
   useEffect(() => {
     if (!tenantId) return;
     loadCustomers();
@@ -104,7 +121,7 @@ export default function LoyaltyPage() {
           <h1 className="text-3xl font-bold text-gray-900">Clientes Fieles</h1>
           <p className="text-gray-600">Gestiona tu programa de fidelización</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700">
+        <Button onClick={handleOpenAddModal} className="bg-blue-600 hover:bg-blue-700">
           + Nuevo Cliente
         </Button>
       </div>
@@ -198,15 +215,23 @@ export default function LoyaltyPage() {
 
             <form onSubmit={handleAddCustomer} className="px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Tarjeta *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.card_number}
-                  onChange={(e) => setFormData({ ...formData, card_number: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  placeholder="EJ: CARD-001"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Tarjeta</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.card_number}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, card_number: generateCardNumber() })}
+                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium transition"
+                    title="Generar nuevo número"
+                  >
+                    🔄
+                  </button>
+                </div>
               </div>
 
               <div>
