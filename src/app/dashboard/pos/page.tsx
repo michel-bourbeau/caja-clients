@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
@@ -323,19 +323,12 @@ export default function POSPage() {
                   const variants: ProductVariant[] = (product as any).variants ?? [];
                   const hasVariants = (product as any).has_variants && variants.length > 0;
                   return (
-                    <React.Fragment key={product.id}>
                     <tr
+                      key={product.id}
                       className={`group transition-colors ${outOfStock && !hasVariants ? "opacity-50" : "hover:bg-blue-50"}`}
                     >
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-slate-900">
-                          {product.name}
-                          {hasVariants && (
-                            <span className="ml-2 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                              {variants.length} formatos
-                            </span>
-                          )}
-                        </p>
+                        <p className="font-medium text-slate-900">{product.name}</p>
                         {product.description && (
                           <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
@@ -350,7 +343,7 @@ export default function POSPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
-                        {hasVariants ? <span className="text-slate-400 text-sm">varios</span> : fmt(product.price)}
+                        {hasVariants ? <span className="text-slate-400 text-sm">—</span> : fmt(product.price)}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
@@ -369,7 +362,31 @@ export default function POSPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
-                          <span className="text-xs text-slate-400">↓ formatos</span>
+                          /* Inline format buttons — one click per format */
+                          <div className="flex flex-wrap gap-1.5 justify-center">
+                            {variants.map((variant) => {
+                              const inCartV = cart.find((i) => i.variantId === variant.id);
+                              const vOut = variant.stock_quantity <= 0;
+                              return (
+                                <button
+                                  key={variant.id}
+                                  disabled={vOut}
+                                  onClick={() => !vOut && handleAddProduct(product, variant)}
+                                  title={`${fmt(variant.price)} · stock: ${variant.stock_quantity}`}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-sm font-semibold rounded-lg transition-colors ${
+                                    vOut
+                                      ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
+                                      : inCartV
+                                      ? "bg-purple-700 text-white ring-2 ring-purple-400"
+                                      : "bg-purple-100 text-purple-800 hover:bg-purple-600 hover:text-white"
+                                  }`}
+                                >
+                                  {inCartV && <span className="font-bold">{inCartV.quantity}×</span>}
+                                  {variant.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         ) : outOfStock ? (
                           <span className="text-sm text-slate-400 font-medium">Agotado</span>
                         ) : stockReached ? (
@@ -387,52 +404,6 @@ export default function POSPage() {
                         )}
                       </td>
                     </tr>
-                    {/* Variant rows */}
-                    {hasVariants && variants.map((variant) => {
-                      const inCartV = cart.find((i) => i.variantId === variant.id);
-                      const vOutOfStock = variant.stock_quantity <= 0;
-                      const vStockReached = !!inCartV && inCartV.quantity >= variant.stock_quantity;
-                      return (
-                        <tr key={variant.id} className="bg-purple-50 hover:bg-purple-100 transition-colors">
-                          <td className="px-4 py-2 pl-10">
-                            <span className="text-sm font-medium text-purple-800">{variant.label}</span>
-                          </td>
-                          <td className="px-4 py-2 hidden md:table-cell"></td>
-                          <td className="px-4 py-2 text-right font-semibold text-purple-700 text-sm whitespace-nowrap">
-                            {fmt(variant.price)}
-                          </td>
-                          <td className="px-4 py-2 text-center">
-                            <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
-                              variant.stock_quantity <= 0
-                                ? "bg-red-100 text-red-700"
-                                : variant.stock_quantity <= 5
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-green-100 text-green-700"
-                            }`}>
-                              {variant.stock_quantity}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-center">
-                            {vOutOfStock ? (
-                              <span className="text-sm text-slate-400 font-medium">Agotado</span>
-                            ) : vStockReached ? (
-                              <span className="text-sm text-amber-600 font-medium">Máx. {variant.stock_quantity}</span>
-                            ) : (
-                              <button
-                                onClick={() => handleAddProduct(product, variant)}
-                                className="inline-flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-sm font-semibold rounded-lg transition-colors"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                {inCartV ? inCartV.quantity : "Agregar"}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    </React.Fragment>
                   );
                 })}
               </tbody>
