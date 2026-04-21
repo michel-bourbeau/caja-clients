@@ -75,8 +75,23 @@ export default function InventoryPage() {
   const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantQty, setEditingVariantQty] = useState<string>("");
+  const [editingMinStockId, setEditingMinStockId] = useState<string | null>(null);
+  const [editingMinStock, setEditingMinStock] = useState<string>("");
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+
+  // Edit product modal
+  const [editProductModal, setEditProductModal] = useState<Product | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    sku: "",
+    price: "",
+    quantity: "",
+    min_stock: "",
+    category_id: "",
+    description: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -84,6 +99,7 @@ export default function InventoryPage() {
     sku: "",
     price: "",
     quantity: "",
+    min_stock: "",
     category_id: "",
     description: "",
   });
@@ -188,6 +204,7 @@ export default function InventoryPage() {
         sku: newProduct.sku.trim(),
         price: isMultiFormat ? 0 : parseFloat(newProduct.price as string),
         quantity: isMultiFormat ? 0 : (newProduct.quantity ? parseInt(newProduct.quantity as string) : 0),
+        min_stock: newProduct.min_stock ? parseInt(newProduct.min_stock as string) : 0,
         category_id: newProduct.category_id || null,
         description: newProduct.description?.trim() || null,
       };
@@ -230,7 +247,7 @@ export default function InventoryPage() {
       }
 
       setMessage("Producto creado con éxito");
-      setNewProduct({ name: "", sku: "", price: "", quantity: "", category_id: "", description: "" });
+      setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" });
       setIsMultiFormat(false);
       setVariantRows([{ label: "", price: "", quantity: "" }]);
       setShowAddProduct(false);
@@ -287,6 +304,30 @@ export default function InventoryPage() {
     }
   };
 
+  const handleUpdateMinStock = async (productId: string, value: string) => {
+    if (value === "" || isNaN(parseInt(value))) {
+      setMessage("Cantidad mínima inválida");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${productId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ min_stock: parseInt(value) }),
+      });
+      if (res.ok) {
+        setEditingMinStockId(null);
+        setEditingMinStock("");
+        await fetchData();
+      } else {
+        const err = await res.json();
+        setMessage(err.error || "Error al actualizar mínimo");
+      }
+    } catch {
+      setMessage("Error de red");
+    }
+  };
+
   const handleUpdateVariantQty = async (productId: string, variantId: string, qty: string) => {
     if (!qty || isNaN(parseInt(qty))) {
       setMessage("Quantité invalide");
@@ -325,6 +366,55 @@ export default function InventoryPage() {
       }
     } catch {
       setMessage("Erreur réseau");
+    }
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditProductModal(product);
+    setEditForm({
+      name: product.name,
+      sku: product.sku,
+      price: String(product.price),
+      quantity: String(product.quantity),
+      min_stock: String((product as any).min_stock ?? 0),
+      category_id: product.category_id ?? "",
+      description: product.description ?? "",
+    });
+  };
+
+  const handleEditProduct = async () => {
+    if (!editProductModal) return;
+    if (!editForm.name.trim()) {
+      setMessage("El nombre es obligatorio");
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${editProductModal.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          sku: editForm.sku.trim(),
+          price: parseFloat(editForm.price) || 0,
+          quantity: parseInt(editForm.quantity) || 0,
+          min_stock: parseInt(editForm.min_stock) || 0,
+          category_id: editForm.category_id || null,
+          description: editForm.description.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        setMessage("Producto actualizado con éxito");
+        setEditProductModal(null);
+        await fetchData();
+      } else {
+        const err = await res.json();
+        setMessage(err.error || "Error al guardar");
+      }
+    } catch {
+      setMessage("Error de red");
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -408,6 +498,105 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
+
+      {/* Edit product modal */}
+      {editProductModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900">Editar Producto</h2>
+              <button
+                onClick={() => setEditProductModal(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+                aria-label="Cerrar"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Nombre *"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="Nombre del producto"
+                />
+                <Input
+                  label="SKU"
+                  value={editForm.sku}
+                  onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
+                  placeholder="Código único"
+                />
+                <Input
+                  label="Precio"
+                  type="number"
+                  value={editForm.price}
+                  onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                  placeholder="Precio unitario"
+                />
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
+                  <select
+                    value={editForm.category_id}
+                    onChange={(e) => setEditForm({ ...editForm, category_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">— Sin categoría —</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {!(editProductModal as any).has_variants && (
+                  <Input
+                    label="Stock actual"
+                    type="number"
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                    placeholder="Cantidad en stock"
+                  />
+                )}
+                {!(editProductModal as any).has_variants && (
+                  <div>
+                    <Input
+                      label="Stock mínimo"
+                      type="number"
+                      value={editForm.min_stock}
+                      onChange={(e) => setEditForm({ ...editForm, min_stock: e.target.value })}
+                      placeholder="Alerta bajo inventario"
+                    />
+                    <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+                  </div>
+                )}
+              </div>
+              <Input
+                label="Descripción"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                placeholder="Descripción opcional"
+              />
+            </div>
+            <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+              <Button
+                onClick={handleEditProduct}
+                disabled={editSaving}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+              <Button
+                onClick={() => setEditProductModal(null)}
+                className="bg-slate-200 text-slate-700 hover:bg-slate-300"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap gap-3 justify-between items-center">
         <div>
@@ -577,7 +766,7 @@ export default function InventoryPage() {
               >+ Agregar formato</button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 mt-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
               <Input
                 label="Precio *"
                 type="number"
@@ -586,18 +775,28 @@ export default function InventoryPage() {
                 onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
               />
               <Input
-                label="Cantidad"
+                label="Stock inicial"
                 type="number"
-                placeholder="Stock inicial"
+                placeholder="Cantidad disponible"
                 value={newProduct.quantity}
                 onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
               />
+              <div>
+                <Input
+                  label="Stock mínimo"
+                  type="number"
+                  placeholder="Alerta bajo inventario"
+                  value={newProduct.min_stock}
+                  onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
+                />
+                <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+              </div>
             </div>
           )}
 
           <div className="flex gap-2 mt-4">
             <Button onClick={handleAddProduct} className="bg-green-600 hover:bg-green-700 text-white">Agregar</Button>
-            <Button onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); }} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
+            <Button onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); }} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
           </div>
         </div>
       )}
@@ -743,6 +942,7 @@ export default function InventoryPage() {
                   <th className="px-4 py-2.5 text-left hidden lg:table-cell">Categoría</th>
                   <th className="px-4 py-2.5 text-right">Precio</th>
                   <th className="px-4 py-2.5 text-center">Stock</th>
+                  <th className="px-4 py-2.5 text-center hidden sm:table-cell" title="Stock mínimo requerido">Mín.</th>
                   <th className="px-4 py-2.5 text-center w-28">Acciones</th>
                 </tr>
               </thead>
@@ -816,12 +1016,49 @@ export default function InventoryPage() {
                           <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                             product.quantity <= 0
                               ? "bg-red-100 text-red-700"
-                              : product.quantity <= 5
+                              : (product.min_stock ?? 0) > 0 && product.quantity <= (product.min_stock ?? 0)
                               ? "bg-amber-100 text-amber-700"
                               : "bg-green-100 text-green-700"
                           }`}>
                             {product.quantity}
                           </span>
+                        )}
+                      </td>
+                      {/* Min stock cell */}
+                      <td className="px-4 py-2.5 text-center hidden sm:table-cell">
+                        {hasVariants ? (
+                          <span className="text-slate-400 text-sm">—</span>
+                        ) : editingMinStockId === product.id ? (
+                          <div className="flex gap-1 justify-center">
+                            <input
+                              type="number"
+                              value={editingMinStock}
+                              onChange={(e) => setEditingMinStock(e.target.value)}
+                              className="w-16 px-2 py-1 border border-orange-400 rounded text-center text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              min="0"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleUpdateMinStock(product.id, editingMinStock)}
+                              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg"
+                            >✓</button>
+                            <button
+                              onClick={() => { setEditingMinStockId(null); setEditingMinStock(""); }}
+                              className="px-2 py-1 bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg"
+                            >✕</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingMinStockId(product.id); setEditingMinStock((product.min_stock ?? 0).toString()); }}
+                            className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold cursor-pointer hover:ring-2 hover:ring-orange-400 transition-all ${
+                              (product.min_stock ?? 0) === 0
+                                ? "bg-slate-100 text-slate-400"
+                                : "bg-orange-100 text-orange-700"
+                            }`}
+                            title="Clic para editar stock mínimo"
+                          >
+                            {(product.min_stock ?? 0) === 0 ? "—" : product.min_stock}
+                          </button>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
@@ -838,6 +1075,15 @@ export default function InventoryPage() {
                           </div>
                         ) : (
                           <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => openEditModal(product)}
+                              className="inline-flex items-center px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                              title="Editar producto"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
                             {!hasVariants && (
                               <button
                                 onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
@@ -873,6 +1119,7 @@ export default function InventoryPage() {
                           </td>
                           <td className="px-4 py-2 hidden md:table-cell"></td>
                           <td className="px-4 py-2 hidden lg:table-cell"></td>
+                          <td className="px-4 py-2 hidden sm:table-cell"></td>
                           <td className="px-4 py-2 text-right font-semibold text-purple-700 text-sm whitespace-nowrap">
                             {fmt(variant.price)}
                           </td>

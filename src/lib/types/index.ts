@@ -11,6 +11,7 @@ export interface Product {
   description?: string;
   image?: string;
   sort_order?: number;
+  min_stock?: number;
   createdAt: Date;
   updatedAt: Date;
 }

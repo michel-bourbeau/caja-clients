@@ -405,25 +405,28 @@ export default function POSPage() {
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {hasVariants ? (
-                          <span className="text-slate-500 text-xs">
-                            desde {fmt(Math.min(...variants.map((v) => v.price)))}
-                          </span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            {variants.map((v) => (
+                              <span key={v.id} className={`text-sm font-semibold ${v.stock_quantity <= 0 ? "text-slate-300 line-through" : "text-blue-700"}`}>
+                                {fmt(v.price)}
+                              </span>
+                            ))}
+                          </div>
                         ) : (
                           <span className="font-semibold text-blue-700">{fmt(product.price)}</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
-                          (() => {
-                            const totalStock = variants.reduce((s, v) => s + v.stock_quantity, 0);
-                            return (
-                              <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
-                                totalStock <= 0 ? "bg-red-100 text-red-700" :
-                                totalStock <= 5 ? "bg-amber-100 text-amber-700" :
+                          <div className="flex flex-col items-center gap-0.5">
+                            {variants.map((v) => (
+                              <span key={v.id} className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
+                                v.stock_quantity <= 0 ? "bg-red-100 text-red-700" :
+                                v.stock_quantity <= 5 ? "bg-amber-100 text-amber-700" :
                                 "bg-green-100 text-green-700"
-                              }`}>{totalStock}</span>
-                            );
-                          })()
+                              }`}>{v.stock_quantity}</span>
+                            ))}
+                          </div>
                         ) : (
                           <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                             product.quantity <= 0
@@ -439,7 +442,7 @@ export default function POSPage() {
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
                           /* Inline format buttons — price + stock visible */
-                          <div className="flex flex-wrap gap-1.5 justify-center">
+                          <div className="flex flex-col gap-1.5 items-stretch">
                             {variants.map((variant) => {
                               const inCartV = cart.find((i) => i.variantId === variant.id);
                               const vOut = variant.stock_quantity <= 0;
@@ -458,15 +461,6 @@ export default function POSPage() {
                                 >
                                   <span className="text-sm font-semibold leading-tight">
                                     {inCartV ? `${inCartV.quantity}× ` : ""}{variant.label}
-                                  </span>
-                                  <span className={`text-xs leading-tight ${
-                                    vOut ? "line-through" : inCartV ? "opacity-80" : "opacity-70"
-                                  }`}>
-                                    {fmt(variant.price)}
-                                    {" · "}
-                                    <span className={vOut ? "" : variant.stock_quantity <= 5 ? "font-semibold" : ""}>
-                                      {vOut ? "agotado" : `${variant.stock_quantity}`}
-                                    </span>
                                   </span>
                                 </button>
                               );

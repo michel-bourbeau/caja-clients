@@ -22,7 +22,9 @@ export async function GET(
     const mappedData = (data || []).map((product: any) => ({
       ...product,
       quantity: product.stock_quantity,
-      variants: product.product_variants ?? [],
+      variants: (product.product_variants ?? []).sort(
+        (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      ),
     }));
 
     return NextResponse.json(mappedData);
@@ -47,7 +49,7 @@ export async function POST(
     const body = await request.json();
     console.log("[POST /products] Request body:", body);
     
-    const { name, sku, price, quantity, category_id, description } = body;
+    const { name, sku, price, quantity, category_id, description, min_stock } = body;
 
     if (!name?.trim() || !sku?.trim() || price === undefined) {
       console.log("[POST /products] Validation failed:", { name, sku, price });
@@ -67,6 +69,7 @@ export async function POST(
       stock_quantity: quantity ? parseInt(quantity) : 0,
       category_id: category_id || null,
       description: description?.trim() || null,
+      min_stock: min_stock !== undefined ? parseInt(min_stock) : 0,
     };
 
     console.log("[POST /products] Inserting data:", productData);
