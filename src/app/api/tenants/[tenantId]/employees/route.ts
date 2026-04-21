@@ -41,7 +41,7 @@ export async function POST(
   try {
     const { tenantId } = await params;
     const body = await request.json();
-    const { firstName, lastName, email, phone, roleId, salary, password, hireDate } = body;
+    const { firstName, lastName, email, phone, roleId, salary, salaryType, password, hireDate } = body;
 
     if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
       return NextResponse.json(
@@ -64,6 +64,7 @@ export async function POST(
           phone: phone?.trim() || null,
           role_id: roleId || "cashier",
           salary: salary ? parseFloat(salary) : 0,
+          salary_type: salaryType || "hourly",
           hire_date: hireDate || new Date().toISOString().split("T")[0],
           status: "ACTIVE",
         },

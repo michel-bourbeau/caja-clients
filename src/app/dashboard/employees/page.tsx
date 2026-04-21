@@ -13,6 +13,7 @@ interface Employee {
   phone: string | null;
   role_id: string;
   salary: number;
+  salary_type?: "hourly" | "monthly";
   status: "ACTIVE" | "INACTIVE";
   hire_date: string | null;
 }
@@ -43,6 +44,7 @@ const EMPTY_FORM = {
   phone: "",
   roleId: "cashier",
   salary: "",
+  salaryType: "hourly",
   hireDate: new Date().toISOString().split("T")[0],
   password: "",
   confirmPassword: "",
@@ -79,6 +81,20 @@ export default function EmployeesPage() {
   const [fichaPayingLoading, setFichaPayingLoading] = useState(false);
   const [fichaPaySaving, setFichaPaySaving] = useState(false);
   const [fichaPayDelConfirm, setFichaPayDelConfirm] = useState<string | null>(null);
+
+  // Bonus (Aguinaldo) payment modal
+  const [fichaAguinaldoData, setFichaAguinaldoData] = useState<any>(null);
+  const [fichaAguinaldoHistory, setFichaAguinaldoHistory] = useState<any[]>([]);
+  const [showBonusPayModal, setShowBonusPayModal] = useState(false);
+  const [bonusPayForm, setBonusPayForm] = useState({ paidAmount: "", notes: "" });
+  const [bonusPaySaving, setBonusPaySaving] = useState(false);
+
+  // Vacation payment modal
+  const [fichaVacationData, setFichaVacationData] = useState<any>(null);
+  const [fichaVacationHistory, setFichaVacationHistory] = useState<any[]>([]);
+  const [showVacationPayModal, setShowVacationPayModal] = useState(false);
+  const [vacationPayForm, setVacationPayForm] = useState({ daysUsed: "", startDate: "", endDate: "", notes: "" });
+  const [vacationPaySaving, setVacationPaySaving] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -126,6 +142,7 @@ export default function EmployeesPage() {
       phone: emp.phone ?? "",
       roleId: emp.role_id,
       salary: String(emp.salary),
+      salaryType: emp.salary_type || "hourly",
       hireDate: emp.hire_date ?? new Date().toISOString().split("T")[0],
       password: "",
       confirmPassword: "",
@@ -157,6 +174,7 @@ export default function EmployeesPage() {
         phone: form.phone,
         roleId: form.roleId,
         salary: form.salary,
+        salaryType: form.salaryType,
         hireDate: form.hireDate,
       };
       if (form.password) payload.password = form.password;
@@ -220,6 +238,8 @@ export default function EmployeesPage() {
     setFichaPeriods([]);
     setFichaPayingPeriod(null);
     setFichaPayDelConfirm(null);
+    setFichaAguinaldoData(null);
+    setFichaVacationData(null);
     if (!tenantId) return;
     setFichaLoading(true);
     try {
@@ -231,6 +251,17 @@ export default function EmployeesPage() {
       const payroll = await payrollRes.json();
       setFichaPayments(Array.isArray(payments) ? payments : []);
       setFichaPeriods(Array.isArray(payroll.periods) ? payroll.periods : []);
+      // Preload bonus and vacation data
+      await Promise.all([
+        fetch(`/api/tenants/${tenantId}/employees/${emp.id}/bonus`).then(r => r.json()).then(data => {
+          setFichaAguinaldoData(data);
+          setFichaAguinaldoHistory(data.history || []);
+        }).catch(() => {}),
+        fetch(`/api/tenants/${tenantId}/employees/${emp.id}/vacation`).then(r => r.json()).then(data => {
+          setFichaVacationData(data);
+          setFichaVacationHistory(data.history || []);
+        }).catch(() => {}),
+      ]);
     } finally {
       setFichaLoading(false);
     }
@@ -285,6 +316,104 @@ export default function EmployeesPage() {
     await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/payments/${paymentId}`, { method: "DELETE" });
     setFichaPayments((prev) => prev.filter((p) => p.id !== paymentId));
     setFichaPayDelConfirm(null);
+  };
+
+  // Load bonus (aguinaldo) data and history
+  const loadAguinaldoData = async () => {
+    if (!tenantId || !fichaEmp) return;
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/bonus`);
+      const data = await res.json();
+      setFichaAguinaldoData(data);
+      setFichaAguinaldoHistory(data.history || []);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Error", "error");
+    }
+  };
+
+  // Save bonus payment
+  const saveBonusPayment = async () => {
+    if (!tenantId || !fichaEmp || !fichaAguinaldoData) return;
+    if (!bonusPayForm.paidAmount) {
+      flash("Ingresa el monto pagado", "error");
+      return;
+    }
+    setBonusPaySaving(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/bonus`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cycleYear: fichaAguinaldoData.cycleYear,
+          paidAmount: parseFloat(bonusPayForm.paidAmount),
+          notes: bonusPayForm.notes || null,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const newPayment = await res.json();
+      setFichaAguinaldoHistory((prev) => [newPayment, ...prev]);
+      setShowBonusPayModal(false);
+      setBonusPayForm({ paidAmount: "", notes: "" });
+      flash("Pago de aguinaldo registrado", "success");
+      await loadAguinaldoData();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Error", "error");
+    } finally {
+      setBonusPaySaving(false);
+    }
+  };
+
+  // Load vacation data and history
+  const loadVacationData = async () => {
+    if (!tenantId || !fichaEmp) return;
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/vacation`);
+      const data = await res.json();
+      setFichaVacationData(data);
+      setFichaVacationHistory(data.history || []);
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Error", "error");
+    }
+  };
+
+  // Save vacation payment
+  const saveVacationPayment = async () => {
+    if (!tenantId || !fichaEmp) return;
+    if (!vacationPayForm.daysUsed || !vacationPayForm.startDate || !vacationPayForm.endDate) {
+      flash("Completa todos los campos requeridos", "error");
+      return;
+    }
+    setVacationPaySaving(true);
+    try {
+      const daysUsed = parseFloat(vacationPayForm.daysUsed);
+      if (!fichaVacationData || fichaVacationData.daysRemaining < daysUsed) {
+        flash("Días de vacaciones insuficientes", "error");
+        return;
+      }
+      const monetaryValue = daysUsed * fichaVacationData.dailyRate;
+      const res = await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/vacation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          daysUsed,
+          startDate: vacationPayForm.startDate,
+          endDate: vacationPayForm.endDate,
+          monetaryValue: Math.round(monetaryValue * 100) / 100,
+          notes: vacationPayForm.notes || null,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const newPayment = await res.json();
+      setFichaVacationHistory((prev) => [newPayment, ...prev]);
+      setShowVacationPayModal(false);
+      setVacationPayForm({ daysUsed: "", startDate: "", endDate: "", notes: "" });
+      flash("Período de vacaciones registrado", "success");
+      await loadVacationData();
+    } catch (e) {
+      flash(e instanceof Error ? e.message : "Error", "error");
+    } finally {
+      setVacationPaySaving(false);
+    }
   };
 
   // ── Average hours per calendar month (from all recorded payments) ──────────
@@ -532,9 +661,17 @@ export default function EmployeesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tarifa por hora *</label>
-                  <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Salario *</label>
+                  <select value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value as "hourly" | "monthly" })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="hourly">Tarifa por hora</option>
+                    <option value="monthly">Salario mensual</option>
+                  </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{form.salaryType === "monthly" ? "Salario mensual" : "Tarifa por hora"} *</label>
+                <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
 
               <div>
@@ -760,33 +897,66 @@ export default function EmployeesPage() {
                           Registra pagos con horas trabajadas para calcular el aguinaldo basado en el promedio mensual.
                         </p>
                       )}
+                      
+                      {/* Alert for approaching deadline */}
+                      {fichaAguinaldoData && !fichaAguinaldoData.alreadyPaid && fichaAguinaldoData.cycleEnd && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <span className="text-lg">⏰</span>
+                          <p className="text-sm text-red-700">
+                            <span className="font-semibold">Pago vence el {fmtDate(new Date(new Date(fichaAguinaldoData.cycleEnd).getFullYear(), 11, 15).toISOString().split("T")[0])}</span>
+                            {" · Aguinaldo acumulado: "}<span className="font-bold">{fmt(fichaAguinaldoData.calculatedBonus)}</span>
+                          </p>
+                        </div>
+                      )}
+                      
                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                         <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-2">Ciclo actual</p>
                         <p className="text-sm text-slate-700">
-                          {fmtDate(aguinaldoData.cycleStart.toISOString().split("T")[0])} – {fmtDate(aguinaldoData.cycleEnd.toISOString().split("T")[0])}
+                          {fmtDate(fichaAguinaldoData?.cycleStart)} – {fmtDate(fichaAguinaldoData?.cycleEnd)}
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                          {Math.floor(aguinaldoData.monthsWorked)} mes{Math.floor(aguinaldoData.monthsWorked) !== 1 ? "es" : ""} trabajados en este ciclo
-                          {" · "}{Math.round(aguinaldoData.avgHoursPerMonth * 10) / 10} h/mes promedio
+                          {Math.floor(fichaAguinaldoData?.monthsWorkedInCycle || 0)} mes{Math.floor(fichaAguinaldoData?.monthsWorkedInCycle || 0) !== 1 ? "es" : ""} trabajados en este ciclo
                         </p>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-white border border-slate-200 rounded-xl p-4">
-                          <p className="text-xs text-slate-500 mb-1">Horas promedio / mes</p>
-                          <p className="text-2xl font-bold text-slate-900">{Math.round(aguinaldoData.avgHoursPerMonth * 10) / 10}</p>
-                          <p className="text-xs text-slate-400">h</p>
-                        </div>
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white border border-slate-200 rounded-xl p-4">
                           <p className="text-xs text-slate-500 mb-1">Salario mensual prom.</p>
-                          <p className="text-xl font-bold text-slate-900">{fmt(aguinaldoData.avgMonthlySalary)}</p>
-                          <p className="text-xs text-slate-400">h × {fmt(fichaEmp.salary)}/h</p>
+                          <p className="text-2xl font-bold text-slate-900">{fmt(fichaAguinaldoData?.avgMonthlySalary || 0)}</p>
+                          <p className="text-xs text-slate-400">Basado en ingresos reales</p>
                         </div>
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                          <p className="text-xs text-emerald-700 mb-1">Aguinaldo acumulado</p>
-                          <p className="text-xl font-bold text-emerald-700">{fmt(aguinaldoData.aguinaldo)}</p>
-                          <p className="text-xs text-emerald-600">{Math.floor(aguinaldoData.monthsWorked)}/12 meses</p>
+                        <div className={`rounded-xl p-4 border ${fichaAguinaldoData?.alreadyPaid ? "bg-green-50 border-green-200" : "bg-emerald-50 border-emerald-200"}`}>
+                          <p className={`text-xs ${fichaAguinaldoData?.alreadyPaid ? "text-green-700" : "text-emerald-700"} mb-1`}>Aguinaldo acumulado</p>
+                          <p className={`text-2xl font-bold ${fichaAguinaldoData?.alreadyPaid ? "text-green-700" : "text-emerald-700"}`}>{fmt(fichaAguinaldoData?.calculatedBonus || 0)}</p>
+                          <p className={`text-xs ${fichaAguinaldoData?.alreadyPaid ? "text-green-600" : "text-emerald-600"}`}>{Math.floor(aguinaldoData.monthsWorked)}/12 meses</p>
                         </div>
                       </div>
+                      
+                      {!fichaAguinaldoData?.alreadyPaid && (
+                        <button onClick={() => setShowBonusPayModal(true)}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg transition-colors">
+                          💰 Registrar Pago de Aguinaldo
+                        </button>
+                      )}
+                      
+                      {fichaAguinaldoHistory.length > 0 && (
+                        <div>
+                          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">Historial de Pagos</p>
+                          <div className="space-y-2">
+                            {fichaAguinaldoHistory.map((payment) => (
+                              <div key={payment.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between items-start">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">Ciclo {payment.cycle_year}</p>
+                                  <p className="text-xs text-slate-500">
+                                    Pagado el {payment.paid_at ? fmtDate(payment.paid_at.split("T")[0]) : "Pendiente"}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-bold text-slate-900">{fmt(payment.paid_amount || payment.calculated_amount)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       <p className="text-xs text-slate-400">
                         * Ley 185 Nicaragua: aguinaldo = 1 mes de salario ordinario por año trabajado.
                         Calculado como promedio de horas/mes × tarifa/h, pro-rateado a los meses trabajados en el ciclo Dic–Nov.
@@ -808,36 +978,78 @@ export default function EmployeesPage() {
                           Registra pagos con horas trabajadas para calcular el valor monetario de las vacaciones.
                         </p>
                       )}
+                      
+                      {/* Alert if vacation is due */}
+                      {fichaVacationData && fichaVacationData.daysRemaining > 0 && fichaVacationData.monthsSinceHire >= 6 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                          <span className="text-lg">🏖️</span>
+                          <p className="text-sm text-amber-700">
+                            <span className="font-semibold">El empleado tiene derecho a vacaciones</span> ({fichaVacationData.daysRemaining} días acumulados)
+                          </p>
+                        </div>
+                      )}
+                      
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                         <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-1">Desde contratacion</p>
                         <p className="text-sm text-slate-700">
                           {fmtDate(fichaEmp.hire_date!)} – hoy
-                          {" · "}{vacationData.months} mes{vacationData.months !== 1 ? "es" : ""}
+                          {" · "}{Math.floor(fichaVacationData?.monthsSinceHire || 0)} mes{Math.floor(fichaVacationData?.monthsSinceHire || 0) !== 1 ? "es" : ""}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-white border border-slate-200 rounded-xl p-4">
-                          <p className="text-xs text-slate-500 mb-1">Horas promedio / mes</p>
-                          <p className="text-2xl font-bold text-slate-900">{Math.round(vacationData.avgHoursPerMonth * 10) / 10}</p>
-                          <p className="text-xs text-slate-400">h</p>
-                        </div>
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                           <p className="text-xs text-amber-700 mb-1">Días acumulados</p>
-                          <p className="text-2xl font-bold text-amber-700">{vacationData.daysAccrued}</p>
-                          <p className="text-xs text-amber-600">2.5 días × {vacationData.months} mes{vacationData.months !== 1 ? "es" : ""}</p>
+                          <p className="text-2xl font-bold text-amber-700">{fichaVacationData?.daysAccrued || 0}</p>
+                          <p className="text-xs text-amber-600">2.5 días × {Math.floor(fichaVacationData?.monthsSinceHire || 0)} mes{Math.floor(fichaVacationData?.monthsSinceHire || 0) !== 1 ? "es" : ""}</p>
+                        </div>
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                          <p className="text-xs text-green-700 mb-1">Días disponibles</p>
+                          <p className="text-2xl font-bold text-green-700">{fichaVacationData?.daysRemaining || 0}</p>
                         </div>
                       </div>
-                      {vacationData.avgHoursPerMonth > 0 && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-1">Valor monetario acumulado</p>
-                            <p className="text-xs text-emerald-600">
-                              {vacationData.daysAccrued} días × {Math.round(vacationData.avgDailyHours * 100) / 100} h/día × {fmt(fichaEmp.salary)}/h
-                            </p>
+                      
+                      {fichaVacationData && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                            <p className="text-xs text-slate-600 font-semibold">Días utilizados</p>
+                            <p className="text-2xl font-bold text-slate-900">{fichaVacationData.daysUsed}</p>
                           </div>
-                          <p className="text-2xl font-bold text-emerald-700">{fmt(vacationData.monetaryValue)}</p>
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">Valor monetario</p>
+                            <p className="text-xl font-bold text-emerald-700">{fmt(fichaVacationData.monetaryValue || 0)}</p>
+                          </div>
                         </div>
                       )}
+                      
+                      {fichaVacationData && fichaVacationData.daysRemaining > 0 && (
+                        <button onClick={() => setShowVacationPayModal(true)}
+                          className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg transition-colors">
+                          🏖️ Registrar Vacaciones
+                        </button>
+                      )}
+                      
+                      {fichaVacationHistory.length > 0 && (
+                        <div>
+                          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">Historial de Vacaciones</p>
+                          <div className="space-y-2">
+                            {fichaVacationHistory.map((vacation) => (
+                              <div key={vacation.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                <div className="flex justify-between items-start mb-1">
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {vacation.days_used} días ({fmtDate(vacation.start_date)} a {fmtDate(vacation.end_date)})
+                                  </p>
+                                  <p className="text-sm font-bold text-slate-900">{fmt(vacation.monetary_value)}</p>
+                                </div>
+                                {vacation.notes && <p className="text-xs text-slate-500">Notas: {vacation.notes}</p>}
+                                <p className="text-xs text-slate-400">
+                                  Registrado el {fmtDate(vacation.created_at.split("T")[0])}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       <p className="text-xs text-slate-400">
                         * Art. 76 Código Laboral Nicaragua: 15 días por cada 6 meses = 2.5 días/mes.
                         Valor monetario = días acumulados × horas promedio por día (promedio mensual ÷ 30) × tarifa/h.
@@ -848,6 +1060,135 @@ export default function EmployeesPage() {
               )}
 
             </div>
+
+            {/* ── Bonus Payment Modal ── */}
+            {showBonusPayModal && fichaAguinaldoData && (
+              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-slate-900">Pagar Aguinaldo</h3>
+                    <button onClick={() => setShowBonusPayModal(false)} className="text-slate-400 hover:text-slate-600">
+                      ✕
+                    </button>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-600 font-semibold mb-1">Monto a pagar</p>
+                    <p className="text-2xl font-bold text-blue-900">{fmt(fichaAguinaldoData.calculatedBonus)}</p>
+                    <p className="text-xs text-blue-600 mt-1">Ciclo {fichaAguinaldoData.cycleYear}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Monto pagado</label>
+                    <input
+                      type="number"
+                      value={bonusPayForm.paidAmount}
+                      onChange={(e) => setBonusPayForm((f) => ({ ...f, paidAmount: e.target.value }))}
+                      placeholder={String(fichaAguinaldoData.calculatedBonus)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
+                    <input
+                      type="text"
+                      value={bonusPayForm.notes}
+                      onChange={(e) => setBonusPayForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Ej: Transferencia bancaria"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowBonusPayModal(false)}
+                      className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={saveBonusPayment}
+                      disabled={bonusPaySaving || !bonusPayForm.paidAmount}
+                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg text-white font-semibold"
+                    >
+                      {bonusPaySaving ? "Guardando..." : "✓ Confirmar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Vacation Payment Modal ── */}
+            {showVacationPayModal && fichaVacationData && (
+              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-slate-900">Registrar Vacaciones</h3>
+                    <button onClick={() => setShowVacationPayModal(false)} className="text-slate-400 hover:text-slate-600">
+                      ✕
+                    </button>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-xs text-amber-600 font-semibold mb-1">Días disponibles</p>
+                    <p className="text-2xl font-bold text-amber-900">{fichaVacationData.daysRemaining} días</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Días</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={vacationPayForm.daysUsed}
+                        onChange={(e) => setVacationPayForm((f) => ({ ...f, daysUsed: e.target.value }))}
+                        placeholder="0"
+                        max={fichaVacationData.daysRemaining}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>
+                      <input
+                        type="date"
+                        value={vacationPayForm.startDate}
+                        onChange={(e) => setVacationPayForm((f) => ({ ...f, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hasta</label>
+                    <input
+                      type="date"
+                      value={vacationPayForm.endDate}
+                      onChange={(e) => setVacationPayForm((f) => ({ ...f, endDate: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
+                    <input
+                      type="text"
+                      value={vacationPayForm.notes}
+                      onChange={(e) => setVacationPayForm((f) => ({ ...f, notes: e.target.value }))}
+                      placeholder="Ej: Aprobado por gerente"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowVacationPayModal(false)}
+                      className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={saveVacationPayment}
+                      disabled={vacationPaySaving || !vacationPayForm.daysUsed || !vacationPayForm.startDate || !vacationPayForm.endDate}
+                      className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-white font-semibold"
+                    >
+                      {vacationPaySaving ? "Guardando..." : "✓ Guardar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
