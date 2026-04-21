@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
-import { CartItem, Product } from "@/lib/types";
+import { LoyaltyService } from "@/features/loyalty/services";
+import { CartItem, Product, LoyalCustomer, LoyalCustomerStats } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
@@ -44,6 +45,14 @@ export default function POSPage() {
   const [search, setSearch] = useState("");
   const [amountReceived, setAmountReceived] = useState<number>(0);
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  
+  // Loyalty states
+  const [loyaltyModuleEnabled, setLoyaltyModuleEnabled] = useState(false);
+  const [loyalCustomers, setLoyalCustomers] = useState<LoyalCustomer[]>([]);
+  const [selectedLoyalCustomer, setSelectedLoyalCustomer] = useState<LoyalCustomerStats | null>(null);
+  const [loyalCustomerSearch, setLoyalCustomerSearch] = useState("");
+  const [showLoyalCustomerModal, setShowLoyalCustomerModal] = useState(false);
+  const [loadingLoyalCustomers, setLoadingLoyalCustomers] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -65,7 +74,27 @@ export default function POSPage() {
         setTaxes(taxesData);
       })
       .catch(console.error);
+
+    // Load loyalty settings
+    LoyaltyService.getLoyaltySettings(tenantId)
+      .then((settings) => setLoyaltyModuleEnabled(settings.loyalty_module_enabled))
+      .catch(console.error);
   }, [tenantId]);
+
+  // Load loyal customers when module is enabled or search changes
+  useEffect(() => {
+    if (!tenantId || !loyaltyModuleEnabled || !showLoyalCustomerModal) return;
+
+    const timer = setTimeout(() => {
+      setLoadingLoyalCustomers(true);
+      LoyaltyService.getCustomers(tenantId, loyalCustomerSearch)
+        .then((customers) => setLoyalCustomers(customers))
+        .catch((err) => console.error('Error loading loyal customers:', err))
+        .finally(() => setLoadingLoyalCustomers(false));
+    }, 300); // Debounce search
+
+    return () => clearTimeout(timer);
+  }, [tenantId, loyaltyModuleEnabled, loyalCustomerSearch, showLoyalCustomerModal]);
 
   const cartTotal = useMemo(
     () => {
@@ -218,6 +247,17 @@ export default function POSPage() {
     );
   };
 
+  const handleSelectLoyalCustomer = async (customerId: string) => {
+    try {
+      if (!tenantId) return;
+      const customer = await LoyaltyService.getCustomerDetails(tenantId, customerId);
+      setSelectedLoyalCustomer(customer);
+      setShowLoyalCustomerModal(false);
+    } catch (error) {
+      console.error('Error selecting loyal customer:', error);
+    }
+  };
+
   const handleCompleteSale = async () => {
     if (!tenantId) {
       setMessage("No hay tenant seleccionado.");
@@ -241,10 +281,25 @@ export default function POSPage() {
     try {
       setLoading(true);
       const cashierName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
-      await POSService.createTransaction(tenantId, cart, paymentMethod, user?.id || "cashier-001", discount, cashierName);
+      const transaction = await POSService.createTransaction(tenantId, cart, paymentMethod, user?.id || "cashier-001", discount, cashierName);
+      
+      // Record purchase for loyal customer if selected
+      if (loyaltyModuleEnabled && selectedLoyalCustomer) {
+        try {
+          await LoyaltyService.recordPurchase(tenantId, selectedLoyalCustomer.id, {
+            amount: cartTotal.total,
+            transaction_id: transaction.id,
+            description: `Venta registrada - ${cart.length} producto(s)`,
+          });
+        } catch (err) {
+          console.error('Error recording loyal customer purchase:', err);
+        }
+      }
+
       setCart([]);
       setDiscount(0);
       setAmountReceived(0);
+      setSelectedLoyalCustomer(null);
       setMessage("✓ ¡Venta registrada exitosamente!");
       setMessageType("success");
       const refreshed = await POSService.fetchProducts(tenantId);
@@ -790,6 +845,41 @@ export default function POSPage() {
             </div>
           </div>
 
+          {/* Loyal Customer Selection — only if module is enabled */}
+          {loyaltyModuleEnabled && (
+            <div className="space-y-2">
+              {selectedLoyalCustomer ? (
+                <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-xs font-semibold text-purple-600 uppercase">Cliente Fiel</p>
+                      <p className="text-sm font-semibold text-purple-900">{selectedLoyalCustomer.name}</p>
+                      <p className="text-xs text-purple-700">📞 {selectedLoyalCustomer.phone || "N/A"}</p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedLoyalCustomer(null)}
+                      className="text-xs text-purple-600 hover:text-purple-800 hover:underline font-semibold"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                  <div className="space-y-1 text-xs text-purple-700">
+                    <p>Tarjeta: <span className="font-semibold">{selectedLoyalCustomer.card_number}</span></p>
+                    <p>Total Gastado: <span className="font-semibold">{fmt(selectedLoyalCustomer.total_accumulated)}</span></p>
+                    <p>Visitas: <span className="font-semibold">{selectedLoyalCustomer.total_visits}</span></p>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowLoyalCustomerModal(true)}
+                  className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  + Agregar Cliente Fiel
+                </button>
+              )}
+            </div>
+          )}
+
           <select
             value={paymentMethod}
             onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
@@ -875,6 +965,65 @@ export default function POSPage() {
         </div>
       </div>
       </div>
+
+      {/* Loyal Customer Modal */}
+      {showLoyalCustomerModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-96 flex flex-col">
+            <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+              <h2 className="font-semibold text-slate-900">Seleccionar Cliente Fiel</h2>
+              <button
+                onClick={() => setShowLoyalCustomerModal(false)}
+                className="p-1 rounded hover:bg-slate-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-4 py-3 border-b border-slate-200">
+              <input
+                type="text"
+                placeholder="Buscar por nombre, teléfono o tarjeta..."
+                value={loyalCustomerSearch}
+                onChange={(e) => setLoyalCustomerSearch(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {loadingLoyalCustomers ? (
+                <p className="text-sm text-slate-500 text-center py-4">Cargando...</p>
+              ) : loyalCustomers.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">No hay clientes</p>
+              ) : (
+                <div className="space-y-2">
+                  {loyalCustomers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      onClick={() => handleSelectLoyalCustomer(customer.id)}
+                      className="w-full p-3 text-left border border-slate-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{customer.name}</p>
+                          <p className="text-xs text-slate-600">📱 {customer.phone || "N/A"}</p>
+                          <p className="text-xs text-slate-600">💳 {customer.card_number}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-semibold text-purple-700">{fmt(customer.total_accumulated)}</p>
+                          <p className="text-xs text-slate-500">{customer.total_visits} visitas</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

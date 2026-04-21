@@ -129,3 +129,44 @@ export interface AuthContextType {
   hasAnyPermission: (permissions: string[]) => boolean;
   hasAllPermissions: (permissions: string[]) => boolean;
 }
+
+// ========== Loyalty/Customers ==========
+export interface LoyalCustomer {
+  id: string;
+  tenant_id: string;
+  card_number: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  total_accumulated: number;
+  total_visits: number;
+  last_purchase_date?: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface LoyalCustomerStats extends LoyalCustomer {
+  current_counter?: number; // montant depuis dernière récompense
+  next_reward_amount?: number; // montant avant prochaine récompense
+  last_reward_date?: Date;
+}
+
+export interface LoyaltyReward {
+  id: string;
+  loyal_customer_id: string;
+  reward_date: Date;
+  amount_at_reward: number;
+  reward_type: string; // DISCOUNT, POINTS, GIFT, etc
+  reward_value?: number;
+  notes?: string;
+  created_at: Date;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  loyal_customer_id: string;
+  transaction_id?: string;
+  amount: number;
+  purchase_date: Date;
+  description?: string;
+}

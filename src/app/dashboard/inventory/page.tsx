@@ -1170,7 +1170,7 @@ export default function InventoryPage() {
                           <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                             product.quantity <= 0
                               ? "bg-red-100 text-red-700"
-                              : (product.min_stock ?? 0) > 0 && product.quantity <= (product.min_stock ?? 0)
+                              : ((product as any).min_stock ?? 0) > 0 && product.quantity <= ((product as any).min_stock ?? 0)
                               ? "bg-amber-100 text-amber-700"
                               : "bg-green-100 text-green-700"
                           }`}>
@@ -1203,15 +1203,15 @@ export default function InventoryPage() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => { setEditingMinStockId(product.id); setEditingMinStock((product.min_stock ?? 0).toString()); }}
+                            onClick={() => { setEditingMinStockId(product.id); setEditingMinStock(((product as any).min_stock ?? 0).toString()); }}
                             className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold cursor-pointer hover:ring-2 hover:ring-orange-400 transition-all ${
-                              (product.min_stock ?? 0) === 0
+                              ((product as any).min_stock ?? 0) === 0
                                 ? "bg-slate-100 text-slate-400"
                                 : "bg-orange-100 text-orange-700"
                             }`}
                             title="Clic para editar stock mínimo"
                           >
-                            {(product.min_stock ?? 0) === 0 ? "—" : product.min_stock}
+                            {((product as any).min_stock ?? 0) === 0 ? "—" : (product as any).min_stock}
                           </button>
                         )}
                       </td>
