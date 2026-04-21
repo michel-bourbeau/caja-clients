@@ -161,8 +161,12 @@ export default function POSPage() {
     });
   };
 
-  const handleRemoveItem = (productId: string) => {
-    setCart((current) => current.filter((item) => item.productId !== productId));
+  const handleRemoveItem = (productId: string, variantId?: string) => {
+    setCart((current) =>
+      current.filter((item) =>
+        variantId ? item.variantId !== variantId : item.productId !== productId || !!item.variantId
+      )
+    );
   };
 
   const handleCompleteSale = async () => {
@@ -468,10 +472,10 @@ export default function POSPage() {
             cart.map((item) => {
               const product = products.find((p) => p.id === item.productId);
               return (
-                <div key={item.productId} className="flex justify-between items-center py-2 border-b border-slate-100">
+                <div key={item.variantId ?? item.productId} className="flex justify-between items-center py-2 border-b border-slate-100">
                   <div>
                     <p className="text-sm font-medium text-slate-900">
-                      {item.quantity} × {product?.name || "Producto"}
+                      {item.quantity} × {item.name || product?.name || "Producto"}
                     </p>
                     <p className="text-sm text-slate-600">{fmt(item.price)}</p>
                   </div>
@@ -479,7 +483,7 @@ export default function POSPage() {
                     <p className="text-sm font-medium text-slate-900">{fmt(item.total)}</p>
                     <button
                       type="button"
-                      onClick={() => handleRemoveItem(item.productId)}
+                      onClick={() => handleRemoveItem(item.productId, item.variantId)}
                       className="text-sm text-red-600 hover:underline"
                     >
                       Eliminar
