@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS loyalty_rewards (
 CREATE TABLE IF NOT EXISTS loyalty_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loyal_customer_id UUID NOT NULL REFERENCES loyal_customers(id) ON DELETE CASCADE,
-  transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+  transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL,
   amount DECIMAL(12, 2) NOT NULL,
   purchase_date TIMESTAMP DEFAULT NOW(),
   description TEXT
@@ -49,26 +49,26 @@ ALTER TABLE loyal_customers ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view their tenant's loyal customers"
   ON loyal_customers FOR SELECT
-  USING (tenant_id IN (
-    SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+  USING (EXISTS (
+    SELECT 1 FROM users WHERE users.tenant_id = loyal_customers.tenant_id AND users.id = auth.uid()
   ));
 
 CREATE POLICY "Users can create loyal customers in their tenant"
   ON loyal_customers FOR INSERT
-  WITH CHECK (tenant_id IN (
-    SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM users WHERE users.tenant_id = loyal_customers.tenant_id AND users.id = auth.uid()
   ));
 
 CREATE POLICY "Users can update loyal customers in their tenant"
   ON loyal_customers FOR UPDATE
-  USING (tenant_id IN (
-    SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+  USING (EXISTS (
+    SELECT 1 FROM users WHERE users.tenant_id = loyal_customers.tenant_id AND users.id = auth.uid()
   ));
 
 CREATE POLICY "Users can delete loyal customers in their tenant"
   ON loyal_customers FOR DELETE
-  USING (tenant_id IN (
-    SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
+  USING (EXISTS (
+    SELECT 1 FROM users WHERE users.tenant_id = loyal_customers.tenant_id AND users.id = auth.uid()
   ));
 
 -- Add RLS policies for loyalty_rewards
@@ -76,18 +76,20 @@ ALTER TABLE loyalty_rewards ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view rewards for their tenant's customers"
   ON loyalty_rewards FOR SELECT
-  USING (loyal_customer_id IN (
-    SELECT id FROM loyal_customers WHERE tenant_id IN (
-      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
-    )
+  USING (EXISTS (
+    SELECT 1 FROM loyal_customers 
+    INNER JOIN users ON users.tenant_id = loyal_customers.tenant_id 
+    WHERE loyal_customers.id = loyalty_rewards.loyal_customer_id 
+      AND users.id = auth.uid()
   ));
 
 CREATE POLICY "Users can create rewards in their tenant"
   ON loyalty_rewards FOR INSERT
-  WITH CHECK (loyal_customer_id IN (
-    SELECT id FROM loyal_customers WHERE tenant_id IN (
-      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
-    )
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM loyal_customers 
+    INNER JOIN users ON users.tenant_id = loyal_customers.tenant_id 
+    WHERE loyal_customers.id = loyalty_rewards.loyal_customer_id 
+      AND users.id = auth.uid()
   ));
 
 -- Add RLS policies for loyalty_transactions
@@ -95,16 +97,18 @@ ALTER TABLE loyalty_transactions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view transactions for their tenant's customers"
   ON loyalty_transactions FOR SELECT
-  USING (loyal_customer_id IN (
-    SELECT id FROM loyal_customers WHERE tenant_id IN (
-      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
-    )
+  USING (EXISTS (
+    SELECT 1 FROM loyal_customers 
+    INNER JOIN users ON users.tenant_id = loyal_customers.tenant_id 
+    WHERE loyal_customers.id = loyalty_transactions.loyal_customer_id 
+      AND users.id = auth.uid()
   ));
 
 CREATE POLICY "Users can create transactions in their tenant"
   ON loyalty_transactions FOR INSERT
-  WITH CHECK (loyal_customer_id IN (
-    SELECT id FROM loyal_customers WHERE tenant_id IN (
-      SELECT tenant_id FROM user_tenants WHERE user_id = auth.uid()
-    )
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM loyal_customers 
+    INNER JOIN users ON users.tenant_id = loyal_customers.tenant_id 
+    WHERE loyal_customers.id = loyalty_transactions.loyal_customer_id 
+      AND users.id = auth.uid()
   ));
