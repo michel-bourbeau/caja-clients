@@ -160,6 +160,19 @@ export async function POST(
       
       throw error;
     }
+
+    // Decrement stock for each sold item
+    await Promise.all(
+      items.map((item) => {
+        const current = productMap.get(item.productId);
+        const newQty = (current?.stock_quantity ?? 0) - item.quantity;
+        return supabaseAdmin
+          .from("products")
+          .update({ stock_quantity: Math.max(0, newQty) })
+          .eq("id", item.productId)
+          .eq("tenant_id", tenantId);
+      })
+    );
     
     console.log("[transactions POST] Transaction created successfully:", transactionId);
     return NextResponse.json(data);
