@@ -26,16 +26,26 @@ export async function GET(
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Get rewards
+    // Get rewards to count how many tranches have been awarded
     const { data: rewards } = await supabase
       .from('loyalty_rewards')
       .select('*')
       .eq('loyal_customer_id', customerId)
       .order('reward_date', { ascending: false });
 
-    // Calculate current counter and next reward info
-    const totalRewarded = (rewards || []).reduce((sum, r) => sum + (r.amount_at_reward || 0), 0);
-    const currentCounter = Math.max(0, customer.total_accumulated - totalRewarded);
+    // Calculate current counter: total_accumulated - (number_of_rewards × threshold)
+    // Get loyalty settings for threshold
+    const { data: settings } = await supabase
+      .from('tenant_settings')
+      .select('loyalty_reward_threshold')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    const rewardThreshold = settings?.loyalty_reward_threshold || 2000;
+    const numberOfRewards = rewards?.length || 0;
+    const totalRewardedAmount = numberOfRewards * rewardThreshold;
+    const currentCounter = Math.max(0, customer.total_accumulated - totalRewardedAmount);
+    
     const lastReward = rewards?.[0];
 
     return NextResponse.json({

@@ -16,9 +16,10 @@ export default function CustomerDetailsPage() {
   const { fmt } = useCurrency();
   const [customer, setCustomer] = useState<LoyalCustomerStats | null>(null);
   const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
-  const [purchases, setPurchases] = useState<LoyaltyTransaction[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRewardModal, setShowRewardModal] = useState(false);
+  const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
   const [rewardThreshold, setRewardThreshold] = useState(2000);
   const [loyaltySettings, setLoyaltySettings] = useState<any>(null);
 
@@ -55,14 +56,27 @@ export default function CustomerDetailsPage() {
     if (!tenantId || !customerId) return;
 
     try {
-      await LoyaltyService.awardReward(tenantId, customerId, {
+      console.log("Awarding reward...");
+      const result = await LoyaltyService.awardReward(tenantId, customerId, {
         reward_type: loyaltySettings?.loyalty_reward_type || "DISCOUNT_PERCENT",
         reward_value: loyaltySettings?.loyalty_reward_value,
         notes: `Recompensa por ${fmt(customer?.total_accumulated || 0)} gastado`,
       });
+      
+      console.log("Reward result:", result);
+      
+      if (result?.updatedCustomer) {
+        console.log("Updated customer from API:", result.updatedCustomer);
+        // Update customer with the returned data immediately
+        setCustomer(prev => prev ? { ...prev, ...result.updatedCustomer } : null);
+      }
 
       setShowRewardModal(false);
-      await loadData();
+      
+      // Wait a bit then reload data to ensure DB is synced
+      setTimeout(() => {
+        loadData();
+      }, 500);
     } catch (error) {
       console.error("Error awarding reward:", error);
     }
@@ -92,9 +106,18 @@ export default function CustomerDetailsPage() {
             <h1 className="text-3xl font-bold text-gray-900">{customer.name}</h1>
             <p className="text-gray-600">Tarjeta: {customer.card_number}</p>
           </div>
-          <Button onClick={() => setShowRewardModal(true)} className="bg-purple-600 hover:bg-purple-700">
+          <button 
+            onClick={() => setShowRewardModal(true)} 
+            disabled={currentCounter < rewardThreshold}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              currentCounter >= rewardThreshold
+                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            title={currentCounter < rewardThreshold ? `Falta ${fmt(rewardThreshold - currentCounter)} para recompensa` : 'Dar Recompensa'}
+          >
             🎁 Dar Recompensa
-          </Button>
+          </button>
         </div>
 
         {/* Info grid */}
@@ -127,7 +150,7 @@ export default function CustomerDetailsPage() {
           <div>
             <div className="flex justify-between items-center mb-2">
               <p className="text-sm font-medium text-purple-900">
-                Desde última recompensa
+                Puntos acumulados
               </p>
               <p className="text-sm font-bold text-purple-900">
                 {fmt(currentCounter)} / {fmt(rewardThreshold)}
@@ -140,7 +163,11 @@ export default function CustomerDetailsPage() {
               />
             </div>
             <p className="text-xs text-purple-700 mt-1">
-              {rewardProgress.percentage.toFixed(0)}% - Falta {fmt(rewardProgress.remainingAmount)} para recompensa
+              {rewardProgress.percentage.toFixed(0)}% - {
+                currentCounter >= rewardThreshold 
+                  ? `¡Recompensa disponible! (${Math.floor(currentCounter / rewardThreshold)} recompensas pendientes)`
+                  : `Falta ${fmt(rewardProgress.remainingAmount)} para recompensa`
+              }
             </p>
           </div>
 
@@ -177,7 +204,7 @@ export default function CustomerDetailsPage() {
             <tbody className="divide-y divide-gray-100">
               {rewards.map((reward) => (
                 <tr key={reward.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3">
+                  <td className="px-6 py-3 text-gray-900 font-medium">
                     {new Date(reward.reward_date).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-3">
@@ -185,8 +212,8 @@ export default function CustomerDetailsPage() {
                       {reward.reward_type}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-right font-semibold">{fmt(reward.amount_at_reward)}</td>
-                  <td className="px-6 py-3 text-gray-600 text-xs">{reward.notes || "—"}</td>
+                  <td className="px-6 py-3 text-right font-bold text-gray-900">{fmt(reward.amount_at_reward)}</td>
+                  <td className="px-6 py-3 text-gray-900 text-xs">{reward.notes || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -197,32 +224,152 @@ export default function CustomerDetailsPage() {
       {/* Purchases history */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h2 className="font-semibold text-gray-900">Historial de Compras</h2>
+          <h2 className="font-semibold text-gray-900">Historial de Compras Completo</h2>
         </div>
 
         {purchases.length === 0 ? (
           <div className="p-6 text-center text-gray-500">No hay compras registradas</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Descripción</th>
-                <th className="px-6 py-3 text-right font-semibold text-gray-700">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {purchases.map((purchase) => (
-                <tr key={purchase.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3">
-                    {new Date(purchase.purchase_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-3 text-gray-600">{purchase.description || "Compra"}</td>
-                  <td className="px-6 py-3 text-right font-semibold">{fmt(purchase.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="divide-y divide-gray-100">
+            {purchases.map((purchase) => (
+              <div key={purchase.id} className="hover:bg-gray-50 transition-colors">
+                {/* Purchase summary row */}
+                <button
+                  onClick={() =>
+                    setExpandedPurchase(expandedPurchase === purchase.id ? null : purchase.id)
+                  }
+                  className="w-full px-6 py-4 flex items-center justify-between text-left"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {new Date(purchase.purchase_date).toLocaleDateString("es-ES", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {purchase.description || "Compra"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">{fmt(purchase.amount)}</p>
+                      {purchase.transactionDetails && (
+                        <p className="text-xs text-gray-500">
+                          {purchase.transactionDetails.payment_method === "CASH"
+                            ? "💵 Efectivo"
+                            : purchase.transactionDetails.payment_method === "CARD"
+                            ? "💳 Tarjeta"
+                            : "Pago"}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={`ml-4 transform transition-transform ${
+                        expandedPurchase === purchase.id ? "rotate-180" : ""
+                      }`}
+                    >
+                      ▼
+                    </span>
+                  </div>
+                </button>
+
+                {/* Expanded details */}
+                {expandedPurchase === purchase.id && purchase.transactionDetails && (
+                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                    <div className="space-y-4">
+                      {/* Items list */}
+                      {Array.isArray(purchase.transactionDetails.items) && (
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-sm mb-3">
+                            Artículos ({purchase.transactionDetails.items.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {purchase.transactionDetails.items.map((item: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex justify-between items-start p-2 bg-white rounded border border-gray-100"
+                              >
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    Qty: {item.quantity} × {fmt(item.price)}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {fmt(item.total)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Payment details */}
+                      <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200">
+                        <div>
+                          <p className="text-xs text-gray-600 uppercase font-semibold">
+                            Subtotal
+                          </p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {fmt(
+                              purchase.transactionDetails.total -
+                                purchase.transactionDetails.tax +
+                                purchase.transactionDetails.discount
+                            )}
+                          </p>
+                        </div>
+                        {purchase.transactionDetails.discount > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-600 uppercase font-semibold">
+                              Descuento
+                            </p>
+                            <p className="text-sm font-medium text-red-600">
+                              -{fmt(purchase.transactionDetails.discount)}
+                            </p>
+                          </div>
+                        )}
+                        {purchase.transactionDetails.tax > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-600 uppercase font-semibold">
+                              Impuesto
+                            </p>
+                            <p className="text-sm font-medium text-gray-900">
+                              +{fmt(purchase.transactionDetails.tax)}
+                            </p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs text-gray-600 uppercase font-semibold">
+                            Total
+                          </p>
+                          <p className="text-sm font-bold text-gray-900">
+                            {fmt(purchase.transactionDetails.total)}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-600 uppercase font-semibold">
+                            Cajero
+                          </p>
+                          <p className="text-sm text-gray-900">
+                            {purchase.transactionDetails.cashier_name || "—"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

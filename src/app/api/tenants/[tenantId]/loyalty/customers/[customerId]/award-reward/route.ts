@@ -23,11 +23,14 @@ export async function POST(
       );
     }
 
+    console.log(`[award-reward] Starting for customer ${customerId}`);
+
     // Get customer to capture current total_accumulated at time of reward
     const { data: customer, error: customerError } = await supabase
       .from('loyal_customers')
-      .select('total_accumulated')
+      .select('*')
       .eq('id', customerId)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (customerError) throw customerError;
@@ -35,7 +38,19 @@ export async function POST(
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // Create reward record
+    console.log(`[award-reward] Current total_accumulated: ${customer.total_accumulated}`);
+
+    // Get loyalty settings to get the reward threshold
+    const { data: settings, error: settingsError } = await supabase
+      .from('tenant_settings')
+      .select('loyalty_reward_threshold')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
+    const rewardThreshold = settings?.loyalty_reward_threshold || 2000;
+    console.log(`[award-reward] Reward threshold: ${rewardThreshold}`);
+
+    // Create reward record with current accumulated amount
     const { data: reward, error: rewardError } = await supabase
       .from('loyalty_rewards')
       .insert({
@@ -50,10 +65,36 @@ export async function POST(
       .single();
 
     if (rewardError) throw rewardError;
+    console.log(`[award-reward] Reward created: ${reward.id}`);
 
-    return NextResponse.json(reward, { status: 201 });
+    // Just update last_reward_date, do NOT subtract from total_accumulated
+    // total_accumulated is the historical sum and should never decrease
+    const { data: updatedCustomer, error: updateError } = await supabase
+      .from('loyal_customers')
+      .update({
+        last_reward_date: new Date().toISOString(),
+      })
+      .eq('id', customerId)
+      .eq('tenant_id', tenantId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error(`[award-reward] Update error:`, updateError);
+      throw updateError;
+    }
+
+    console.log(`[award-reward] Customer updated successfully`, updatedCustomer);
+
+    return NextResponse.json(
+      {
+        reward,
+        updatedCustomer,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
-    console.error('Error awarding reward:', error);
+    console.error(`[award-reward] Error:`, error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

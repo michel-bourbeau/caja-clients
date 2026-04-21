@@ -43,17 +43,16 @@ export default function LoyaltySettingsPage() {
 
     try {
       setSaving(true);
-      // Note: We would need to update the LoyaltyService and API to handle settings updates
-      // For now, we'll just show a message
-      setMessage("✓ Configuración actualizada");
+      await LoyaltyService.updateLoyaltySettings(tenantId, settings);
+      setMessage("✓ Configuración actualizada exitosamente");
       setMessageType("success");
 
       setTimeout(() => {
         setMessage(null);
         setMessageType(null);
       }, 3000);
-    } catch (error) {
-      setMessage("Error guardando configuración");
+    } catch (error: any) {
+      setMessage(error.message || "Error guardando configuración");
       setMessageType("error");
     } finally {
       setSaving(false);
@@ -124,7 +123,7 @@ export default function LoyaltySettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, loyalty_reward_threshold: Number(e.target.value) })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-900"
               />
             </div>
 
@@ -139,7 +138,7 @@ export default function LoyaltySettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, loyalty_reward_type: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
               >
                 <option value="DISCOUNT_PERCENT">Descuento %</option>
                 <option value="DISCOUNT_FIXED">Descuento Fijo (C$)</option>
@@ -169,7 +168,7 @@ export default function LoyaltySettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, loyalty_reward_value: Number(e.target.value) })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-900"
               />
             </div>
 

@@ -16,6 +16,27 @@ export class LoyaltyService {
   }
 
   /**
+   * Update loyalty settings for a tenant
+   */
+  static async updateLoyaltySettings(
+    tenantId: string,
+    settings: {
+      loyalty_module_enabled: boolean;
+      loyalty_reward_threshold: number;
+      loyalty_reward_type: string;
+      loyalty_reward_value: number;
+    }
+  ): Promise<any> {
+    const response = await fetch(`/api/tenants/${tenantId}/loyalty/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) throw new Error('Failed to update loyalty settings');
+    return response.json();
+  }
+
+  /**
    * Create a new loyal customer
    */
   static async createCustomer(
@@ -124,7 +145,7 @@ export class LoyaltyService {
       reward_value?: number;
       notes?: string;
     }
-  ): Promise<LoyaltyReward> {
+  ): Promise<any> {
     const response = await fetch(`/api/tenants/${tenantId}/loyalty/customers/${customerId}/award-reward`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -158,25 +179,37 @@ export class LoyaltyService {
   }
 
   /**
-   * Calculate current counter (amount since last reward)
-   * totalAccumulated - sum of all reward amounts = current counter
+   * Calculate current counter (points remaining towards next reward)
+   * Formula: total_accumulated - (number_of_rewards × threshold)
+   * Example: 7060 - (1 × 2000) = 5060
    */
   static calculateCurrentCounter(
     totalAccumulated: number,
-    rewards: LoyaltyReward[]
+    rewards: LoyaltyReward[],
+    rewardThreshold: number = 2000
   ): number {
-    const totalRewarded = rewards.reduce((sum, r) => sum + (r.amount_at_reward || 0), 0);
-    return Math.max(0, totalAccumulated - totalRewarded);
+    const numberOfRewards = rewards?.length || 0;
+    const totalRewardedAmount = numberOfRewards * rewardThreshold;
+    return Math.max(0, totalAccumulated - totalRewardedAmount);
   }
 
   /**
    * Calculate progress towards next reward
+   * Shows how close customer is to earning the next reward
+   * E.g. if counter=5060 and threshold=2000: shows 100% (already earned multiple rewards)
+   * E.g. if counter=1060 and threshold=2000: shows 53% (not yet at next reward)
    */
   static calculateRewardProgress(
     currentCounter: number,
     rewardThreshold: number
   ): { percentage: number; remainingAmount: number } {
-    const percentage = Math.min(100, (currentCounter / rewardThreshold) * 100);
+    // If counter >= threshold, customer has already earned a reward
+    if (currentCounter >= rewardThreshold) {
+      return { percentage: 100, remainingAmount: 0 };
+    }
+    
+    // Otherwise, show progress towards next reward
+    const percentage = (currentCounter / rewardThreshold) * 100;
     const remainingAmount = Math.max(0, rewardThreshold - currentCounter);
     return { percentage, remainingAmount };
   }

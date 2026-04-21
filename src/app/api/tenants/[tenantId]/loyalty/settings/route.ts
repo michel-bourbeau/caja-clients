@@ -43,6 +43,15 @@ export async function GET(
     });
   } catch (error: any) {
     console.error('Error fetching loyalty settings:', error);
+    // If columns don't exist yet, return defaults
+    if (error?.code === 'PGRST204' || error?.message?.includes('column')) {
+      return NextResponse.json({
+        loyalty_module_enabled: false,
+        loyalty_reward_threshold: 2000,
+        loyalty_reward_type: 'DISCOUNT_PERCENT',
+        loyalty_reward_value: 10,
+      });
+    }
     return NextResponse.json({
       loyalty_module_enabled: false,
       loyalty_reward_threshold: 2000,
@@ -60,24 +69,43 @@ export async function PUT(
     const { tenantId } = await params;
     const body = await request.json();
 
+    console.log('Updating loyalty settings for tenant:', tenantId);
+    console.log('Request body:', body);
+
+    const loyaltyData = {
+      tenant_id: tenantId,
+      loyalty_module_enabled: body.loyalty_module_enabled ?? false,
+      loyalty_reward_threshold: body.loyalty_reward_threshold ?? 2000,
+      loyalty_reward_type: body.loyalty_reward_type ?? 'DISCOUNT_PERCENT',
+      loyalty_reward_value: body.loyalty_reward_value ?? 10,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Use upsert which automatically handles insert or update
     const { data, error } = await supabase
       .from('tenant_settings')
-      .upsert({
-        tenant_id: tenantId,
-        loyalty_module_enabled: body.loyalty_module_enabled,
-        loyalty_reward_threshold: body.loyalty_reward_threshold,
-        loyalty_reward_type: body.loyalty_reward_type,
-        loyalty_reward_value: body.loyalty_reward_value,
-        updated_at: new Date().toISOString(),
+      .upsert(loyaltyData, {
+        onConflict: 'tenant_id',
       })
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Upsert error:', error);
+      throw error;
+    }
 
-    return NextResponse.json(data);
+    console.log('Update successful:', data);
+    return NextResponse.json(data || loyaltyData);
   } catch (error: any) {
     console.error('Error updating loyalty settings:', error);
+    // If columns don't exist, provide helpful message
+    if (error?.code === 'PGRST204' || error?.message?.includes('column')) {
+      return NextResponse.json(
+        { error: 'Columnas de loyalty aún no creadas en la base de datos. Por favor ejecuta la migración en Supabase SQL Editor.' },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
