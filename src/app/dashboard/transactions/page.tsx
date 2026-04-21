@@ -295,15 +295,12 @@ export default function TransactionsPage() {
                           <td className="px-4 py-2.5 max-w-xs">
                             {tx.items && tx.items.length > 0 ? (
                               <div className="space-y-0.5">
-                                {tx.items.slice(0, 2).map((item: any, i: number) => (
+                                {tx.items.map((item: any, i: number) => (
                                   <p key={i} className="text-sm text-slate-700 truncate">
                                     <span className="font-medium">{item.quantity}×</span>{" "}
                                     {getProductName(item.productId, item.name)}
                                   </p>
                                 ))}
-                                {tx.items.length > 2 && (
-                                  <p className="text-sm text-slate-400">+{tx.items.length - 2} más</p>
-                                )}
                               </div>
                             ) : (
                               <span className="text-sm text-slate-400 italic">Sin productos</span>

@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+const DEFAULT_PAYROLL_CONFIG = { frequency: "weekly", weekStartDay: 1, monthStartDay: 1 };
+
 function toClient(row: Record<string, unknown>) {
   return {
     tenantId:        row.tenant_id,
@@ -16,6 +18,7 @@ function toClient(row: Record<string, unknown>) {
     language:        row.language         ?? "es",
     taxRate:         row.tax_rate         ?? 0,
     posConfig:       row.pos_config       ?? { roundTotal: false, printReceipt: true },
+    payrollConfig:   row.payroll_config   ?? DEFAULT_PAYROLL_CONFIG,
     updatedAt:       row.updated_at,
   };
 }
@@ -75,6 +78,7 @@ export async function PUT(
     if (body.language       !== undefined) row.language        = body.language;
     if (body.taxRate        !== undefined) row.tax_rate        = body.taxRate;
     if (body.posConfig      !== undefined) row.pos_config      = body.posConfig;
+    if (body.payrollConfig  !== undefined) row.payroll_config  = body.payrollConfig;
 
     const { data, error } = await supabase
       .from("tenant_settings")

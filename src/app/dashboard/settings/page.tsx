@@ -22,6 +22,12 @@ const AVAILABLE_MODULES = [
   { id: "settings",  label: "Configuracion",            icon: "\u2699\uFE0F" },
 ];
 
+interface PayrollConfig {
+  frequency: "weekly" | "biweekly" | "monthly";
+  weekStartDay: number;
+  monthStartDay: number;
+}
+
 interface Settings {
   companyName: string;
   companyPhone: string;
@@ -30,6 +36,7 @@ interface Settings {
   companyRuc: string;
   currency: string;
   posConfig: { roundTotal: boolean; printReceipt: boolean };
+  payrollConfig: PayrollConfig;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -40,6 +47,7 @@ const DEFAULT_SETTINGS: Settings = {
   companyRuc: "",
   currency: "NIO",
   posConfig: { roundTotal: false, printReceipt: true },
+  payrollConfig: { frequency: "weekly", weekStartDay: 1, monthStartDay: 1 },
 };
 
 export default function SettingsPage() {
@@ -49,6 +57,7 @@ export default function SettingsPage() {
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
   const [savingPOS, setSavingPOS] = useState(false);
+  const [savingPayroll, setSavingPayroll] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -81,6 +90,7 @@ export default function SettingsPage() {
           companyRuc:     s.companyRuc     ?? "",
           currency:       cur,
           posConfig:      s.posConfig      ?? DEFAULT_SETTINGS.posConfig,
+          payrollConfig:  s.payrollConfig  ?? DEFAULT_SETTINGS.payrollConfig,
         });
         broadcastCurrencyChange(cur);
       }
@@ -135,6 +145,24 @@ export default function SettingsPage() {
       showMessage("error", "Error de conexion");
     } finally {
       setSavingPOS(false);
+    }
+  };
+
+  const savePayrollConfig = async () => {
+    if (!tenantId) return;
+    setSavingPayroll(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payrollConfig: settings.payrollConfig }),
+      });
+      if (res.ok) showMessage("success", "Configuracion de Nomina guardada");
+      else showMessage("error", "Error al guardar");
+    } catch {
+      showMessage("error", "Error de conexion");
+    } finally {
+      setSavingPayroll(false);
     }
   };
 
@@ -317,6 +345,80 @@ export default function SettingsPage() {
               <div className="flex justify-end">
                 <Button onClick={savePOSConfig} disabled={savingPOS}>
                   {savingPOS ? "Guardando..." : "Guardar Cambios"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Configuracion de Nomina">
+          {loadingSettings ? (
+            <p className="text-sm text-slate-500">Cargando...</p>
+          ) : (
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-slate-900 mb-1">Frecuencia de pago</label>
+                <p className="text-xs text-slate-500 mb-2">Con que frecuencia se paga a los empleados</p>
+                <div className="flex gap-3 flex-wrap">
+                  {([
+                    { id: "weekly",   label: "Semanal",    desc: "Cada 7 dias" },
+                    { id: "biweekly", label: "Bisemanal",  desc: "Cada 14 dias" },
+                    { id: "monthly",  label: "Mensual",    desc: "Una vez al mes" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setSettings((s) => ({ ...s, payrollConfig: { ...s.payrollConfig, frequency: opt.id } }))}
+                      className={`px-4 py-2.5 rounded-lg border-2 text-sm font-semibold transition-colors text-left ${
+                        settings.payrollConfig.frequency === opt.id
+                          ? "border-blue-600 bg-blue-50 text-blue-800"
+                          : "border-slate-200 text-slate-600 hover:border-slate-400"
+                      }`}
+                    >
+                      <span className="block">{opt.label}</span>
+                      <span className="block text-xs font-normal opacity-70">{opt.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(settings.payrollConfig.frequency === "weekly" || settings.payrollConfig.frequency === "biweekly") && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Primer dia del periodo</label>
+                  <p className="text-xs text-slate-500 mb-2">Dia de la semana en que comienza cada periodo</p>
+                  <select
+                    value={settings.payrollConfig.weekStartDay}
+                    onChange={(e) => setSettings((s) => ({ ...s, payrollConfig: { ...s.payrollConfig, weekStartDay: Number(e.target.value) } }))}
+                    className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={0}>Domingo</option>
+                    <option value={1}>Lunes</option>
+                    <option value={2}>Martes</option>
+                    <option value={3}>Miercoles</option>
+                    <option value={4}>Jueves</option>
+                    <option value={5}>Viernes</option>
+                    <option value={6}>Sabado</option>
+                  </select>
+                </div>
+              )}
+
+              {settings.payrollConfig.frequency === "monthly" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">Dia de inicio del mes</label>
+                  <p className="text-xs text-slate-500 mb-2">Dia del mes en que comienza el periodo (1–28)</p>
+                  <input
+                    type="number"
+                    min={1}
+                    max={28}
+                    value={settings.payrollConfig.monthStartDay}
+                    onChange={(e) => setSettings((s) => ({ ...s, payrollConfig: { ...s.payrollConfig, monthStartDay: Math.min(28, Math.max(1, Number(e.target.value))) } }))}
+                    className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button onClick={savePayrollConfig} disabled={savingPayroll}>
+                  {savingPayroll ? "Guardando..." : "Guardar Cambios"}
                 </Button>
               </div>
             </div>
