@@ -23,7 +23,7 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
-      <nav className="flex-1 p-4 pt-6 space-y-2">
+      <nav className="flex-1 p-4 pt-6 space-y-2 overflow-y-auto">
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" icon="📊" />
 
         {/* POS Module - Vérifie si activé */}
