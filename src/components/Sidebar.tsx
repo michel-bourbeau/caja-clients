@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { ROUTES } from "@/lib/constants";
@@ -9,15 +10,16 @@ import { ROUTES } from "@/lib/constants";
 export const Sidebar: React.FC = () => {
   const { hasPermission, refreshPermissions } = useAuth();
   const { features } = useTenantFeatures();
+  const pathname = usePathname();
 
   const canManageRoles = hasPermission("settings.manage_roles");
   const canManageSettings = hasPermission("manage_settings");
 
-  // Refresh permissions on every full page load so role changes take effect without re-login
+  // Refresh permissions on every navigation so role changes take effect without re-login
   useEffect(() => {
     refreshPermissions();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pathname]);
 
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
@@ -32,6 +34,9 @@ export const Sidebar: React.FC = () => {
             )}
             {hasPermission("pos.view") && (
               <NavLink href={ROUTES.TRANSACTIONS} label="Transacciones" icon="📋" />
+            )}
+            {(hasPermission("pos.view") || hasPermission("pos.create")) && (
+              <NavLink href={ROUTES.CIERRE} label="Cierre de Caja" icon="🔒" />
             )}
           </NavSection>
         )}

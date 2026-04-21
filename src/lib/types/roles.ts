@@ -48,6 +48,18 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
     category: "POS",
     description: "Configurar opciones del punto de venta",
   },
+  {
+    id: "pos.cierre",
+    name: "Realizar cierre de caja",
+    category: "POS",
+    description: "Declarar el efectivo contado y el reporte de terminal al cierre del d\u00eda",
+  },
+  {
+    id: "pos.cierre_review",
+    name: "Revisar cierre de caja",
+    category: "POS",
+    description: "Ver totales del sistema, diferencias y generar el reporte de cierre (gerentes y administradores)",
+  },
 
   // Inventory Permissions
   {
@@ -198,6 +210,8 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
       "payroll.approve",
       "inventory.view",
       "pos.view",
+      "pos.cierre",
+      "pos.cierre_review",
     ],
     isSystem: true,
   },
@@ -205,7 +219,7 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     id: "cashier",
     name: "Vendedor",
     description: "Ventas y manejo de cajas",
-    permissions: ["pos.create", "pos.view", "inventory.view", "schedules.checkin"],
+    permissions: ["pos.create", "pos.view", "inventory.view", "schedules.checkin", "pos.cierre"],
     isSystem: true,
   },
 ];

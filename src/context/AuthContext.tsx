@@ -16,12 +16,15 @@ const ADMIN_PERMISSIONS = [
   "schedules.view", "schedules.edit", "schedules.checkin",
   "payroll.view", "payroll.create", "payroll.approve", "payroll.pay",
   "settings.view", "settings.edit", "settings.manage_roles",
+  "pos.cierre", "pos.cierre_review",
 ];
 
-/** Resolve permissions from a role_id — falls back to admin all-access */
+/** Resolve permissions from a role_id — falls back to empty (least privilege) for unknown roles */
 function permissionsForRole(roleId: string): string[] {
   const role = DEFAULT_ROLES.find((r) => r.id === roleId);
-  return role ? role.permissions : ADMIN_PERMISSIONS;
+  // SECURITY: never fall back to ADMIN_PERMISSIONS for unknown role IDs.
+  // An unrecognised role gets zero permissions until the DB lookup succeeds.
+  return role ? role.permissions : [];
 }
 
 /** Build a User from Supabase Auth session data + optional employee record */
@@ -33,7 +36,7 @@ function buildUser(
   const meta = authUser.user_metadata ?? {};
   const firstName = employeeRow?.first_name ?? meta.first_name ?? authUser.email?.split("@")[0] ?? "Utilisateur";
   const lastName  = employeeRow?.last_name  ?? meta.last_name  ?? "";
-  const roleId    = employeeRow?.role_id    ?? meta.role_id    ?? "admin";
+  const roleId    = employeeRow?.role_id    ?? meta.role_id    ?? "cashier";
   const tenantId  = employeeRow?.tenant_id  ?? meta.tenant_id  ?? null;
 
   return {
@@ -240,9 +243,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!customPerms && profile?.tenant_id && profile?.role_id) {
         customPerms = await fetchTenantRolePermissions(profile.tenant_id, profile.role_id);
       }
-      if (customPerms) {
-        setUser((prev) => prev ? { ...prev, permissions: customPerms! } : prev);
-      }
+      // Always apply resolved permissions — fall back to DEFAULT_ROLES if DB lookup fails.
+      // SECURITY: never keep potentially stale/elevated permissions when the lookup returns null.
+      const resolvedPerms = customPerms ?? permissionsForRole(profile?.role_id ?? "");
+      setUser((prev) => prev ? { ...prev, permissions: resolvedPerms } : prev);
     } catch (err) {
       console.warn("[Auth] refreshPermissions failed:", err);
     }

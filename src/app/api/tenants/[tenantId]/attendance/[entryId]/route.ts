@@ -3,8 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
  * PATCH /api/tenants/[tenantId]/attendance/[entryId]
- * Body: { checkOut?: string (ISO), notes?: string }
- * Used to record check-out or update notes.
+ * Body: { checkIn?: string (ISO), checkOut?: string (ISO), notes?: string }
+ * Used to record check-out, correct check-in, or update notes.
  */
 export async function PATCH(
   request: NextRequest,
@@ -13,7 +13,7 @@ export async function PATCH(
   try {
     const { tenantId, entryId } = await params;
     const body = await request.json();
-    const { checkOut, notes } = body;
+    const { checkIn, checkOut, notes } = body;
 
     const supabase = getSupabaseAdmin();
 
@@ -29,10 +29,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Entrada no encontrada" }, { status: 404 });
     }
 
-    // Validate check_out is after check_in
-    if (checkOut) {
-      const inTime = new Date(existing.check_in).getTime();
-      const outTime = new Date(checkOut).getTime();
+    const resolvedCheckIn  = checkIn  ?? existing.check_in;
+    const resolvedCheckOut = checkOut ?? existing.check_out;
+
+    // Validate check_out is after check_in when both are present
+    if (resolvedCheckOut) {
+      const inTime  = new Date(resolvedCheckIn).getTime();
+      const outTime = new Date(resolvedCheckOut).getTime();
       if (outTime <= inTime) {
         return NextResponse.json(
           { error: "La hora de salida debe ser posterior a la entrada" },
@@ -42,8 +45,9 @@ export async function PATCH(
     }
 
     const updates: Record<string, unknown> = {};
+    if (checkIn  !== undefined) updates.check_in  = checkIn;
     if (checkOut !== undefined) updates.check_out = checkOut;
-    if (notes !== undefined) updates.notes = notes;
+    if (notes    !== undefined) updates.notes     = notes;
 
     const { data, error } = await supabase
       .from("time_entries")

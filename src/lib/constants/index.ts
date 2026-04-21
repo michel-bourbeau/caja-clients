@@ -14,6 +14,7 @@ export const ROUTES = {
   // POS
   POS: "/dashboard/pos",
   TRANSACTIONS: "/dashboard/transactions",
+  CIERRE: "/dashboard/pos/cierre",
   
   // Inventory
   INVENTORY: "/dashboard/inventory",

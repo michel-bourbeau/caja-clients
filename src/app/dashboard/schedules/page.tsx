@@ -88,6 +88,59 @@ export default function AttendancePage() {
   const [manualForm, setManualForm] = useState({ ...EMPTY_MANUAL });
   const [manualSaving, setManualSaving] = useState(false);
 
+  // Edit entry modal
+  const [editEntry, setEditEntry] = useState<TimeEntry | null>(null);
+  const [editForm, setEditForm] = useState({ checkInTime: "", checkOutTime: "", notes: "", date: "" });
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEdit = (entry: TimeEntry) => {
+    const dateStr = toNicaraguaDateString(new Date(entry.check_in));
+    const toTime = (iso: string) => {
+      const d = new Date(iso);
+      return new Intl.DateTimeFormat("es-NI", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ }).format(d);
+    };
+    setEditForm({
+      date: dateStr,
+      checkInTime: toTime(entry.check_in),
+      checkOutTime: entry.check_out ? toTime(entry.check_out) : "",
+      notes: entry.notes ?? "",
+    });
+    setEditEntry(entry);
+  };
+
+  const handleEditSave = async () => {
+    if (!tenantId || !editEntry) return;
+    if (!editForm.checkInTime) return showMsg(false, "Ingresa la hora de entrada");
+    if (editForm.checkOutTime && editForm.checkOutTime <= editForm.checkInTime) {
+      return showMsg(false, "La hora de salida debe ser posterior a la entrada");
+    }
+    setEditSaving(true);
+    try {
+      const body: Record<string, string | null> = {
+        checkIn: toUTC(editForm.date, editForm.checkInTime),
+      };
+      if (editForm.checkOutTime) body.checkOut = toUTC(editForm.date, editForm.checkOutTime);
+      else body.checkOut = null;
+      body.notes = editForm.notes.trim() || null;
+
+      const res = await fetch(`/api/tenants/${tenantId}/attendance/${editEntry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      setEditEntry(null);
+      showMsg(true, "Registro actualizado");
+      // Always refresh today (drives Tiempo Real tab), plus history if currently viewing it
+      await loadToday();
+      if (tab === "history") await loadHistory();
+    } catch (e) {
+      showMsg(false, e instanceof Error ? e.message : "Error");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const showMsg = (ok: boolean, text: string) => {
     setMessage({ ok, text });
     setTimeout(() => setMessage(null), 3500);
@@ -292,6 +345,78 @@ export default function AttendancePage() {
 
   return (
     <div>
+      {/* Edit entry modal */}
+      {editEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Editar Registro</h2>
+              <button onClick={() => setEditEntry(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-sm text-slate-500">
+              {editEntry.employee_first_name} {editEntry.employee_last_name} &mdash; {editForm.date}
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Hora entrada</label>
+                <input
+                  type="time"
+                  value={editForm.checkInTime}
+                  onChange={(e) => setEditForm((f) => ({ ...f, checkInTime: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Hora salida</label>
+                <input
+                  type="time"
+                  value={editForm.checkOutTime}
+                  onChange={(e) => setEditForm((f) => ({ ...f, checkOutTime: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            {editForm.checkInTime && editForm.checkOutTime && editForm.checkOutTime > editForm.checkInTime && (
+              <div className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                Duración: <span className="font-bold">{fmtDuration(Math.floor(
+                  (new Date(`2000-01-01T${editForm.checkOutTime}`).getTime() -
+                    new Date(`2000-01-01T${editForm.checkInTime}`).getTime()) / 60000
+                ))}</span>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
+              <input
+                type="text"
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Opcional..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setEditEntry(null)}
+                className="flex-1 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving || !editForm.checkInTime}
+                className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold"
+              >
+                {editSaving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <div>
@@ -532,6 +657,15 @@ export default function AttendancePage() {
                     >
                       {isProcessing ? "Registrando..." : isInside ? "Registrar Salida" : "Registrar Entrada"}
                     </button>
+                    {/* Allow editing the open entry to set a custom check-out time */}
+                    {isInside && s.openEntry && (
+                      <button
+                        onClick={() => openEdit(s.openEntry!)}
+                        className="w-full py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                      >
+                        Editar / Corregir hora
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -614,7 +748,16 @@ export default function AttendancePage() {
                                 <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
                               </span>
                             ) : (
-                              <button onClick={() => setDeleteConfirm(entry.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">x</button>
+                              <span className="inline-flex items-center gap-3">
+                                <button
+                                  onClick={() => openEdit(entry)}
+                                  className="text-xs text-blue-500 hover:text-blue-700 font-semibold transition-colors"
+                                  title="Editar"
+                                >
+                                  Editar
+                                </button>
+                                <button onClick={() => setDeleteConfirm(entry.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">x</button>
+                              </span>
                             )}
                           </td>
                         </tr>
