@@ -256,7 +256,7 @@ export default function LoyaltyPage() {
                     type="text"
                     readOnly
                     value={formData.card_number}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-900 font-semibold"
                   />
                   <button
                     type="button"
@@ -281,7 +281,7 @@ export default function LoyaltyPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
                   placeholder="Juan Pérez"
                 />
               </div>
@@ -292,7 +292,7 @@ export default function LoyaltyPage() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
                   placeholder="+505 8765 4321"
                 />
               </div>
@@ -303,7 +303,7 @@ export default function LoyaltyPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
                   placeholder="juan@ejemplo.com"
                 />
               </div>
