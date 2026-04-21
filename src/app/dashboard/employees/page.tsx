@@ -28,6 +28,14 @@ interface SalaryPayment {
   paid_at: string;
 }
 
+interface PeriodInfo {
+  id: string;
+  startDate: string;
+  endDate: string;
+  label: string;
+  isCurrent: boolean;
+}
+
 const EMPTY_FORM = {
   firstName: "",
   lastName: "",
@@ -66,7 +74,9 @@ export default function EmployeesPage() {
   const [fichaTab, setFichaTab] = useState<"payments" | "aguinaldo" | "vacaciones">("payments");
   const [fichaPayments, setFichaPayments] = useState<SalaryPayment[]>([]);
   const [fichaLoading, setFichaLoading] = useState(false);
-  const [fichaPayForm, setFichaPayForm] = useState({ periodStart: "", periodEnd: "", hoursWorked: "", amount: "", notes: "" });
+  const [fichaPeriods, setFichaPeriods] = useState<PeriodInfo[]>([]);
+  const [fichaPayingPeriod, setFichaPayingPeriod] = useState<{ period: PeriodInfo; hoursWorked: number; amount: number; notes: string } | null>(null);
+  const [fichaPayingLoading, setFichaPayingLoading] = useState(false);
   const [fichaPaySaving, setFichaPaySaving] = useState(false);
   const [fichaPayDelConfirm, setFichaPayDelConfirm] = useState<string | null>(null);
 
@@ -207,39 +217,62 @@ export default function EmployeesPage() {
     setFichaEmp(emp);
     setFichaTab("payments");
     setFichaPayments([]);
-    setFichaPayForm({ periodStart: "", periodEnd: "", hoursWorked: "", amount: "", notes: "" });
+    setFichaPeriods([]);
+    setFichaPayingPeriod(null);
     setFichaPayDelConfirm(null);
     if (!tenantId) return;
     setFichaLoading(true);
     try {
-      const res = await fetch(`/api/tenants/${tenantId}/employees/${emp.id}/payments`);
-      setFichaPayments(await res.json());
+      const [paymentsRes, payrollRes] = await Promise.all([
+        fetch(`/api/tenants/${tenantId}/employees/${emp.id}/payments`),
+        fetch(`/api/tenants/${tenantId}/payroll`),
+      ]);
+      const payments = await paymentsRes.json();
+      const payroll = await payrollRes.json();
+      setFichaPayments(Array.isArray(payments) ? payments : []);
+      setFichaPeriods(Array.isArray(payroll.periods) ? payroll.periods : []);
     } finally {
       setFichaLoading(false);
     }
   };
 
-  const handleAddPayment = async () => {
+  // Fetch hours for a period and open the confirmation panel
+  const startPayPeriod = async (period: PeriodInfo) => {
     if (!tenantId || !fichaEmp) return;
-    const { periodStart, periodEnd, hoursWorked, amount, notes } = fichaPayForm;
-    if (!periodStart || !periodEnd || !amount) return;
+    setFichaPayingLoading(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/payroll?from=${period.startDate}&to=${period.endDate}`);
+      const data = await res.json();
+      const emp = (data.summary ?? []).find((s: { employeeId: string; hoursWorked: number; salaryDue: number }) => s.employeeId === fichaEmp.id);
+      const hoursWorked = emp?.hoursWorked ?? 0;
+      const amount = emp?.salaryDue ?? 0;
+      setFichaPayingPeriod({ period, hoursWorked, amount, notes: "" });
+    } finally {
+      setFichaPayingLoading(false);
+    }
+  };
+
+  const confirmPay = async () => {
+    if (!tenantId || !fichaEmp || !fichaPayingPeriod) return;
     setFichaPaySaving(true);
     try {
+      const { period, hoursWorked, amount, notes } = fichaPayingPeriod;
       const res = await fetch(`/api/tenants/${tenantId}/employees/${fichaEmp.id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          periodStart, periodEnd,
-          hoursWorked: parseFloat(hoursWorked) || 0,
+          periodStart: period.startDate,
+          periodEnd: period.endDate,
+          hoursWorked,
           hourlyRate: fichaEmp.salary,
-          amount: parseFloat(amount),
+          amount,
           notes: notes || null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const newPay = await res.json();
       setFichaPayments((prev) => [newPay, ...prev]);
-      setFichaPayForm({ periodStart: "", periodEnd: "", hoursWorked: "", amount: "", notes: "" });
+      setFichaPayingPeriod(null);
     } catch (e) {
       flash(e instanceof Error ? e.message : "Error", "error");
     } finally {
@@ -605,89 +638,112 @@ export default function EmployeesPage() {
 
               {/* ── Payments tab ── */}
               {fichaTab === "payments" && (
-                <div className="space-y-4">
-                  {/* Add payment form */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-                    <p className="text-sm font-semibold text-slate-800">Registrar nuevo pago</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Periodo inicio *</label>
-                        <input type="date" value={fichaPayForm.periodStart}
-                          onChange={(e) => setFichaPayForm((f) => ({ ...f, periodStart: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Periodo fin *</label>
-                        <input type="date" value={fichaPayForm.periodEnd}
-                          onChange={(e) => setFichaPayForm((f) => ({ ...f, periodEnd: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Horas trabajadas</label>
-                        <input type="number" min="0" step="0.5" value={fichaPayForm.hoursWorked}
-                          onChange={(e) => {
-                            const h = e.target.value;
-                            const calc = h && fichaEmp.salary > 0 ? String(Math.round(parseFloat(h) * fichaEmp.salary * 100) / 100) : fichaPayForm.amount;
-                            setFichaPayForm((f) => ({ ...f, hoursWorked: h, amount: calc }));
-                          }}
-                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Monto a pagar *</label>
-                        <input type="number" min="0" step="0.01" value={fichaPayForm.amount}
-                          onChange={(e) => setFichaPayForm((f) => ({ ...f, amount: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Notas (opcional)</label>
-                      <input type="text" value={fichaPayForm.notes}
-                        onChange={(e) => setFichaPayForm((f) => ({ ...f, notes: e.target.value }))}
-                        placeholder="Semana del 14 al 20 de abril..."
-                        className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <button onClick={handleAddPayment} disabled={fichaPaySaving || !fichaPayForm.periodStart || !fichaPayForm.periodEnd || !fichaPayForm.amount}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors">
-                      {fichaPaySaving ? "Guardando..." : "Registrar Pago"}
-                    </button>
-                  </div>
+                <div className="space-y-3">
 
-                  {/* Payments list */}
-                  {fichaLoading ? (
-                    <p className="text-sm text-slate-400 text-center py-6">Cargando...</p>
-                  ) : fichaPayments.length === 0 ? (
-                    <p className="text-sm text-slate-400 text-center py-6">Sin pagos registrados</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {fichaPayments.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{fmt(p.amount)}</p>
-                            <p className="text-xs text-slate-500">
-                              {fmtDate(p.period_start)} – {fmtDate(p.period_end)}
-                              {p.hours_worked > 0 && ` · ${p.hours_worked}h`}
-                              {p.notes && ` · ${p.notes}`}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs text-slate-400">Pagado {fmtDate(p.paid_at)}</p>
-                            {fichaPayDelConfirm === p.id ? (
-                              <span className="flex gap-1">
-                                <button onClick={() => handleDeletePayment(p.id)} className="text-xs text-red-600 font-semibold hover:underline">Confirmar</button>
-                                <button onClick={() => setFichaPayDelConfirm(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
-                              </span>
-                            ) : (
-                              <button onClick={() => setFichaPayDelConfirm(p.id)} className="text-xs text-slate-300 hover:text-red-500 transition-colors">x</button>
-                            )}
-                          </div>
+                  {/* Confirmation panel when paying a period */}
+                  {fichaPayingPeriod && (
+                    <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 space-y-3">
+                      <p className="text-sm font-bold text-blue-900">Confirmar pago — {fichaPayingPeriod.period.label}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-white border border-blue-200 rounded-lg p-3 text-center">
+                          <p className="text-xs text-slate-500 mb-0.5">Horas trabajadas</p>
+                          <p className="text-2xl font-bold text-slate-900">{fichaPayingPeriod.hoursWorked}</p>
                         </div>
-                      ))}
-                      <p className="text-xs text-slate-400 text-right pt-1">
-                        Total pagado: <span className="font-bold text-slate-700">{fmt(fichaPayments.reduce((s, p) => s + p.amount, 0))}</span>
-                      </p>
+                        <div className="bg-white border border-blue-200 rounded-lg p-3 text-center">
+                          <p className="text-xs text-slate-500 mb-0.5">Monto a pagar</p>
+                          <p className="text-2xl font-bold text-blue-700">{fmt(fichaPayingPeriod.amount)}</p>
+                          <p className="text-xs text-slate-400">{fichaPayingPeriod.hoursWorked}h × {fmt(fichaEmp!.salary)}/h</p>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Ajuster le monto (optionnel)</label>
+                        <input type="number" min="0" step="0.01"
+                          value={fichaPayingPeriod.amount}
+                          onChange={(e) => setFichaPayingPeriod((p) => p ? { ...p, amount: parseFloat(e.target.value) || 0 } : p)}
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Notas (optionnel)</label>
+                        <input type="text" value={fichaPayingPeriod.notes}
+                          onChange={(e) => setFichaPayingPeriod((p) => p ? { ...p, notes: e.target.value } : p)}
+                          placeholder="Bono, descuento..."
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={confirmPay} disabled={fichaPaySaving}
+                          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors">
+                          {fichaPaySaving ? "Guardando..." : "✓ Confirmar Pago"}
+                        </button>
+                        <button onClick={() => setFichaPayingPeriod(null)}
+                          className="px-4 py-2 text-sm text-slate-600 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+                          Cancelar
+                        </button>
+                      </div>
                     </div>
+                  )}
+
+                  {/* Period list */}
+                  {fichaLoading ? (
+                    <p className="text-sm text-slate-400 text-center py-6">Cargando periodos...</p>
+                  ) : fichaPeriods.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-4">Sin periodos de pago configurados.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {fichaPeriods.map((period) => {
+                        const paid = fichaPayments.find((p) => p.period_start === period.startDate);
+                        const isConfirming = fichaPayingPeriod?.period.id === period.id;
+                        return (
+                          <div key={period.id}
+                            className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                              isConfirming ? "border-blue-300 bg-blue-50" :
+                              paid ? "border-emerald-200 bg-emerald-50" :
+                              period.isCurrent ? "border-amber-200 bg-amber-50" :
+                              "border-slate-200 bg-white"
+                            }`}>
+                            <div>
+                              <p className={`text-sm font-semibold ${paid ? "text-emerald-800" : "text-slate-800"}`}>
+                                {period.label}
+                                {period.isCurrent && <span className="ml-2 text-xs font-normal text-amber-600">actual</span>}
+                              </p>
+                              {paid && (
+                                <p className="text-xs text-emerald-600">
+                                  {paid.hours_worked > 0 && `${paid.hours_worked}h · `}{fmt(paid.amount)}
+                                  {paid.notes && ` · ${paid.notes}`}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                              {paid ? (
+                                <>
+                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Pagado</span>
+                                  {fichaPayDelConfirm === paid.id ? (
+                                    <span className="flex gap-1">
+                                      <button onClick={() => handleDeletePayment(paid.id)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
+                                      <button onClick={() => setFichaPayDelConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                    </span>
+                                  ) : (
+                                    <button onClick={() => setFichaPayDelConfirm(paid.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
+                                  )}
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => !fichaPayingLoading && startPayPeriod(period)}
+                                  disabled={fichaPayingLoading && !isConfirming}
+                                  className="text-xs font-bold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg transition-colors">
+                                  {fichaPayingLoading && isConfirming ? "..." : "Pagar"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {fichaPayments.length > 0 && (
+                    <p className="text-xs text-slate-400 text-right pt-1 border-t border-slate-100">
+                      Total pagado: <span className="font-bold text-slate-700">{fmt(fichaPayments.reduce((s, p) => s + p.amount, 0))}</span>
+                    </p>
                   )}
                 </div>
               )}
