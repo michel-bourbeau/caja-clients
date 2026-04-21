@@ -52,7 +52,14 @@ export default function POSPage() {
   const [selectedLoyalCustomer, setSelectedLoyalCustomer] = useState<LoyalCustomerStats | null>(null);
   const [loyalCustomerSearch, setLoyalCustomerSearch] = useState("");
   const [showLoyalCustomerModal, setShowLoyalCustomerModal] = useState(false);
+  const [showCreateLoyalCustomerModal, setShowCreateLoyalCustomerModal] = useState(false);
   const [loadingLoyalCustomers, setLoadingLoyalCustomers] = useState(false);
+  const [newLoyalCustomerForm, setNewLoyalCustomerForm] = useState({
+    card_number: "",
+    name: "",
+    phone: "",
+    email: "",
+  });
 
   useEffect(() => {
     if (!tenantId) return;
@@ -255,6 +262,71 @@ export default function POSPage() {
       setShowLoyalCustomerModal(false);
     } catch (error) {
       console.error('Error selecting loyal customer:', error);
+    }
+  };
+
+  // Generate unique card number for new loyal customer
+  const generateUniqueCardNumber = async (): Promise<string | null> => {
+    if (!tenantId) return null;
+    
+    const generateRandomCard = () => {
+      return Math.floor(Math.random() * 90000) + 10000;
+    };
+
+    let cardNumber = generateRandomCard().toString();
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(
+          `/api/tenants/${tenantId}/loyalty/customers/check-card?card_number=${cardNumber}`
+        );
+        const data = await response.json();
+        
+        if (data.available) {
+          return cardNumber;
+        }
+      } catch (error) {
+        console.error('Error checking card:', error);
+      }
+
+      cardNumber = generateRandomCard().toString();
+      attempts++;
+    }
+
+    return null;
+  };
+
+  const handleCreateLoyalCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenantId) return;
+
+    try {
+      setLoading(true);
+      const newCustomer = await LoyaltyService.createCustomer(tenantId, newLoyalCustomerForm);
+      
+      // Select the newly created customer
+      const fullCustomer = await LoyaltyService.getCustomerDetails(tenantId, newCustomer.id);
+      setSelectedLoyalCustomer(fullCustomer);
+      
+      // Reset form and close modal
+      setNewLoyalCustomerForm({ card_number: "", name: "", phone: "", email: "" });
+      setShowCreateLoyalCustomerModal(false);
+      
+      setMessage("✓ Cliente fiel creado y seleccionado");
+      setMessageType("success");
+      
+      // Reload customer list
+      const customers = await LoyaltyService.getCustomers(tenantId);
+      setLoyalCustomers(customers);
+
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error: any) {
+      setMessage(error.message || "Error creando cliente fiel");
+      setMessageType("error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -872,9 +944,9 @@ export default function POSPage() {
               ) : (
                 <button
                   onClick={() => setShowLoyalCustomerModal(true)}
-                  className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="w-full px-3 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
                 >
-                  + Agregar Cliente Fiel
+                  💳 Agregar Cliente Fiel
                 </button>
               )}
             </div>
@@ -988,7 +1060,7 @@ export default function POSPage() {
                 placeholder="Buscar por nombre, teléfono o tarjeta..."
                 value={loyalCustomerSearch}
                 onChange={(e) => setLoyalCustomerSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded text-sm"
+                className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
               />
             </div>
 
@@ -1021,6 +1093,129 @@ export default function POSPage() {
                 </div>
               )}
             </div>
+
+            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <button
+                onClick={async () => {
+                  const cardNumber = await generateUniqueCardNumber();
+                  if (cardNumber) {
+                    setNewLoyalCustomerForm({
+                      card_number: cardNumber,
+                      name: "",
+                      phone: "",
+                      email: "",
+                    });
+                    setShowLoyalCustomerModal(false);
+                    setShowCreateLoyalCustomerModal(true);
+                  }
+                }}
+                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+              >
+                + Crear Nuevo Cliente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Loyal Customer Modal */}
+      {showCreateLoyalCustomerModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+              <h2 className="font-semibold text-slate-900">Crear Cliente Fiel</h2>
+              <button
+                onClick={() => setShowCreateLoyalCustomerModal(false)}
+                className="p-1 rounded hover:bg-slate-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateLoyalCustomer} className="px-4 py-4 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Número de Tarjeta</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={newLoyalCustomerForm.card_number}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded text-sm bg-slate-50 text-slate-900 font-semibold"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const cardNumber = await generateUniqueCardNumber();
+                      if (cardNumber) {
+                        setNewLoyalCustomerForm({ ...newLoyalCustomerForm, card_number: cardNumber });
+                      }
+                    }}
+                    className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded text-sm transition"
+                  >
+                    🔄
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre *</label>
+                <input
+                  type="text"
+                  required
+                  value={newLoyalCustomerForm.name}
+                  onChange={(e) =>
+                    setNewLoyalCustomerForm({ ...newLoyalCustomerForm, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                  placeholder="Juan Pérez"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono</label>
+                <input
+                  type="tel"
+                  value={newLoyalCustomerForm.phone}
+                  onChange={(e) =>
+                    setNewLoyalCustomerForm({ ...newLoyalCustomerForm, phone: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                  placeholder="+505 8765 4321"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Correo</label>
+                <input
+                  type="email"
+                  value={newLoyalCustomerForm.email}
+                  onChange={(e) =>
+                    setNewLoyalCustomerForm({ ...newLoyalCustomerForm, email: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                  placeholder="juan@ejemplo.com"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateLoyalCustomerModal(false)}
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition"
+                >
+                  {loading ? "Creando..." : "Crear"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
