@@ -387,8 +387,17 @@ export default function InventoryPage() {
           (p.description ?? "").toLowerCase().includes(q)
       );
     }
-    return list;
-  }, [products, filterCategory, search]);
+    return [...list].sort((a, b) => {
+      // Group by category sort_order first
+      const catA = categories.find((c) => c.id === a.category_id);
+      const catB = categories.find((c) => c.id === b.category_id);
+      const catOrderA = catA?.sort_order ?? -1;
+      const catOrderB = catB?.sort_order ?? -1;
+      if (catOrderA !== catOrderB) return catOrderA - catOrderB;
+      // Then by product sort_order within category
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  }, [products, categories, filterCategory, search]);
 
   const productsByCategory = categories.map((cat) => ({
     ...cat,
