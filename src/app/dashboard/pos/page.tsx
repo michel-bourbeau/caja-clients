@@ -403,12 +403,27 @@ export default function POSPage() {
                           <span className="text-sm text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
-                        {hasVariants ? <span className="text-slate-400 text-sm">—</span> : fmt(product.price)}
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        {hasVariants ? (
+                          <span className="text-slate-500 text-xs">
+                            desde {fmt(Math.min(...variants.map((v) => v.price)))}
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-blue-700">{fmt(product.price)}</span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
-                          <span className="text-slate-400 text-sm">—</span>
+                          (() => {
+                            const totalStock = variants.reduce((s, v) => s + v.stock_quantity, 0);
+                            return (
+                              <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
+                                totalStock <= 0 ? "bg-red-100 text-red-700" :
+                                totalStock <= 5 ? "bg-amber-100 text-amber-700" :
+                                "bg-green-100 text-green-700"
+                              }`}>{totalStock}</span>
+                            );
+                          })()
                         ) : (
                           <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                             product.quantity <= 0
@@ -423,7 +438,7 @@ export default function POSPage() {
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
-                          /* Inline format buttons — one click per format */
+                          /* Inline format buttons — price + stock visible */
                           <div className="flex flex-wrap gap-1.5 justify-center">
                             {variants.map((variant) => {
                               const inCartV = cart.find((i) => i.variantId === variant.id);
@@ -433,17 +448,26 @@ export default function POSPage() {
                                   key={variant.id}
                                   disabled={vOut}
                                   onClick={() => !vOut && handleAddProduct(product, variant)}
-                                  title={`${fmt(variant.price)} · stock: ${variant.stock_quantity}`}
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-sm font-semibold rounded-lg transition-colors ${
+                                  className={`inline-flex flex-col items-center px-2.5 py-1 rounded-lg transition-colors ${
                                     vOut
-                                      ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
+                                      ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                       : inCartV
                                       ? "bg-purple-700 text-white ring-2 ring-purple-400"
                                       : "bg-purple-100 text-purple-800 hover:bg-purple-600 hover:text-white"
                                   }`}
                                 >
-                                  {inCartV && <span className="font-bold">{inCartV.quantity}×</span>}
-                                  {variant.label}
+                                  <span className="text-sm font-semibold leading-tight">
+                                    {inCartV ? `${inCartV.quantity}× ` : ""}{variant.label}
+                                  </span>
+                                  <span className={`text-xs leading-tight ${
+                                    vOut ? "line-through" : inCartV ? "opacity-80" : "opacity-70"
+                                  }`}>
+                                    {fmt(variant.price)}
+                                    {" · "}
+                                    <span className={vOut ? "" : variant.stock_quantity <= 5 ? "font-semibold" : ""}>
+                                      {vOut ? "agotado" : `${variant.stock_quantity}`}
+                                    </span>
+                                  </span>
                                 </button>
                               );
                             })}
