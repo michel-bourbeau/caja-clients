@@ -51,7 +51,7 @@ export const Sidebar: React.FC = () => {
               <NavLink href={ROUTES.EMPLOYEES} label="Empleados" icon="👥" />
             )}
             {features.schedules && hasPermission("schedules.view") && (
-              <NavLink href={ROUTES.SCHEDULES} label="Horarios" icon="📅" />
+              <NavLink href={ROUTES.SCHEDULES} label="Asistencia" icon="🕐" />
             )}
           </NavSection>
         )}

@@ -1,32 +1,632 @@
-import { Card, Button } from "@/components/ui";
+"use client";
 
-export default function SchedulesPage() {
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTenantId } from "@/lib/utils/tenant";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
+import { useAuth } from "@/context/AuthContext";
+
+const TZ = "America/Managua";
+
+interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+interface TimeEntry {
+  id: string;
+  employee_id: string;
+  employee_first_name?: string | null;
+  employee_last_name?: string | null;
+  check_in: string;
+  check_out: string | null;
+  notes: string | null;
+}
+
+function minutesDiff(from: string, to?: string | null): number {
+  const start = new Date(from).getTime();
+  const end = to ? new Date(to).getTime() : Date.now();
+  return Math.max(0, Math.floor((end - start) / 60000));
+}
+
+function fmtDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  return `${h}h ${String(m).padStart(2, "0")}m`;
+}
+
+function fmtTime(iso: string): string {
+  return new Intl.DateTimeFormat("es-NI", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: TZ,
+  }).format(new Date(iso));
+}
+
+function fmtDateLong(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d, 12).toLocaleDateString("es-NI", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+/** Convert Nicaragua local date + time string to UTC ISO string (Nicaragua = UTC-6, no DST) */
+function toUTC(date: string, time: string): string {
+  return new Date(`${date}T${time}:00-06:00`).toISOString();
+}
+
+const EMPTY_MANUAL = {
+  employeeId: "",
+  date: toNicaraguaDateString(new Date()),
+  checkInTime: "",
+  checkOutTime: "",
+  notes: "",
+};
+
+export default function AttendancePage() {
+  const tenantId = useTenantId();
+  const { user } = useAuth();
+  const [tab, setTab] = useState<"manual" | "punch" | "history">("manual");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [todayEntries, setTodayEntries] = useState<TimeEntry[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<TimeEntry[]>([]);
+  const [historyDate, setHistoryDate] = useState(toNicaraguaDateString(new Date()));
+  const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tick, setTick] = useState(0);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Manual entry form
+  const [manualForm, setManualForm] = useState({ ...EMPTY_MANUAL });
+  const [manualSaving, setManualSaving] = useState(false);
+
+  const showMsg = (ok: boolean, text: string) => {
+    setMessage({ ok, text });
+    setTimeout(() => setMessage(null), 3500);
+  };
+
+  const loadToday = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      setLoading(true);
+      const today = toNicaraguaDateString(new Date());
+      const [empRes, entRes] = await Promise.all([
+        fetch(`/api/tenants/${tenantId}/employees`),
+        fetch(`/api/tenants/${tenantId}/attendance?fromDate=${today}&toDate=${today}`),
+      ]);
+      const emp: Employee[] = await empRes.json();
+      const ent: TimeEntry[] = await entRes.json();
+      const active = Array.isArray(emp) ? emp.filter((e) => e.status === "ACTIVE") : [];
+      setEmployees(active);
+      setTodayEntries(Array.isArray(ent) ? ent : []);
+      // Pre-select the logged-in user in the manual entry form
+      if (user?.email) {
+        const self = active.find(
+          (e) => (e as Employee & { email?: string }).email?.toLowerCase() === user.email.toLowerCase()
+        );
+        if (self) setManualForm((f) => ({ ...f, employeeId: f.employeeId || self.id }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
+
+  useEffect(() => { loadToday(); }, [loadToday]);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    if (!tenantId) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(
+        `/api/tenants/${tenantId}/attendance?fromDate=${historyDate}&toDate=${historyDate}`
+      );
+      const data: TimeEntry[] = await res.json();
+      setHistoryEntries(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [tenantId, historyDate]);
+
+  useEffect(() => {
+    if (tab === "history") loadHistory();
+  }, [tab, loadHistory]);
+
+  const empSummary = useMemo(() => {
+    const map = new Map<
+      string,
+      { entries: TimeEntry[]; openEntry: TimeEntry | null; closedMin: number }
+    >();
+    employees.forEach((e) =>
+      map.set(e.id, { entries: [], openEntry: null, closedMin: 0 })
+    );
+    const sorted = [...todayEntries].sort(
+      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+    );
+    sorted.forEach((entry) => {
+      const s = map.get(entry.employee_id);
+      if (!s) return;
+      s.entries.push(entry);
+      if (!entry.check_out) {
+        s.openEntry = entry;
+      } else {
+        s.closedMin += minutesDiff(entry.check_in, entry.check_out);
+      }
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employees, todayEntries, tick]);
+
+  // --- Manual entry submit ---
+  const handleManualEntry = async () => {
+    if (!tenantId) return;
+    const { employeeId, date, checkInTime, checkOutTime, notes } = manualForm;
+    if (!employeeId) return showMsg(false, "Selecciona un empleado");
+    if (!date) return showMsg(false, "Selecciona una fecha");
+    if (!checkInTime) return showMsg(false, "Ingresa la hora de entrada");
+    if (checkOutTime && checkOutTime <= checkInTime) {
+      return showMsg(false, "La hora de salida debe ser posterior a la entrada");
+    }
+    setManualSaving(true);
+    try {
+      const body: Record<string, string> = {
+        employeeId,
+        checkIn: toUTC(date, checkInTime),
+      };
+      if (checkOutTime) body.checkOut = toUTC(date, checkOutTime);
+      if (notes.trim()) body.notes = notes.trim();
+
+      const res = await fetch(`/api/tenants/${tenantId}/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      showMsg(true, "Horas registradas correctamente");
+      // Reset only times/notes, keep employee + date for fast multi-entry
+      setManualForm((f) => ({ ...f, checkInTime: "", checkOutTime: "", notes: "" }));
+      if (date === toNicaraguaDateString(new Date())) await loadToday();
+    } catch (e) {
+      showMsg(false, e instanceof Error ? e.message : "Error");
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  // --- Punch clock ---
+  const handleCheckIn = async (employeeId: string) => {
+    if (!tenantId) return;
+    setActionLoading(employeeId);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/attendance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      showMsg(true, "Entrada registrada");
+      await loadToday();
+    } catch (e) {
+      showMsg(false, e instanceof Error ? e.message : "Error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCheckOut = async (entryId: string, employeeId: string) => {
+    if (!tenantId) return;
+    setActionLoading(employeeId);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/attendance/${entryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkOut: new Date().toISOString() }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Error");
+      showMsg(true, "Salida registrada");
+      await loadToday();
+    } catch (e) {
+      showMsg(false, e instanceof Error ? e.message : "Error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!tenantId) return;
+    try {
+      await fetch(`/api/tenants/${tenantId}/attendance/${entryId}`, { method: "DELETE" });
+      setDeleteConfirm(null);
+      await (tab === "history" ? loadHistory() : loadToday());
+      showMsg(true, "Entrada eliminada");
+    } catch {
+      showMsg(false, "Error al eliminar");
+    }
+  };
+
+  const historyByEmployee = useMemo(() => {
+    const sorted = [...historyEntries].sort(
+      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+    );
+    const map = new Map<
+      string,
+      { name: string; entries: TimeEntry[]; totalMin: number }
+    >();
+    sorted.forEach((e) => {
+      const key = e.employee_id;
+      if (!map.has(key)) {
+        map.set(key, {
+          name: `${e.employee_first_name ?? ""} ${e.employee_last_name ?? ""}`.trim(),
+          entries: [],
+          totalMin: 0,
+        });
+      }
+      const s = map.get(key)!;
+      s.entries.push(e);
+      if (e.check_out) s.totalMin += minutesDiff(e.check_in, e.check_out);
+    });
+    return map;
+  }, [historyEntries]);
+
+  const TABS = [
+    { id: "manual",  label: "Entrada Manual" },
+    { id: "punch",   label: "Tiempo Real"    },
+    { id: "history", label: "Historial"      },
+  ] as const;
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Horarios</h1>
-        <Button>+ Nuevo Horario</Button>
+      {/* Header */}
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Asistencia</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            {fmtDateLong(toNicaraguaDateString(new Date()))} &mdash;{" "}
+            {employees.length} empleado{employees.length !== 1 ? "s" : ""} activo
+            {employees.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <button
+          onClick={loadToday}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          <svg className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
+          </svg>
+          {loading ? "Cargando..." : "Actualizar"}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-        {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map(
-          (day) => (
-            <Card key={day} className="p-4">
-              <h3 className="font-bold text-slate-900 mb-3">{day}</h3>
-              <div className="space-y-2 text-sm">
-                <div className="p-2 bg-blue-50 rounded">
-                  <p className="font-medium">Juan García</p>
-                  <p className="text-xs text-slate-600">09:00 - 17:00</p>
-                </div>
-                <div className="p-2 bg-green-50 rounded">
-                  <p className="font-medium">María Rodríguez</p>
-                  <p className="text-xs text-slate-600">13:00 - 21:00</p>
-                </div>
-              </div>
-            </Card>
-          )
-        )}
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-5 py-2 rounded-md text-sm font-semibold transition-colors ${
+              tab === t.id ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {/* Toast */}
+      {message && (
+        <div className={`mb-5 px-4 py-3 rounded-lg border text-sm font-medium ${
+          message.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* ── Manual Entry Tab ─────────────────────────────────────────────────── */}
+      {tab === "manual" && (
+        <div className="max-w-lg">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+            <p className="text-sm text-slate-500">
+              Registra las horas trabajadas de un empleado para cualquier dia.
+            </p>
+
+            {/* Employee */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                Empleado <span className="text-red-500">*</span>
+              </label>
+              {loading ? (
+                <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
+              ) : (
+                <select
+                  value={manualForm.employeeId}
+                  onChange={(e) => setManualForm((f) => ({ ...f, employeeId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Seleccionar empleado --</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Date */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                Fecha <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={manualForm.date}
+                max={toNicaraguaDateString(new Date())}
+                onChange={(e) => setManualForm((f) => ({ ...f, date: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Times side by side */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Hora de entrada <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  value={manualForm.checkInTime}
+                  onChange={(e) => setManualForm((f) => ({ ...f, checkInTime: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Hora de salida
+                </label>
+                <input
+                  type="time"
+                  value={manualForm.checkOutTime}
+                  onChange={(e) => setManualForm((f) => ({ ...f, checkOutTime: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Duration preview */}
+            {manualForm.checkInTime && manualForm.checkOutTime && manualForm.checkOutTime > manualForm.checkInTime && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Duracion: <span className="font-bold ml-1">
+                  {fmtDuration(
+                    Math.floor(
+                      (new Date(`2000-01-01T${manualForm.checkOutTime}`).getTime() -
+                        new Date(`2000-01-01T${manualForm.checkInTime}`).getTime()) / 60000
+                    )
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                Notas <span className="text-slate-400 font-normal">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={manualForm.notes}
+                onChange={(e) => setManualForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Ej: Turno de manana, cubriendo a Juan..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <button
+              onClick={handleManualEntry}
+              disabled={manualSaving || !manualForm.employeeId || !manualForm.checkInTime}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold text-sm rounded-lg transition-colors"
+            >
+              {manualSaving ? "Guardando..." : "Guardar Registro"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Punch Clock Tab ───────────────────────────────────────────────────── */}
+      {tab === "punch" && (
+        <>
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse rounded-xl border-2 border-slate-200 bg-slate-50 h-52" />
+              ))}
+            </div>
+          ) : employees.length === 0 ? (
+            <div className="py-16 text-center text-slate-500">
+              <p className="text-4xl mb-3">&#x1F465;</p>
+              <p className="font-medium">No hay empleados activos.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {employees.map((emp) => {
+                const s = empSummary.get(emp.id)!;
+                const isInside = !!s.openEntry;
+                const elapsedMin = s.openEntry ? minutesDiff(s.openEntry.check_in) : 0;
+                const totalMin = s.closedMin + elapsedMin;
+                const isProcessing = actionLoading === emp.id;
+
+                return (
+                  <div
+                    key={emp.id}
+                    className={`rounded-xl border-2 p-5 flex flex-col gap-3 transition-colors ${
+                      isInside ? "border-green-400 bg-green-50" : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-slate-900 text-base leading-tight">
+                        {emp.first_name} {emp.last_name}
+                      </h3>
+                      <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
+                        isInside ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {isInside ? "DENTRO" : "FUERA"}
+                      </span>
+                    </div>
+
+                    <div className="text-sm text-slate-600 space-y-0.5 min-h-[2.5rem]">
+                      {isInside && s.openEntry && (
+                        <p>
+                          Entro: <span className="font-semibold text-slate-800">{fmtTime(s.openEntry.check_in)}</span>
+                          {" "}&mdash; turno: <span className="font-semibold text-green-700">{fmtDuration(elapsedMin)}</span>
+                        </p>
+                      )}
+                      {totalMin > 0 && (
+                        <p>Total hoy: <span className="font-semibold text-slate-800">{fmtDuration(totalMin)}</span></p>
+                      )}
+                    </div>
+
+                    {s.entries.length > 0 && (
+                      <div className="text-xs text-slate-500 space-y-1 border-t border-slate-100 pt-2">
+                        {s.entries.map((entry, i) => (
+                          <div key={entry.id} className="flex justify-between">
+                            <span className="text-slate-400">Turno {i + 1}</span>
+                            <span>
+                              {fmtTime(entry.check_in)} &rarr;{" "}
+                              {entry.check_out
+                                ? `${fmtTime(entry.check_out)} (${fmtDuration(minutesDiff(entry.check_in, entry.check_out))})`
+                                : <span className="text-green-600 font-semibold">en curso</span>
+                              }
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => isInside ? handleCheckOut(s.openEntry!.id, emp.id) : handleCheckIn(emp.id)}
+                      disabled={isProcessing}
+                      className={`mt-auto w-full py-3 rounded-lg font-bold text-white text-sm transition-colors disabled:opacity-50 ${
+                        isInside
+                          ? "bg-orange-500 hover:bg-orange-600 active:bg-orange-700"
+                          : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+                      }`}
+                    >
+                      {isProcessing ? "Registrando..." : isInside ? "Registrar Salida" : "Registrar Entrada"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── History Tab ───────────────────────────────────────────────────────── */}
+      {tab === "history" && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="date"
+              value={historyDate}
+              max={toNicaraguaDateString(new Date())}
+              onChange={(e) => setHistoryDate(e.target.value)}
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={loadHistory}
+              disabled={historyLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              {historyLoading ? "Buscando..." : "Buscar"}
+            </button>
+            {historyEntries.length > 0 && (
+              <span className="text-sm text-slate-500">
+                {historyEntries.length} registro{historyEntries.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
+          {historyLoading ? (
+            <div className="py-10 text-center text-slate-400 text-sm">Cargando...</div>
+          ) : historyEntries.length === 0 ? (
+            <div className="py-16 text-center text-slate-500">
+              <p className="text-3xl mb-2">&#x1F4CB;</p>
+              <p>No hay registros para {fmtDateLong(historyDate)}.</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
+                {fmtDateLong(historyDate)}
+              </p>
+              {[...historyByEmployee.entries()].map(([empId, { name, entries, totalMin }]) => (
+                <div key={empId} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-200">
+                    <span className="font-semibold text-slate-900">{name || empId}</span>
+                    <span className="text-sm font-bold text-blue-700">Total: {fmtDuration(totalMin)}</span>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                        <th className="px-5 py-2 text-left">Turno</th>
+                        <th className="px-5 py-2 text-left">Entrada</th>
+                        <th className="px-5 py-2 text-left">Salida</th>
+                        <th className="px-5 py-2 text-left">Duracion</th>
+                        <th className="px-5 py-2 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {entries.map((entry, i) => (
+                        <tr key={entry.id} className="hover:bg-slate-50">
+                          <td className="px-5 py-2.5 text-slate-500">#{i + 1}</td>
+                          <td className="px-5 py-2.5 font-medium text-slate-800">{fmtTime(entry.check_in)}</td>
+                          <td className="px-5 py-2.5">
+                            {entry.check_out
+                              ? <span className="font-medium text-slate-800">{fmtTime(entry.check_out)}</span>
+                              : <span className="text-amber-600 font-semibold text-xs">Sin salida</span>
+                            }
+                          </td>
+                          <td className="px-5 py-2.5 text-slate-600">
+                            {entry.check_out ? fmtDuration(minutesDiff(entry.check_in, entry.check_out)) : "---"}
+                          </td>
+                          <td className="px-5 py-2.5 text-right">
+                            {deleteConfirm === entry.id ? (
+                              <span className="inline-flex gap-2">
+                                <button onClick={() => handleDeleteEntry(entry.id)} className="text-xs font-semibold text-red-600 hover:underline">Confirmar</button>
+                                <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
+                              </span>
+                            ) : (
+                              <button onClick={() => setDeleteConfirm(entry.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">x</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
