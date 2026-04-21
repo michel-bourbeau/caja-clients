@@ -29,19 +29,54 @@ export default function LoyaltyPage() {
 
   // Generate random 5-digit card number
   const generateCardNumber = () => {
-    const randomNumber = Math.floor(Math.random() * 90000) + 10000; // 5 digits from 10000-99999
-    return randomNumber.toString();
+    return Math.floor(Math.random() * 90000) + 10000; // 5 digits from 10000-99999
   };
 
-  // Reset form and generate new card number when modal opens
-  const handleOpenAddModal = () => {
-    setFormData({
-      card_number: generateCardNumber(),
-      name: "",
-      phone: "",
-      email: "",
-    });
-    setShowAddModal(true);
+  // Check if card number is unique in tenant
+  const isCardNumberAvailable = async (cardNumber: string): Promise<boolean> => {
+    if (!tenantId) return false;
+    try {
+      const response = await fetch(`/api/tenants/${tenantId}/loyalty/customers/check-card?card_number=${cardNumber}`);
+      const data = await response.json();
+      return data.available === true;
+    } catch (error) {
+      console.error('Error checking card number:', error);
+      return false;
+    }
+  };
+
+  // Generate unique card number - keeps trying until finding available one
+  const generateUniqueCardNumber = async () => {
+    let cardNumber = generateCardNumber().toString();
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (!(await isCardNumberAvailable(cardNumber)) && attempts < maxAttempts) {
+      cardNumber = generateCardNumber().toString();
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      setMessage('⚠️ Could not generate unique card number, please try again');
+      setMessageType('error');
+      return null;
+    }
+
+    return cardNumber;
+  };
+
+  // Reset form and generate new unique card number when modal opens
+  const handleOpenAddModal = async () => {
+    const newCardNumber = await generateUniqueCardNumber();
+    if (newCardNumber) {
+      setFormData({
+        card_number: newCardNumber,
+        name: "",
+        phone: "",
+        email: "",
+      });
+      setShowAddModal(true);
+    }
   };
 
   useEffect(() => {
@@ -225,7 +260,12 @@ export default function LoyaltyPage() {
                   />
                   <button
                     type="button"
-                    onClick={() => setFormData({ ...formData, card_number: generateCardNumber() })}
+                    onClick={async () => {
+                      const newCardNumber = await generateUniqueCardNumber();
+                      if (newCardNumber) {
+                        setFormData({ ...formData, card_number: newCardNumber });
+                      }
+                    }}
                     className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium transition"
                     title="Generar nuevo número"
                   >
