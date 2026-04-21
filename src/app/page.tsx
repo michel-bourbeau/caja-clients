@@ -1,13 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Card, Button } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useSuperAdmin } from "@/context/SuperAdminContext";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { isSuperAdmin } = useSuperAdmin();
+  const router = useRouter();
+
+  // Redirect to dashboard if user is already logged in
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.push("/dashboard");
+    }
+  }, [isLoading, user, router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-6">

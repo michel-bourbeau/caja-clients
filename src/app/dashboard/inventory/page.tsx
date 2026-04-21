@@ -92,6 +92,9 @@ export default function InventoryPage() {
     description: "",
   });
   const [editSaving, setEditSaving] = useState(false);
+  const [editImage, setEditImage] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string>("");
+  const [uploadingEditImage, setUploadingEditImage] = useState(false);
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -103,6 +106,9 @@ export default function InventoryPage() {
     category_id: "",
     description: "",
   });
+  const [productImage, setProductImage] = useState<File | null>(null);
+  const [productImagePreview, setProductImagePreview] = useState<string>("");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Multi-format / variants state for add-product form
   const [isMultiFormat, setIsMultiFormat] = useState(false);
@@ -184,6 +190,52 @@ export default function InventoryPage() {
     }
   };
 
+  const handleUploadProductImage = async (file: File): Promise<string | null> => {
+    if (!file) return null;
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "product");
+      
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!res.ok) {
+        throw new Error("Image upload failed");
+      }
+      
+      const data = await res.json();
+      return data.url;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      setMessage("Error al subir la imagen");
+      return null;
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setMessage("Por favor selecciona una imagen");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setMessage("La imagen debe ser menor a 5MB");
+        return;
+      }
+      setProductImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProductImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddProduct = async () => {
     if (!newProduct.name.trim() || !newProduct.sku.trim()) {
       setMessage("El nombre y SKU son obligatorios");
@@ -199,6 +251,13 @@ export default function InventoryPage() {
     }
 
     try {
+      setUploadingImage(true);
+      let imageUrl: string | null = null;
+      if (productImage) {
+        imageUrl = await handleUploadProductImage(productImage);
+      }
+      setUploadingImage(false);
+
       const productData = {
         name: newProduct.name.trim(),
         sku: newProduct.sku.trim(),
@@ -207,6 +266,7 @@ export default function InventoryPage() {
         min_stock: newProduct.min_stock ? parseInt(newProduct.min_stock as string) : 0,
         category_id: newProduct.category_id || null,
         description: newProduct.description?.trim() || null,
+        ...(imageUrl && { image: imageUrl }),
       };
 
       const res = await fetch(`/api/tenants/${tenantId}/products`, {
@@ -248,6 +308,8 @@ export default function InventoryPage() {
 
       setMessage("Producto creado con éxito");
       setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" });
+      setProductImage(null);
+      setProductImagePreview("");
       setIsMultiFormat(false);
       setVariantRows([{ label: "", price: "", quantity: "" }]);
       setShowAddProduct(false);
@@ -380,6 +442,8 @@ export default function InventoryPage() {
       category_id: product.category_id ?? "",
       description: product.description ?? "",
     });
+    setEditImage(null);
+    setEditImagePreview((product as any).image ?? "");
   };
 
   const handleEditProduct = async () => {
@@ -389,19 +453,31 @@ export default function InventoryPage() {
       return;
     }
     setEditSaving(true);
+    setUploadingEditImage(true);
     try {
+      let imageUrl: string | null = null;
+      if (editImage) {
+        imageUrl = await handleUploadProductImage(editImage);
+      }
+      setUploadingEditImage(false);
+
+      const updateData: any = {
+        name: editForm.name.trim(),
+        sku: editForm.sku.trim(),
+        price: parseFloat(editForm.price) || 0,
+        quantity: parseInt(editForm.quantity) || 0,
+        min_stock: parseInt(editForm.min_stock) || 0,
+        category_id: editForm.category_id || null,
+        description: editForm.description.trim() || null,
+      };
+      if (imageUrl) {
+        updateData.image = imageUrl;
+      }
+
       const res = await fetch(`/api/tenants/${tenantId}/products/${editProductModal.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editForm.name.trim(),
-          sku: editForm.sku.trim(),
-          price: parseFloat(editForm.price) || 0,
-          quantity: parseInt(editForm.quantity) || 0,
-          min_stock: parseInt(editForm.min_stock) || 0,
-          category_id: editForm.category_id || null,
-          description: editForm.description.trim() || null,
-        }),
+        body: JSON.stringify(updateData),
       });
       if (res.ok) {
         setMessage("Producto actualizado con éxito");
@@ -415,6 +491,8 @@ export default function InventoryPage() {
       setMessage("Error de red");
     } finally {
       setEditSaving(false);
+      setUploadingEditImage(false);
+      setEditImage(null);
     }
   };
 
@@ -577,14 +655,60 @@ export default function InventoryPage() {
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                 placeholder="Descripción opcional"
               />
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (!file.type.startsWith("image/")) {
+                        setMessage("Por favor selecciona una imagen");
+                        return;
+                      }
+                      if (file.size > 5 * 1024 * 1024) {
+                        setMessage("La imagen debe ser menor a 5MB");
+                        return;
+                      }
+                      setEditImage(file);
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setEditImagePreview(reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
+              </div>
             </div>
+            {editImagePreview && (
+              <div className="mt-4 flex items-center gap-3">
+                <img
+                  src={editImagePreview}
+                  alt="Preview"
+                  className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                />
+                <button
+                  onClick={() => {
+                    setEditImage(null);
+                    setEditImagePreview("");
+                  }}
+                  className="text-sm text-red-600 hover:text-red-700 font-semibold"
+                >
+                  Eliminar imagen
+                </button>
+              </div>
+            )}
             <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
               <Button
                 onClick={handleEditProduct}
-                disabled={editSaving}
+                disabled={editSaving || uploadingEditImage}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {editSaving ? "Guardando..." : "Guardar cambios"}
+                {editSaving || uploadingEditImage ? "Guardando..." : "Guardar cambios"}
               </Button>
               <Button
                 onClick={() => setEditProductModal(null)}
@@ -691,7 +815,37 @@ export default function InventoryPage() {
               value={newProduct.description}
               onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
             />
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
+            </div>
           </div>
+
+          {/* Image preview */}
+          {productImagePreview && (
+            <div className="mt-3 flex items-center gap-3">
+              <img
+                src={productImagePreview}
+                alt="Preview"
+                className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+              />
+              <button
+                onClick={() => {
+                  setProductImage(null);
+                  setProductImagePreview("");
+                }}
+                className="text-sm text-red-600 hover:text-red-700 font-semibold"
+              >
+                Eliminar imagen
+              </button>
+            </div>
+          )}
 
           {/* Multi-format toggle */}
           <label className="inline-flex items-center gap-2 mt-4 cursor-pointer select-none">
@@ -795,8 +949,8 @@ export default function InventoryPage() {
           )}
 
           <div className="flex gap-2 mt-4">
-            <Button onClick={handleAddProduct} className="bg-green-600 hover:bg-green-700 text-white">Agregar</Button>
-            <Button onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); }} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
+            <Button onClick={handleAddProduct} disabled={uploadingImage} className="bg-green-600 hover:bg-green-700 text-white">{uploadingImage ? "Subiendo..." : "Agregar"}</Button>
+            <Button onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
           </div>
         </div>
       )}

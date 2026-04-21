@@ -7,6 +7,7 @@ import { TaxService, type Tax } from "@/features/taxes/services";
 import { CartItem, Product } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
+import { useAuth } from "@/context/AuthContext";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 
@@ -27,6 +28,7 @@ interface ProductVariant {
 export default function POSPage() {
   const tenantId = useTenantId();
   const { fmt, symbol } = useCurrency();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -40,6 +42,8 @@ export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [amountReceived, setAmountReceived] = useState<number>(0);
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
 
   useEffect(() => {
     if (!tenantId) return;
@@ -100,6 +104,17 @@ export default function POSPage() {
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
     [cart]
   );
+
+  // Calculate change (vuelto) for cash payments
+  const changeCalculation = useMemo(() => {
+    const change = amountReceived - cartTotal.total;
+    return {
+      amountReceived,
+      change: change < 0 ? 0 : change,
+      isInsufficientAmount: amountReceived > 0 && change < 0,
+      isExactAmount: amountReceived > 0 && change === 0,
+    };
+  }, [amountReceived, cartTotal.total]);
 
   const productsByCategory = useMemo(() => {
     const grouped: Record<string, Product[]> = {};
@@ -216,11 +231,20 @@ export default function POSPage() {
       return;
     }
 
+    // Check if payment is CASH and amount is insufficient
+    if (paymentMethod === "CASH" && changeCalculation.isInsufficientAmount) {
+      setMessage("Monto insuficiente. El cliente debe pagar más.");
+      setMessageType("error");
+      return;
+    }
+
     try {
       setLoading(true);
-      await POSService.createTransaction(tenantId, cart, paymentMethod, "cashier-001", discount);
+      const cashierName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
+      await POSService.createTransaction(tenantId, cart, paymentMethod, user?.id || "cashier-001", discount, cashierName);
       setCart([]);
       setDiscount(0);
+      setAmountReceived(0);
       setMessage("✓ ¡Venta registrada exitosamente!");
       setMessageType("success");
       const refreshed = await POSService.fetchProducts(tenantId);
@@ -309,6 +333,37 @@ export default function POSPage() {
               className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                viewMode === "list"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              Lista
+            </button>
+            <button
+              onClick={() => setViewMode("card")}
+              className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                viewMode === "card"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
+              </svg>
+              Tarjetas
+            </button>
+          </div>
+
           {/* Category filter — pill buttons */}
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -338,22 +393,126 @@ export default function POSPage() {
         </div>
 
         {productsLoading ? (
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-slate-100">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-3/4 mb-1" /><div className="h-3 bg-slate-100 rounded w-1/2" /></td>
-                  <td className="px-4 py-3 hidden md:table-cell"><div className="h-5 bg-slate-200 rounded-full w-20" /></td>
-                  <td className="px-4 py-3 text-right"><div className="h-4 bg-slate-200 rounded w-16 ml-auto" /></td>
-                  <td className="px-4 py-3 text-center"><div className="h-5 bg-slate-200 rounded-full w-10 mx-auto" /></td>
-                  <td className="px-4 py-3 text-center"><div className="h-7 bg-slate-200 rounded-lg w-20 mx-auto" /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className={viewMode === "card" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4" : "w-full"}>
+            {viewMode === "card" ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-slate-200 rounded-lg h-48 animate-pulse" />
+              ))
+            ) : (
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-slate-100">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-3/4 mb-1" /><div className="h-3 bg-slate-100 rounded w-1/2" /></td>
+                      <td className="px-4 py-3 hidden md:table-cell"><div className="h-5 bg-slate-200 rounded-full w-20" /></td>
+                      <td className="px-4 py-3 text-right"><div className="h-4 bg-slate-200 rounded w-16 ml-auto" /></td>
+                      <td className="px-4 py-3 text-center"><div className="h-5 bg-slate-200 rounded-full w-10 mx-auto" /></td>
+                      <td className="px-4 py-3 text-center"><div className="h-7 bg-slate-200 rounded-lg w-20 mx-auto" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         ) : displayedProducts.length === 0 ? (
           <p className="text-gray-500 text-center py-12">Sin resultados.</p>
+        ) : viewMode === "card" ? (
+          // CARD VIEW
+          <div className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
+              {displayedProducts.map((product) => {
+                const inCart = cart.find((i) => !i.variantId && i.productId === product.id);
+                const category = categories.find((c) => c.id === (product as any).category_id);
+                const outOfStock = product.quantity <= 0;
+                const stockReached = !!inCart && inCart.quantity >= product.quantity;
+                const variants: ProductVariant[] = (product as any).variants ?? [];
+                const hasVariants = (product as any).has_variants && variants.length > 0;
+
+                return (
+                  <div
+                    key={product.id}
+                    className={`rounded-lg border border-slate-200 overflow-hidden transition-all hover:shadow-lg flex flex-col h-full ${
+                      outOfStock && !hasVariants ? "opacity-50" : ""
+                    }`}
+                  >
+                    {/* Image placeholder */}
+                    <div className="w-full h-40 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative group flex-shrink-0">
+                      {(product as any).image ? (
+                        <img
+                          src={(product as any).image}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <p className="text-xs text-slate-400 text-center px-1">Imagen</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card content */}
+                    <div className="p-2.5 bg-white space-y-2 flex-1 flex flex-col">
+                      {/* Product name */}
+                      <div>
+                        <p className="font-medium text-slate-900 text-sm line-clamp-2">{product.name}</p>
+                        {category && (
+                          <p className="text-xs text-slate-500">{category.name}</p>
+                        )}
+                      </div>
+
+                      {/* Price and stock */}
+                      <div className="flex justify-between items-start gap-1 flex-shrink-0">
+                        <div>
+                          {hasVariants ? (
+                            <div className="space-y-0.5">
+                              {variants.slice(0, 2).map((v) => (
+                                <p key={v.id} className={`text-xs font-semibold ${v.stock_quantity <= 0 ? "text-slate-300 line-through" : "text-blue-700"}`}>
+                                  {fmt(v.price)}
+                                </p>
+                              ))}
+                              {variants.length > 2 && <p className="text-xs text-slate-500">+{variants.length - 2} más</p>}
+                            </div>
+                          ) : (
+                            <p className="font-semibold text-blue-700 text-sm">{fmt(product.price)}</p>
+                          )}
+                        </div>
+                        <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
+                          product.quantity <= 0
+                            ? "bg-red-100 text-red-700"
+                            : product.quantity <= 5
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-green-100 text-green-700"
+                        }`}>
+                          {product.quantity}
+                        </span>
+                      </div>
+
+                      {/* Add to cart button */}
+                      <button
+                        onClick={() => handleAddProduct(product)}
+                        disabled={outOfStock && !hasVariants}
+                        className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-colors mt-auto flex-shrink-0 ${
+                          outOfStock && !hasVariants
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                        }`}
+                      >
+                        {inCart ? `${inCart.quantity} en carrito` : outOfStock && !hasVariants ? "Agotado" : "Agregar"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 px-4 py-2 text-sm text-slate-400">
+              {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
+            </div>
+          </div>
         ) : (
+          // LIST VIEW
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -521,9 +680,14 @@ export default function POSPage() {
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h12.8M7 13H5.4M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"
               />
             </svg>
-            <h2 className="font-semibold text-sm">Carrito</h2>
+            <div className="flex flex-col">
+              <h2 className="font-semibold text-sm">Carrito</h2>
+              {user && (
+                <p className="text-xs text-gray-300">Cajero: {user.firstName} {user.lastName}</p>
+              )}
+            </div>
             {cartItemCount > 0 && (
-              <span className="flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 rounded-full">
+              <span className="flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 rounded-full ml-2">
                 {cartItemCount}
               </span>
             )}
@@ -636,6 +800,57 @@ export default function POSPage() {
             <option value="TRANSFER">TRANSFERENCIA</option>
           </select>
 
+          {/* Vuelto (Change) calculation — only for CASH payments */}
+          {paymentMethod === "CASH" && (
+            <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <label htmlFor="amountReceived" className="text-sm font-semibold text-slate-700 block">
+                Monto Recibido ({symbol})
+              </label>
+              <input
+                id="amountReceived"
+                type="number"
+                value={amountReceived === 0 ? "" : amountReceived}
+                onChange={(e) => setAmountReceived(Math.max(0, Number(e.target.value) || 0))}
+                min="0"
+                step="0.01"
+                placeholder="Ingrese monto"
+                className="w-full px-3 py-2 border border-slate-300 rounded text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+
+              {/* Change display — only show when amount is entered */}
+              {amountReceived > 0 && (
+                <div className="space-y-2 pt-2 border-t border-blue-200">
+                  {changeCalculation.isInsufficientAmount ? (
+                    <div className="p-2 bg-red-100 rounded border border-red-300">
+                      <p className="text-xs font-semibold text-red-700 uppercase">⚠ Monto Insuficiente</p>
+                      <p className="text-sm text-red-800 font-bold">
+                        Falta: {fmt(Math.abs(changeCalculation.change))}
+                      </p>
+                    </div>
+                  ) : changeCalculation.isExactAmount ? (
+                    <div className="p-2 bg-green-100 rounded border border-green-300">
+                      <p className="text-xs font-semibold text-green-700 uppercase">✓ Monto Exacto</p>
+                      <p className="text-sm text-green-800 font-bold">Sin vuelto</p>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-green-100 rounded border border-green-300">
+                      <p className="text-xs font-semibold text-green-700 uppercase">Vuelto</p>
+                      <p className="text-lg text-green-900 font-bold">{fmt(changeCalculation.change)}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cashier info */}
+          {user && (
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-xs font-semibold text-slate-600 uppercase">Cajero</p>
+              <p className="text-sm text-slate-900 font-medium">{user.firstName} {user.lastName}</p>
+            </div>
+          )}
+
           <Button
             onClick={handleCompleteSale}
             size="sm"
@@ -648,7 +863,11 @@ export default function POSPage() {
             className="w-full"
             size="sm"
             variant="secondary"
-            onClick={() => setCart([])}
+            onClick={() => {
+              setCart([]);
+              setDiscount(0);
+              setAmountReceived(0);
+            }}
             disabled={cart.length === 0 || loading}
           >
             Cancelar

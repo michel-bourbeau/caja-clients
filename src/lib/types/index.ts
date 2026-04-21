@@ -53,6 +53,7 @@ export interface Transaction {
   paymentMethod: "CASH" | "CARD" | "TRANSFER";
   timestamp: Date;
   cashierId: string;
+  cashierName?: string;
   status: "COMPLETED" | "CANCELLED";
 }
 

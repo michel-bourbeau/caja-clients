@@ -237,7 +237,7 @@ export default function CierreCajaPage() {
       <body>
         <h1>CIERRE DE CAJA</h1>
         <p class="center">${fmtLocalDate(selectedDate)}</p>
-        ${current.closed_by ? `<p class="center">Cajero: ${current.closed_by}</p>` : ""}
+        ${current && current.closed_by ? `<p class="center">Cajero: ${current.closed_by}</p>` : ""}
         <div class="divider"></div>
 
         <p class="section-title">Ventas del sistema</p>
@@ -270,7 +270,7 @@ export default function CierreCajaPage() {
           </span>
         </div>
 
-        ${current.notes ? `<div class="notes">Notas: ${current.notes}</div>` : ""}
+        ${current && current.notes ? `<div class="notes">Notas: ${current.notes}</div>` : ""}
 
         <div class="divider"></div>
         <p class="center" style="font-size:10px;color:#555;">Impreso ${new Date().toLocaleString("es-NI")}</p>

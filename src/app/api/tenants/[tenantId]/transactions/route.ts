@@ -68,6 +68,7 @@ export async function POST(
     const items: CartItem[] = body.items;
     const paymentMethod: Transaction["paymentMethod"] = body.paymentMethod;
     const cashierId: string = body.cashierId || "unknown";
+    const cashierName: string = body.cashierName || "Unknown";
     const discount: number = Math.max(0, body.discount || 0);
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -160,6 +161,7 @@ export async function POST(
           id: transactionId,
           tenant_id: tenantId,
           cashier_id: cashierId,
+          cashier_name: cashierName,
           items,
           subtotal,
           discount: discountAmount,

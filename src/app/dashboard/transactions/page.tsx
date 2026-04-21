@@ -278,6 +278,7 @@ export default function TransactionsPage() {
                       <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
                         <th className="px-4 py-2 text-left">Hora</th>
                         <th className="px-4 py-2 text-left">Productos</th>
+                        <th className="px-4 py-2 text-left hidden lg:table-cell">Cajero</th>
                         <th className="px-4 py-2 text-center hidden sm:table-cell">Método</th>
                         <th className="px-4 py-2 text-right hidden md:table-cell">Subtotal</th>
                         <th className="px-4 py-2 text-right hidden md:table-cell">Desc.</th>
@@ -305,6 +306,9 @@ export default function TransactionsPage() {
                             ) : (
                               <span className="text-sm text-slate-400 italic">Sin productos</span>
                             )}
+                          </td>
+                          <td className="px-4 py-2.5 text-left hidden lg:table-cell">
+                            <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
                           </td>
                           <td className="px-4 py-2.5 text-center hidden sm:table-cell">
                             <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${PAYMENT_BADGE[tx.paymentMethod] ?? "bg-slate-100 text-slate-600"}`}>
@@ -388,6 +392,16 @@ export default function TransactionsPage() {
                   {selectedTransaction.id}
                 </p>
               </div>
+
+              {/* Cashier */}
+              {selectedTransaction.cashierName && (
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">Cajero</p>
+                  <p className="text-sm text-slate-700 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-200">
+                    {selectedTransaction.cashierName}
+                  </p>
+                </div>
+              )}
 
               {/* Products */}
               {selectedTransaction.items && selectedTransaction.items.length > 0 && (

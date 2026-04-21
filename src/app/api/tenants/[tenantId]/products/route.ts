@@ -49,7 +49,7 @@ export async function POST(
     const body = await request.json();
     console.log("[POST /products] Request body:", body);
     
-    const { name, sku, price, quantity, category_id, description, min_stock } = body;
+    const { name, sku, price, quantity, category_id, description, min_stock, image } = body;
 
     if (!name?.trim() || !sku?.trim() || price === undefined) {
       console.log("[POST /products] Validation failed:", { name, sku, price });
@@ -61,7 +61,7 @@ export async function POST(
 
     const supabaseAdmin = getSupabaseAdmin();
 
-    const productData = {
+    const productData: any = {
       tenant_id: tenantId,
       name: name.trim(),
       sku: sku.trim().toUpperCase(),
@@ -71,6 +71,11 @@ export async function POST(
       description: description?.trim() || null,
       min_stock: min_stock !== undefined ? parseInt(min_stock) : 0,
     };
+
+    // Add image only if provided
+    if (image) {
+      productData.image = image;
+    }
 
     console.log("[POST /products] Inserting data:", productData);
 
