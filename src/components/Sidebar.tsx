@@ -69,6 +69,13 @@ export const Sidebar: React.FC = () => {
           </NavSection>
         )}
 
+        {/* Reports Module */}
+        {hasPermission("reports.view") && (
+          <NavSection label="Análisis">
+            <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" icon="📈" />
+          </NavSection>
+        )}
+
         {/* Admin Section - Vérifie si l'utilisateur est admin */}
         {(canManageRoles || canManageSettings) && (
           <NavSection label="Admin">

@@ -165,6 +165,20 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
     description: "Marcar nómina como pagada",
   },
 
+  // Reports Permissions
+  {
+    id: "reports.view",
+    name: "Ver reportes",
+    category: "REPORTS",
+    description: "Ver reportes de ventas y estadísticas",
+  },
+  {
+    id: "reports.export",
+    name: "Exportar reportes",
+    category: "REPORTS",
+    description: "Exportar reportes a CSV y PDF",
+  },
+
   // Settings Permissions
   {
     id: "settings.view",
@@ -212,6 +226,8 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
       "pos.view",
       "pos.cierre",
       "pos.cierre_review",
+      "reports.view",
+      "reports.export",
     ],
     isSystem: true,
   },

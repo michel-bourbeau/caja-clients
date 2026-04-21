@@ -34,6 +34,9 @@ export const ROUTES = {
   PAYROLL_PERIODS: "/dashboard/payroll",
   PAYROLL_DETAIL: "/dashboard/payroll/:id",
   
+  // Reports
+  REPORTS: "/dashboard/reports",
+  
   // Auth
   LOGIN: "/login",
   LOGOUT: "/logout",
