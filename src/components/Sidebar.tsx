@@ -1,49 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
-import { useTenantName } from "@/lib/utils/tenantName";
 import { ROUTES } from "@/lib/constants";
-import { DEFAULT_ROLES } from "@/lib/types/roles";
 
 export const Sidebar: React.FC = () => {
-  const router = useRouter();
-  const { user, hasPermission, logout } = useAuth();
+  const { hasPermission, refreshPermissions } = useAuth();
   const { features } = useTenantFeatures();
-  const { tenantName } = useTenantName();
 
   const canManageRoles = hasPermission("settings.manage_roles");
   const canManageSettings = hasPermission("manage_settings");
-  const roleName = DEFAULT_ROLES.find((r) => r.id === user?.roleId)?.name ?? user?.roleId ?? "";
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
+  // Refresh permissions on every full page load so role changes take effect without re-login
+  useEffect(() => {
+    refreshPermissions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <aside className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
-      <div className="p-6 border-b border-slate-700">
-        <h1 className="text-2xl font-bold text-white">Caja</h1>
-        {tenantName && (
-          <p className="text-sm font-semibold text-amber-400 mt-2">
-            🏢 {tenantName}
-          </p>
-        )}
-        <p className="text-sm text-gray-300 mt-2 font-medium">
-          {user?.firstName} {user?.lastName}
-        </p>
-        <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
-        {roleName && (
-          <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-slate-700 text-slate-300 rounded-full">
-            {roleName}
-          </span>
-        )}
-      </div>
-
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 pt-6 space-y-2">
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" icon="📊" />
 
         {/* POS Module - Vérifie si activé */}
@@ -91,7 +69,6 @@ export const Sidebar: React.FC = () => {
           <NavSection label="Admin">
             {canManageRoles && (
               <>
-                <NavLink href="/admin/users" label="Gestionar Usuarios" icon="👤" />
                 <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
               </>
             )}
@@ -100,15 +77,6 @@ export const Sidebar: React.FC = () => {
           </NavSection>
         )}
       </nav>
-
-      <div className="p-4 border-t border-slate-700">
-        <button
-          onClick={handleLogout}
-          className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-medium transition-colors"
-        >
-          Cerrar Sesión
-        </button>
-      </div>
     </aside>
   );
 };

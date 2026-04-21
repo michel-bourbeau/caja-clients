@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui";
-import { formatCurrency, formatDateTime } from "@/lib/utils/formatters";
+import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
+import { useCurrency } from "@/lib/utils/useCurrency";
 import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
 import { TransactionService } from "@/features/transactions/services";
@@ -21,6 +22,7 @@ const PAYMENT_LABEL: Record<string, string> = {
 
 export default function TransactionsPage() {
   const tenantId = useTenantId();
+  const { fmt } = useCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,14 +76,10 @@ export default function TransactionsPage() {
     let list = [...transactions];
 
     if (filters.fromDate) {
-      const [y, m, d] = filters.fromDate.split("-");
-      const from = new Date(+y, +m - 1, +d, 0, 0, 0, 0);
-      list = list.filter((tx) => tx.timestamp >= from);
+      list = list.filter((tx) => toNicaraguaDateString(tx.timestamp) >= filters.fromDate);
     }
     if (filters.toDate) {
-      const [y, m, d] = filters.toDate.split("-");
-      const to = new Date(+y, +m - 1, +d, 23, 59, 59, 999);
-      list = list.filter((tx) => tx.timestamp <= to);
+      list = list.filter((tx) => toNicaraguaDateString(tx.timestamp) <= filters.toDate);
     }
     if (filters.paymentMethod !== "ALL") {
       list = list.filter((tx) => tx.paymentMethod === filters.paymentMethod);
@@ -102,7 +100,7 @@ export default function TransactionsPage() {
   const groupedByDate = useMemo(() => {
     const grouped: Record<string, Transaction[]> = {};
     filteredTransactions.forEach((tx) => {
-      const key = tx.timestamp.toISOString().split("T")[0];
+      const key = toNicaraguaDateString(tx.timestamp);
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(tx);
     });
@@ -120,8 +118,9 @@ export default function TransactionsPage() {
   }), [filteredTransactions]);
 
   const formatDateHeader = (dateString: string): string => {
-    const date = new Date(dateString + "T00:00:00");
-    return date.toLocaleDateString("es-ES", {
+    const [y, m, d] = dateString.split("-").map(Number);
+    const date = new Date(y, m - 1, d, 12, 0, 0);
+    return date.toLocaleDateString("es-NI", {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -144,9 +143,19 @@ export default function TransactionsPage() {
 
   const handleOpenDetails = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
+    // Format as local Nicaragua time for the datetime-local input
+    const tz = "America/Managua";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+      timeZone: tz,
+    }).formatToParts(transaction.timestamp);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+    const localDT = `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
     setEditForm({
       paymentMethod: transaction.paymentMethod,
-      datetime: transaction.timestamp.toISOString().slice(0, 16),
+      datetime: localDT,
     });
   };
 
@@ -176,7 +185,7 @@ export default function TransactionsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Transacciones</h1>
           <p className="text-sm text-slate-600 mt-1">
             {totals.count} transacción{totals.count !== 1 ? "es" : ""}
-            {totals.count > 0 && <> · Total: <span className="font-semibold text-slate-800">{formatCurrency(totals.amount)}</span></>}
+            {totals.count > 0 && <> · Total: <span className="font-semibold text-slate-800">{fmt(totals.amount)}</span></>}
           </p>
         </div>
         <button
@@ -259,7 +268,7 @@ export default function TransactionsPage() {
                       <span className="bg-slate-600 px-2 py-0.5 rounded-full">
                         {dayTxs.length} venta{dayTxs.length > 1 ? "s" : ""}
                       </span>
-                      <span className="text-slate-300">{formatCurrency(dayTotal)}</span>
+                      <span className="text-slate-300">{fmt(dayTotal)}</span>
                     </div>
                   </div>
 
@@ -306,20 +315,20 @@ export default function TransactionsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
-                            {formatCurrency(tx.subtotal)}
+                            {fmt(tx.subtotal)}
                           </td>
                           <td className="px-4 py-2.5 text-right text-sm hidden md:table-cell">
                             {(tx.discount || 0) > 0 ? (
-                              <span className="text-amber-600">-{formatCurrency(tx.discount || 0)}</span>
+                              <span className="text-amber-600">-{fmt(tx.discount || 0)}</span>
                             ) : (
                               <span className="text-slate-300">—</span>
                             )}
                           </td>
                           <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
-                            {(tx.tax || 0) > 0 ? formatCurrency(tx.tax) : <span className="text-slate-300">—</span>}
+                            {(tx.tax || 0) > 0 ? fmt(tx.tax) : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                            {formatCurrency(tx.total)}
+                            {fmt(tx.total)}
                           </td>
                           <td className="px-4 py-2.5 text-center">
                             <div className="flex gap-1 justify-center">
@@ -398,9 +407,9 @@ export default function TransactionsPage() {
                       <div key={i} className="flex justify-between items-center px-3 py-2 text-sm">
                         <div>
                           <p className="font-medium text-slate-900">{item.name || item.productId}</p>
-                          <p className="text-sm text-slate-500">{item.quantity} × {formatCurrency(item.price)}</p>
+                          <p className="text-sm text-slate-500">{item.quantity} × {fmt(item.price)}</p>
                         </div>
-                        <p className="font-semibold text-slate-900">{formatCurrency(item.total)}</p>
+                        <p className="font-semibold text-slate-900">{fmt(item.total)}</p>
                       </div>
                     ))}
                   </div>
@@ -410,20 +419,20 @@ export default function TransactionsPage() {
               {/* Summary */}
               <div className="bg-slate-50 rounded border border-slate-200 divide-y divide-slate-100 text-sm">
                 <div className="flex justify-between px-3 py-2 text-slate-600">
-                  <span>Subtotal</span><span>{formatCurrency(selectedTransaction.subtotal)}</span>
+                  <span>Subtotal</span><span>{fmt(selectedTransaction.subtotal)}</span>
                 </div>
                 {(selectedTransaction.discount || 0) > 0 && (
                   <div className="flex justify-between px-3 py-2 text-amber-600">
-                    <span>Descuento</span><span>-{formatCurrency(selectedTransaction.discount || 0)}</span>
+                    <span>Descuento</span><span>-{fmt(selectedTransaction.discount || 0)}</span>
                   </div>
                 )}
                 {(selectedTransaction.tax || 0) > 0 && (
                   <div className="flex justify-between px-3 py-2 text-slate-600">
-                    <span>Impuesto</span><span>{formatCurrency(selectedTransaction.tax)}</span>
+                    <span>Impuesto</span><span>{fmt(selectedTransaction.tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between px-3 py-2 font-bold text-slate-900">
-                  <span>Total</span><span>{formatCurrency(selectedTransaction.total)}</span>
+                  <span>Total</span><span>{fmt(selectedTransaction.total)}</span>
                 </div>
               </div>
 

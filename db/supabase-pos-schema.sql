@@ -36,8 +36,8 @@ create table if not exists transactions (
 create table if not exists tenant_settings (
   tenant_id uuid primary key,
   tax_rate numeric not null default 0.21,
-  currency text not null default 'USD',
-  timezone text not null default 'America/New_York',
+  currency text not null default 'NIO',
+  timezone text not null default 'America/Managua',
   language text not null default 'en',
   company_name text,
   updated_at timestamptz not null default now()

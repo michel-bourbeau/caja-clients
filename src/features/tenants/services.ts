@@ -158,8 +158,8 @@ export class TenantService {
         data || {
           tenantId,
           taxRate: 0.19,
-          currency: "USD",
-          timezone: "America/New_York",
+          currency: "NIO",
+          timezone: "America/Managua",
           language: "en",
           companyName: "",
         }

@@ -25,6 +25,43 @@ const AVAILABLE_MODULES = [
   { id: "settings", label: "Configuración", icon: "⚙️" },
 ];
 
+const PLAN_LABELS: Record<string, { label: string; color: string }> = {
+  basic: { label: "Básico", color: "bg-slate-100 text-slate-700" },
+  professional: { label: "Profesional", color: "bg-blue-100 text-blue-700" },
+  enterprise: { label: "Empresarial", color: "bg-purple-100 text-purple-700" },
+  custom: { label: "Personnalisé", color: "bg-orange-100 text-orange-700" },
+};
+
+const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
+  basic: {
+    pos: true,
+    inventory: true,
+    employees: false,
+    schedules: false,
+    payroll: false,
+    reports: false,
+    settings: true,
+  },
+  professional: {
+    pos: true,
+    inventory: true,
+    employees: true,
+    schedules: true,
+    payroll: false,
+    reports: true,
+    settings: true,
+  },
+  enterprise: {
+    pos: true,
+    inventory: true,
+    employees: true,
+    schedules: true,
+    payroll: true,
+    reports: true,
+    settings: true,
+  },
+};
+
 export default function SuperAdminDashboard() {
   const { isSuperAdmin, logout } = useSuperAdmin();
   const router = useRouter();
@@ -32,6 +69,7 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [editingPlan, setEditingPlan] = useState<string>("basic");
   const [message, setMessage] = useState("");
 
   const [formData, setFormData] = useState({
@@ -134,6 +172,7 @@ export default function SuperAdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           features: selectedModules,
+          plan: editingPlan,
         }),
       });
 
@@ -198,10 +237,13 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
-        {/* Create Button */}
-        <div className="mb-6">
+        {/* Action Buttons */}
+        <div className="mb-6 flex flex-wrap gap-3">
           <Button onClick={() => setShowCreateForm(!showCreateForm)} className="bg-purple-600">
             {showCreateForm ? "❌ Annuler" : "➕ Créer un Tenant"}
+          </Button>
+          <Button onClick={() => router.push("/superadmin/users")} className="bg-indigo-600">
+            👥 Gestion des Utilisateurs
           </Button>
         </div>
 
@@ -229,18 +271,26 @@ export default function SuperAdminDashboard() {
                   <label className="block text-sm font-semibold mb-2">Plan</label>
                   <select
                     value={formData.plan}
-                    onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white"
+                    onChange={(e) => {
+                      const plan = e.target.value;
+                      setFormData({ ...formData, plan });
+                      setSelectedModules(PLAN_PRESETS[plan] ?? PLAN_PRESETS.basic);
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900"
                   >
-                    <option value="basic">Básico</option>
-                    <option value="professional">Profesional</option>
-                    <option value="enterprise">Empresarial</option>
+                    <option value="basic">Básico — POS + Inventario</option>
+                    <option value="professional">Profesional — + Empleados, Horarios, Reportes</option>
+                    <option value="enterprise">Empresarial — Tout inclus</option>
+                    <option value="custom">Personnalisé</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-4">Modules</label>
+                <label className="block text-sm font-semibold mb-1">Modules</label>
+                <p className="text-xs text-slate-500 mb-3">
+                  Pré-sélectionnés selon le plan — vous pouvez ajuster manuellement.
+                </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {AVAILABLE_MODULES.map((module) => (
                     <label key={module.id} className="flex items-center gap-2 cursor-pointer">
@@ -248,9 +298,15 @@ export default function SuperAdminDashboard() {
                         type="checkbox"
                         checked={selectedModules[module.id]}
                         onChange={(e) =>
-                          setSelectedModules({
-                            ...selectedModules,
-                            [module.id]: e.target.checked,
+                          setSelectedModules((prev) => {
+                            const updated = { ...prev, [module.id]: e.target.checked };
+                            // If result no longer matches the current plan preset, switch to custom
+                            const preset = PLAN_PRESETS[formData.plan];
+                            if (preset) {
+                              const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
+                              if (!matchesPreset) setFormData((f) => ({ ...f, plan: "custom" }));
+                            }
+                            return updated;
                           })
                         }
                         className="w-4 h-4"
@@ -330,8 +386,8 @@ export default function SuperAdminDashboard() {
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-semibold">
-                        Plan: {tenant.plan}
+                      <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${PLAN_LABELS[tenant.plan]?.color || "bg-slate-100 text-slate-700"}`}>
+                        {PLAN_LABELS[tenant.plan]?.label || tenant.plan}
                       </span>
                       <button
                         onClick={() => enterTenant(tenant)}
@@ -348,22 +404,42 @@ export default function SuperAdminDashboard() {
                   {editingTenant?.id === tenant.id ? (
                     <form onSubmit={handleUpdateTenant} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-semibold mb-3">Modules</label>
+                        <label className="block text-sm font-semibold mb-2 text-slate-900">Plan</label>
+                        <select
+                          value={editingPlan}
+                          onChange={(e) => {
+                            const plan = e.target.value;
+                            setEditingPlan(plan);
+                            if (PLAN_PRESETS[plan]) setSelectedModules(PLAN_PRESETS[plan]);
+                          }}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm mb-3"
+                        >
+                          <option value="basic">Básico — POS + Inventario</option>
+                          <option value="professional">Profesional — + Empleados, Horarios, Reportes</option>
+                          <option value="enterprise">Empresarial — Tout inclus</option>
+                          <option value="custom">Personnalisé</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold mb-3 text-slate-900">Modules</label>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                           {AVAILABLE_MODULES.map((module) => (
                             <label key={module.id} className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={selectedModules[module.id] || false}
-                                onChange={(e) =>
-                                  setSelectedModules({
-                                    ...selectedModules,
-                                    [module.id]: e.target.checked,
-                                  })
-                                }
+                                onChange={(e) => {
+                                  const updated = { ...selectedModules, [module.id]: e.target.checked };
+                                  const preset = PLAN_PRESETS[editingPlan];
+                                  if (preset) {
+                                    const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
+                                    if (!matchesPreset) setEditingPlan("custom");
+                                  }
+                                  setSelectedModules(updated);
+                                }}
                                 className="w-4 h-4"
                               />
-                              <span className="text-sm">{module.icon} {module.label}</span>
+                              <span className="text-sm text-slate-900">{module.icon} {module.label}</span>
                             </label>
                           ))}
                         </div>
@@ -385,18 +461,25 @@ export default function SuperAdminDashboard() {
                     <div>
                       <div className="mb-4">
                         <label className="text-sm font-semibold text-slate-900 block mb-2">
-                          Modules Actifs:
+                          Modules:
                         </label>
                         <div className="flex flex-wrap gap-2">
                           {AVAILABLE_MODULES.map((module) =>
                             tenant.features?.[module.id] ? (
                               <span
                                 key={module.id}
-                                className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm"
+                                className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium"
                               >
                                 {module.icon} {module.label}
                               </span>
-                            ) : null
+                            ) : (
+                              <span
+                                key={module.id}
+                                className="px-3 py-1 bg-slate-100 text-slate-400 rounded text-sm line-through"
+                              >
+                                {module.icon} {module.label}
+                              </span>
+                            )
                           )}
                         </div>
                       </div>
@@ -404,6 +487,7 @@ export default function SuperAdminDashboard() {
                         onClick={() => {
                           setEditingTenant(tenant);
                           setSelectedModules(tenant.features || {});
+                          setEditingPlan(tenant.plan || "basic");
                         }}
                         className="bg-blue-600"
                       >

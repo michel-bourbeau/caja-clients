@@ -5,7 +5,7 @@ import { Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
 import { CartItem, Product } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils/formatters";
+import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
@@ -17,6 +17,7 @@ interface Category {
 
 export default function POSPage() {
   const tenantId = useTenantId();
+  const { fmt, symbol } = useCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -325,7 +326,7 @@ export default function POSPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
-                        {formatCurrency(product.price)}
+                        {fmt(product.price)}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
@@ -436,10 +437,10 @@ export default function POSPage() {
                     <p className="text-sm font-medium text-slate-900">
                       {item.quantity} × {product?.name || "Producto"}
                     </p>
-                    <p className="text-sm text-slate-600">{formatCurrency(item.price)}</p>
+                    <p className="text-sm text-slate-600">{fmt(item.price)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">{formatCurrency(item.total)}</p>
+                    <p className="text-sm font-medium text-slate-900">{fmt(item.total)}</p>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(item.productId)}
@@ -459,12 +460,12 @@ export default function POSPage() {
           <div className="space-y-1">
             <div className="flex justify-between text-sm text-slate-600">
               <span>Subtotal</span>
-              <span>{formatCurrency(cartTotal.subtotal)}</span>
+              <span>{fmt(cartTotal.subtotal)}</span>
             </div>
 
             {/* Discount */}
             <div className="border-t pt-1 mt-1">
-              <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ($)</label>
+              <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ({symbol})</label>
               <input
                 type="number"
                 value={discount}
@@ -476,7 +477,7 @@ export default function POSPage() {
               />
               {discount > 0 && (
                 <p className="text-sm text-blue-600 mt-0.5">
-                  -{formatCurrency(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
+                  -{fmt(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
                 </p>
               )}
             </div>
@@ -484,7 +485,7 @@ export default function POSPage() {
             {cartTotal.discount > 0 && (
               <div className="flex justify-between text-sm text-slate-600 pt-0.5">
                 <span>Después de descuento</span>
-                <span>{formatCurrency(cartTotal.subtotalAfterDiscount)}</span>
+                <span>{fmt(cartTotal.subtotalAfterDiscount)}</span>
               </div>
             )}
 
@@ -492,7 +493,7 @@ export default function POSPage() {
               taxes.map((tax) => (
                 <div key={tax.id} className="flex justify-between text-sm text-slate-600">
                   <span>{tax.name} ({tax.rate}%)</span>
-                  <span>{formatCurrency((cartTotal.taxes as any)[tax.name] || 0)}</span>
+                  <span>{fmt((cartTotal.taxes as any)[tax.name] || 0)}</span>
                 </div>
               ))
             ) : (
@@ -506,7 +507,7 @@ export default function POSPage() {
 
             <div className="flex justify-between text-sm font-bold text-slate-900 border-t pt-1">
               <span>Total</span>
-              <span>{formatCurrency(cartTotal.total)}</span>
+              <span>{fmt(cartTotal.total)}</span>
             </div>
           </div>
 

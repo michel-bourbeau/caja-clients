@@ -2,11 +2,13 @@
 
 import { Card, Button, Input } from "@/components/ui";
 import { DataTable } from "@/components/DataTable";
-import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatDate } from "@/lib/utils/formatters";
+import { useCurrency } from "@/lib/utils/useCurrency";
 import { Payroll } from "@/lib/types";
 import { FeatureGuard } from "@/components/FeatureGuard";
 
 function PayrollContent() {
+  const { fmt } = useCurrency();
   const mockPayroll: Payroll[] = [
     {
       id: "1",
@@ -68,13 +70,13 @@ function PayrollContent() {
             {
               key: "baseSalary",
               label: "Salario Base",
-              format: (value) => formatCurrency(value),
+              format: (value) => fmt(value),
             },
             { key: "hoursWorked", label: "Horas" },
             {
               key: "total",
               label: "Total",
-              format: (value) => formatCurrency(value),
+              format: (value) => fmt(value),
             },
             { key: "status", label: "Estado" },
           ]}

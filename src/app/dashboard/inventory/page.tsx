@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Input, Card } from "@/components/ui";
-import { formatCurrency } from "@/lib/utils/formatters";
+import { useCurrency } from "@/lib/utils/useCurrency";
 
 interface Product {
   id: string;
@@ -47,6 +47,7 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const { tenantId } = useTenant();
   const router = useRouter();
+  const { fmt } = useCurrency();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -79,7 +80,7 @@ export default function InventoryPage() {
       router.push("/login");
       return;
     }
-    if (!user.permissions?.includes("manage_products")) {
+    if (!user.permissions?.includes("inventory.view")) {
       router.push("/dashboard");
       return;
     }
@@ -458,7 +459,7 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right font-semibold text-blue-700 whitespace-nowrap">
-                        {formatCurrency(product.price)}
+                        {fmt(product.price)}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {isEditing ? (

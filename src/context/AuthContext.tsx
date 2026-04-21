@@ -229,6 +229,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  /** Re-fetch permissions from tenant_roles for the current user. Call after role changes. */
+  const refreshPermissions = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const profile = await resolveProfile(user.email);
+      let customPerms: string[] | null = profile?.direct_permissions?.length
+        ? profile.direct_permissions
+        : null;
+      if (!customPerms && profile?.tenant_id && profile?.role_id) {
+        customPerms = await fetchTenantRolePermissions(profile.tenant_id, profile.role_id);
+      }
+      if (customPerms) {
+        setUser((prev) => prev ? { ...prev, permissions: customPerms! } : prev);
+      }
+    } catch (err) {
+      console.warn("[Auth] refreshPermissions failed:", err);
+    }
+  }, [user?.email]);
+
   const hasPermission = useCallback(
     (permission: string): boolean => {
       if (!user) return false;
@@ -260,6 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         logout,
+        refreshPermissions,
         hasPermission,
         hasAnyPermission,
         hasAllPermissions,

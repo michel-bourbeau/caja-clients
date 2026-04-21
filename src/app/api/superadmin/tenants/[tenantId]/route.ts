@@ -11,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const { tenantId } = await params;
-    const { features } = await request.json();
+    const { features, plan } = await request.json();
 
     const supabase = getSupabaseAdmin();
 
@@ -29,10 +29,13 @@ export async function PUT(
       );
     }
 
-    // Mettre à jour les features
+    // Mettre à jour les features et le plan
+    const updateData: Record<string, unknown> = { features };
+    if (plan) updateData.plan = plan;
+
     const { data, error } = await supabase
       .from("tenants")
-      .update({ features })
+      .update(updateData)
       .eq("id", tenantId)
       .select()
       .single();

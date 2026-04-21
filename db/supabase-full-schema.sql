@@ -18,8 +18,8 @@ create table if not exists tenants (
 create table if not exists tenant_settings (
   tenant_id uuid primary key references tenants(id) on delete cascade,
   tax_rate numeric not null default 0.21,
-  currency text not null default 'ARS',
-  timezone text not null default 'America/Argentina/Buenos_Aires',
+  currency text not null default 'NIO',
+  timezone text not null default 'America/Managua',
   language text not null default 'es',
   company_name text,
   company_logo text,

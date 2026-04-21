@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatCurrency } from "@/lib/utils/formatters";
+import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 
@@ -32,6 +32,7 @@ type ModalMode = "add" | "edit" | null;
 
 export default function EmployeesPage() {
   const tenantId = useTenantId();
+  const { fmt } = useCurrency();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -277,7 +278,7 @@ export default function EmployeesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-700 hidden lg:table-cell">
-                        {formatCurrency(emp.salary)}
+                        {fmt(emp.salary)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${emp.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
