@@ -235,6 +235,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   /** Re-fetch permissions from tenant_roles for the current user. Call after role changes. */
   const refreshPermissions = useCallback(async () => {
     if (!user?.email) return;
+    
+    // Skip profile resolution for superadmin impersonation
+    if (user.id === "superadmin" && user.email === "superadmin@caja.app") {
+      // Superadmin already has ADMIN_PERMISSIONS set during impersonation
+      return;
+    }
+    
     try {
       const profile = await resolveProfile(user.email);
       let customPerms: string[] | null = profile?.direct_permissions?.length
@@ -250,7 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.warn("[Auth] refreshPermissions failed:", err);
     }
-  }, [user?.email]);
+  }, [user?.email, user?.id]);
 
   const hasPermission = useCallback(
     (permission: string): boolean => {
