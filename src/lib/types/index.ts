@@ -185,6 +185,17 @@ export interface Supplier {
   updated_at: Date;
 }
 
+export interface ExpenseCategory {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  sort_order?: number;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface Expense {
   id: string;
   tenant_id: string;

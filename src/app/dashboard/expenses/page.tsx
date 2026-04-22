@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
-import { Expense, Supplier } from "@/lib/types";
+import { Expense, Supplier, ExpenseCategory } from "@/lib/types";
 
 export default function ExpensesPage() {
   const { user, hasPermission } = useAuth();
@@ -13,6 +13,7 @@ export default function ExpensesPage() {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -20,7 +21,9 @@ export default function ExpensesPage() {
   // Form states
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
 
   const [formData, setFormData] = useState({
     supplier_id: "",
@@ -38,6 +41,11 @@ export default function ExpensesPage() {
     name: "",
     description: "",
     contact: "",
+  });
+
+  const [categoryForm, setCategoryForm] = useState({
+    name: "",
+    description: "",
   });
 
   const [filters, setFilters] = useState({
@@ -60,15 +68,17 @@ export default function ExpensesPage() {
       setError(null);
 
       const headers = { "x-user-id": user?.id || "" };
-      const [expensesRes, suppliersRes] = await Promise.all([
+      const [expensesRes, suppliersRes, categoriesRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}/expenses`, { headers }),
         fetch(`/api/tenants/${tenantId}/suppliers`),
+        fetch(`/api/tenants/${tenantId}/expense-categories`),
       ]);
 
-      if (!expensesRes.ok || !suppliersRes.ok) throw new Error("Failed to load data");
+      if (!expensesRes.ok || !suppliersRes.ok || !categoriesRes.ok) throw new Error("Failed to load data");
 
       const expensesData = await expensesRes.json();
       const suppliersData = await suppliersRes.json();
+      const categoriesData = await categoriesRes.json();
 
       setExpenses(
         expensesData.map((e: any) => ({
@@ -79,6 +89,7 @@ export default function ExpensesPage() {
         }))
       );
       setSuppliers(suppliersData);
+      setCategories(categoriesData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error loading data");
     } finally {
@@ -223,6 +234,68 @@ export default function ExpensesPage() {
     setEditingExpense(null);
   };
 
+  // Handle manage categories
+  const handleSaveCategory = async () => {
+    if (!tenantId || !categoryForm.name.trim()) {
+      setError("El nombre de la categoría es requerido");
+      return;
+    }
+
+    try {
+      setError(null);
+      const method = editingCategory ? "PUT" : "POST";
+      const url = editingCategory
+        ? `/api/tenants/${tenantId}/expense-categories/${editingCategory.id}`
+        : `/api/tenants/${tenantId}/expense-categories`;
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: categoryForm.name.trim(),
+          description: categoryForm.description || null,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to save category");
+
+      setMessage(editingCategory ? "Categoría actualizada" : "Categoría creada");
+      setShowCategoryForm(false);
+      setEditingCategory(null);
+      setCategoryForm({ name: "", description: "" });
+      await loadData();
+
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error saving category");
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!window.confirm("¿Eliminar esta categoría?")) return;
+
+    try {
+      const response = await fetch(
+        `/api/tenants/${tenantId}/expense-categories/${categoryId}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) throw new Error("Failed to delete");
+
+      setMessage("Categoría eliminada");
+      await loadData();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error deleting category");
+    }
+  };
+
+  const handleEditCategory = (category: ExpenseCategory) => {
+    setEditingCategory(category);
+    setCategoryForm({ name: category.name, description: category.description || "" });
+    setShowCategoryForm(true);
+  };
+
   // Filtering
   // Helper functions for grouping by period
   const getWeekKey = (date: Date | string) => {
@@ -310,9 +383,10 @@ export default function ExpensesPage() {
     };
   }, [filteredExpenses]);
 
-  const categories = useMemo(
-    () => [...new Set(expenses.map((e) => e.category).filter(Boolean))],
-    [expenses]
+  // Extract category names from loaded categories for filter display
+  const categoryOptions = useMemo(
+    () => categories.map((c) => c.name),
+    [categories]
   );
 
   if (!canCreate) {
@@ -339,12 +413,24 @@ export default function ExpensesPage() {
         </div>
         <div className="flex gap-2">
           {canManageSuppliers && (
-            <button
-              onClick={() => setShowSupplierForm(true)}
-              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              + Proveedor
-            </button>
+            <>
+              <button
+                onClick={() => setShowSupplierForm(true)}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                + Proveedor
+              </button>
+              <button
+                onClick={() => {
+                  setCategoryForm({ name: "", description: "" });
+                  setEditingCategory(null);
+                  setShowCategoryForm(true);
+                }}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                ⚙️ Categorías
+              </button>
+            </>
           )}
           <button
             onClick={() => {
@@ -419,7 +505,7 @@ export default function ExpensesPage() {
               className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-gray-900"
             >
               <option value="ALL">Todas</option>
-              {categories.map((cat) => (
+              {categoryOptions.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
@@ -606,19 +692,34 @@ export default function ExpensesPage() {
               <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Categoría
               </label>
-              <select
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData({ ...formData, category: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              >
-                <option value="">Selecciona categoría</option>
-                <option value="Servicios">Servicios</option>
-                <option value="Suministros">Suministros</option>
-                <option value="Mantenimiento">Mantenimiento</option>
-                <option value="Otros">Otros</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData({ ...formData, category: e.target.value })
+                  }
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+                >
+                  <option value="">Selecciona categoría</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryForm({ name: "", description: "" });
+                    setEditingCategory(null);
+                    setShowCategoryForm(true);
+                  }}
+                  className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-semibold rounded-lg transition-colors"
+                  title="Gestionar categorías"
+                >
+                  ⚙️
+                </button>
+              </div>
             </div>
 
             <div>
@@ -795,6 +896,104 @@ export default function ExpensesPage() {
                 Crear
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal */}
+      {showCategoryForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-900">
+              {editingCategory ? "Editar Categoría" : "Crear Categoría"}
+            </h2>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Nombre *
+              </label>
+              <input
+                type="text"
+                value={categoryForm.name}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, name: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Descripción
+              </label>
+              <input
+                type="text"
+                value={categoryForm.description}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, description: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <button
+                onClick={() => {
+                  setShowCategoryForm(false);
+                  setEditingCategory(null);
+                  setCategoryForm({ name: "", description: "" });
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveCategory}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg"
+              >
+                {editingCategory ? "Actualizar" : "Crear"}
+              </button>
+            </div>
+
+            {/* Categories List */}
+            {!editingCategory && (
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Categorías Existentes</h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {categories.length === 0 ? (
+                    <p className="text-gray-700">No hay categorías creadas</p>
+                  ) : (
+                    categories.map((cat) => (
+                      <div
+                        key={cat.id}
+                        className="flex justify-between items-center p-3 bg-slate-50 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{cat.name}</p>
+                          {cat.description && (
+                            <p className="text-sm text-gray-700">{cat.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditCategory(cat)}
+                            className="px-2 py-1 bg-blue-100 hover:bg-blue-600 text-blue-600 hover:text-white text-xs rounded transition-colors"
+                          >
+                            ✎
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="px-2 py-1 bg-red-100 hover:bg-red-600 text-red-600 hover:text-white text-xs rounded transition-colors"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
