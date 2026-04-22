@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
@@ -137,9 +137,10 @@ export default function InventoryPage() {
       return;
     }
     fetchData();
-  }, [tenantId, user]);
+  }, [tenantId]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!tenantId) return;
     try {
       setLoading(true);
       const [productsRes, categoriesRes] = await Promise.all([
@@ -152,12 +153,12 @@ export default function InventoryPage() {
         setCategories(await categoriesRes.json());
       }
     } catch (error) {
-      console.error("Erreur lors du chargement des données:", error);
-      setMessage("Erreur lors du chargement");
+      console.error("Error loading inventory:", error);
+      setMessage("Error loading inventory");
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenantId]);
 
   const handleAddCategory = async () => {
     if (!newCategory.name.trim()) {
