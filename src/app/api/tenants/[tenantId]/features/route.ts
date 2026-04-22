@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 /**
  * GET /api/tenants/[tenantId]/features
@@ -33,6 +33,46 @@ export async function GET(
     console.error("Error fetching features:", error);
     return NextResponse.json(
       { message: "Error fetching features" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/tenants/[tenantId]/features
+ * Actualiza los módulos activados para un tenant
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ tenantId: string }> }
+) {
+  try {
+    const { tenantId } = await params;
+    const body = await request.json();
+    const supabase = getSupabaseAdmin();
+
+    console.log("🔧 Updating features for tenant:", tenantId, body);
+
+    const { data, error } = await supabase
+      .from("tenants")
+      .update({ features: body.features })
+      .eq("id", tenantId)
+      .select("features")
+      .single();
+
+    if (error) {
+      console.error("Error updating features:", error);
+      throw error;
+    }
+
+    return NextResponse.json({
+      success: true,
+      features: data.features || {},
+    });
+  } catch (error) {
+    console.error("Error updating features:", error);
+    return NextResponse.json(
+      { message: "Error updating features", error: (error as Error).message },
       { status: 500 }
     );
   }

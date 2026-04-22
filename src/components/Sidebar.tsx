@@ -90,11 +90,10 @@ export const Sidebar: React.FC = () => {
           </NavSection>
         )}
 
-        {/* Loyalty Module */}
+        {/* Loyalty Module - Only show Clientes Fieles link */}
         {features.loyalty && (
           <NavSection label="Fidelización">
             <NavLink href="/dashboard/loyalty" label="Clientes Fieles" icon="💳" />
-            <NavLink href="/dashboard/loyalty/settings" label="Configuración" icon="⚙️" />
           </NavSection>
         )}
 
@@ -102,12 +101,15 @@ export const Sidebar: React.FC = () => {
         {(canManageRoles || canManageSettings) && (
           <NavSection label="Admin">
             {canManageRoles && (
+              <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
+            )}
+            {canManageSettings && (
               <>
-                <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
+                <NavLink href="/dashboard/settings/modules" label="Configuración de Módulos" icon="⚙️" />
+                <NavLink href="/dashboard/settings/taxes" label="Impuestos" icon="💳" />
+                <NavLink href={ROUTES.SETTINGS} label="Configuración General" icon="📋" />
               </>
             )}
-            {features.settings && <NavLink href={ROUTES.SETTINGS} label="Configuración" icon="⚙️" />}
-            <NavLink href="/dashboard/settings/taxes" label="Impuestos" icon="💳" />
           </NavSection>
         )}
       </nav>
