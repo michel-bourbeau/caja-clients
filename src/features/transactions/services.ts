@@ -20,7 +20,10 @@ export const TransactionService = {
           paymentMethod: tx.payment_method || "CASH",
           timestamp: tx.created_at ? new Date(tx.created_at) : new Date(),
           cashierId: tx.cashier_id || "unknown",
+          cashierName: tx.cashier_name || "Unknown",
           status: tx.status || "COMPLETED",
+          amount_received: tx.amount_received || 0,
+          change: tx.change || 0,
         }))
       : [];
   },
@@ -59,7 +62,10 @@ export const TransactionService = {
       paymentMethod: data.payment_method || "CASH",
       timestamp: data.created_at ? new Date(data.created_at) : new Date(),
       cashierId: data.cashier_id || "unknown",
+      cashierName: data.cashier_name || "Unknown",
       status: data.status || "COMPLETED",
+      amount_received: data.amount_received || 0,
+      change: data.change || 0,
     };
   },
 
@@ -99,12 +105,16 @@ export const TransactionService = {
       id: data.id,
       items: data.items || [],
       subtotal: data.subtotal,
+      discount: data.discount,
       tax: data.tax,
       total: data.total,
       paymentMethod: data.payment_method || "CASH",
       timestamp: data.created_at ? new Date(data.created_at) : new Date(),
       cashierId: data.cashier_id || "unknown",
+      cashierName: data.cashier_name || "Unknown",
       status: data.status || "COMPLETED",
+      amount_received: data.amount_received || 0,
+      change: data.change || 0,
     };
   },
 };
