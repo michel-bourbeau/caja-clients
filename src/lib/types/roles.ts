@@ -14,7 +14,7 @@ export interface Permission {
   id: string;
   name: string;
   description?: string;
-  category: "POS" | "INVENTORY" | "EMPLOYEES" | "PAYROLL" | "SCHEDULES" | "SETTINGS" | "REPORTS";
+  category: "POS" | "INVENTORY" | "EMPLOYEES" | "PAYROLL" | "SCHEDULES" | "SETTINGS" | "REPORTS" | "EXPENSES";
 }
 
 export interface RoleWithCount extends Role {
@@ -163,6 +163,38 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
     name: "Procesar pago",
     category: "PAYROLL",
     description: "Marcar nómina como pagada",
+  },
+
+  // Expenses Permissions
+  {
+    id: "expenses.create",
+    name: "Registrar gasto",
+    category: "EXPENSES",
+    description: "Crear nuevo gasto",
+  },
+  {
+    id: "expenses.view_all",
+    name: "Ver todos los gastos",
+    category: "EXPENSES",
+    description: "Ver todos los gastos registrados",
+  },
+  {
+    id: "expenses.view_own",
+    name: "Ver mis gastos",
+    category: "EXPENSES",
+    description: "Ver solo los gastos que registré",
+  },
+  {
+    id: "expenses.edit",
+    name: "Editar gastos",
+    category: "EXPENSES",
+    description: "Modificar gastos registrados",
+  },
+  {
+    id: "expenses.manage_suppliers",
+    name: "Gestionar proveedores",
+    category: "EXPENSES",
+    description: "Crear y modificar proveedores",
   },
 
   // Reports Permissions

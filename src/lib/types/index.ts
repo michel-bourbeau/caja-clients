@@ -172,3 +172,34 @@ export interface LoyaltyTransaction {
   purchase_date: Date;
   description?: string;
 }
+
+// ========== Expenses ==========
+export interface Supplier {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  contact?: string;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Expense {
+  id: string;
+  tenant_id: string;
+  supplier_id?: string;
+  supplier?: Supplier;
+  created_by: string;
+  creator?: User;
+  amount: number;
+  description?: string;
+  category?: string;
+  expense_date: Date;
+  is_recurring: boolean;
+  recurring_day_of_month?: number;
+  status: "RECORDED" | "APPROVED" | "PAID";
+  notes?: string;
+  created_at: Date;
+  updated_at: Date;
+}
