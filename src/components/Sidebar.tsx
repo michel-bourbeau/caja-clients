@@ -15,7 +15,7 @@ export const Sidebar: React.FC = () => {
   const pathname = usePathname();
 
   const canManageRoles = hasPermission("settings.manage_roles");
-  const canManageSettings = hasPermission("manage_settings");
+  const canManageModules = hasPermission("settings.manage_modules");
 
   // Refresh permissions on every navigation so role changes take effect without re-login
   useEffect(() => {
@@ -98,17 +98,19 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Admin Section - Vérifie si l'utilisateur est admin */}
-        {(canManageRoles || canManageSettings) && (
+        {(canManageRoles || canManageModules) && (
           <NavSection label="Admin">
             {canManageRoles && (
               <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
             )}
-            {canManageSettings && (
+            {canManageModules && (
               <>
                 <NavLink href="/dashboard/settings/modules" label="Configuración de Módulos" icon="⚙️" />
                 <NavLink href="/dashboard/settings/taxes" label="Impuestos" icon="💳" />
-                <NavLink href={ROUTES.SETTINGS} label="Configuración General" icon="📋" />
               </>
+            )}
+            {(canManageRoles || canManageModules) && (
+              <NavLink href={ROUTES.SETTINGS} label="Configuración General" icon="📋" />
             )}
           </NavSection>
         )}

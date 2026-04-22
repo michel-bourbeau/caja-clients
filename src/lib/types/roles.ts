@@ -198,6 +198,12 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
     category: "SETTINGS",
     description: "Crear, editar y eliminar roles",
   },
+  {
+    id: "settings.manage_modules",
+    name: "Gestionar módulos",
+    category: "SETTINGS",
+    description: "Activar/desactivar módulos y configurar opciones",
+  },
 ];
 
 // Default Roles

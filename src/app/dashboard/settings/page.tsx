@@ -39,6 +39,13 @@ interface Settings {
   payrollConfig: PayrollConfig;
 }
 
+interface LoyaltyConfig {
+  enabled: boolean;
+  rewardThreshold: number;
+  rewardType: string;
+  rewardValue: number;
+}
+
 const DEFAULT_SETTINGS: Settings = {
   companyName: "",
   companyPhone: "",
@@ -54,10 +61,17 @@ export default function SettingsPage() {
   const { features, loading: featuresLoading } = useTenantFeatures();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>({
+    enabled: true,
+    rewardThreshold: 2000,
+    rewardType: "DISCOUNT_PERCENT",
+    rewardValue: 10,
+  });
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
   const [savingPOS, setSavingPOS] = useState(false);
   const [savingPayroll, setSavingPayroll] = useState(false);
+  const [savingLoyalty, setSavingLoyalty] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -71,9 +85,10 @@ export default function SettingsPage() {
   const loadSettings = useCallback(async () => {
     if (!tenantId) return;
     try {
-      const [tenantRes, settingsRes] = await Promise.all([
+      const [tenantRes, settingsRes, loyaltyRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}`),
         fetch(`/api/tenants/${tenantId}/settings`),
+        fetch(`/api/tenants/${tenantId}/loyalty/settings`).catch(() => ({ ok: false })),
       ]);
       if (tenantRes.ok) {
         const t = await tenantRes.json();
@@ -93,6 +108,15 @@ export default function SettingsPage() {
           payrollConfig:  s.payrollConfig  ?? DEFAULT_SETTINGS.payrollConfig,
         });
         broadcastCurrencyChange(cur);
+      }
+      if (loyaltyRes.ok) {
+        const l = await loyaltyRes.json();
+        setLoyaltyConfig({
+          enabled: l.enabled ?? true,
+          rewardThreshold: l.reward_threshold ?? 2000,
+          rewardType: l.reward_type ?? "DISCOUNT_PERCENT",
+          rewardValue: l.reward_value ?? 10,
+        });
       }
     } catch (e) {
       console.error("Error loading settings:", e);
@@ -145,6 +169,29 @@ export default function SettingsPage() {
       showMessage("error", "Error de conexion");
     } finally {
       setSavingPOS(false);
+    }
+  };
+
+  const saveLoyaltyConfig = async () => {
+    if (!tenantId) return;
+    setSavingLoyalty(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/loyalty/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: loyaltyConfig.enabled,
+          reward_threshold: loyaltyConfig.rewardThreshold,
+          reward_type: loyaltyConfig.rewardType,
+          reward_value: loyaltyConfig.rewardValue,
+        }),
+      });
+      if (res.ok) showMessage("success", "Configuracion de Fidelización guardada");
+      else showMessage("error", "Error al guardar");
+    } catch {
+      showMessage("error", "Error de conexion");
+    } finally {
+      setSavingLoyalty(false);
     }
   };
 
@@ -345,8 +392,93 @@ export default function SettingsPage() {
           )}
         </Card>
 
+        {/* Loyalty Configuration */}
+        {features.loyalty && (
+          <Card title="Configuracion de Fidelización">
+            {loadingSettings ? (
+              <p className="text-sm text-slate-500">Cargando...</p>
+            ) : (
+              <div className="space-y-6">
+                <Toggle
+                  id="loyaltyEnabled"
+                  label="Activar módulo de Fidelización"
+                  description="Habilita el programa de clientes fieles"
+                  checked={loyaltyConfig.enabled}
+                  onChange={(v) => setLoyaltyConfig((prev) => ({ ...prev, enabled: v }))}
+                />
+
+                {loyaltyConfig.enabled && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">
+                        Monto Minimo para Recompensa (NIO)
+                      </label>
+                      <p className="text-xs text-slate-500 mb-2">Los clientes reciben una recompensa despues de gastar este monto</p>
+                      <input
+                        type="number"
+                        value={loyaltyConfig.rewardThreshold}
+                        onChange={(e) =>
+                          setLoyaltyConfig((prev) => ({
+                            ...prev,
+                            rewardThreshold: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">
+                        Tipo de Recompensa
+                      </label>
+                      <select
+                        value={loyaltyConfig.rewardType}
+                        onChange={(e) =>
+                          setLoyaltyConfig((prev) => ({ ...prev, rewardType: e.target.value }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="DISCOUNT_PERCENT">Porcentaje de Descuento (%)</option>
+                        <option value="DISCOUNT_FIXED">Descuento Fijo (NIO)</option>
+                        <option value="FREE_ITEM">Articulo Gratis</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">
+                        Valor de la Recompensa
+                      </label>
+                      <p className="text-xs text-slate-500 mb-2">
+                        {loyaltyConfig.rewardType === "DISCOUNT_PERCENT"
+                          ? "Porcentaje de descuento (ej: 10 = 10%)"
+                          : "Cantidad en NIO"}
+                      </p>
+                      <input
+                        type="number"
+                        value={loyaltyConfig.rewardValue}
+                        onChange={(e) =>
+                          setLoyaltyConfig((prev) => ({
+                            ...prev,
+                            rewardValue: parseFloat(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-end">
+                  <Button onClick={saveLoyaltyConfig} disabled={savingLoyalty}>
+                    {savingLoyalty ? "Guardando..." : "Guardar Cambios"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
         {/* <Card title="Configuracion de Cajas">
-          {loadingSettings ? (
             <p className="text-sm text-slate-500">Cargando...</p>
           ) : (
             <div className="space-y-4">
