@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { useTenantId } from "@/lib/utils/tenant";
+import { FeatureGuard } from "@/components/FeatureGuard";
 
 export default function LoyaltySettingsPage() {
   const tenantId = useTenantId();
@@ -64,11 +65,12 @@ export default function LoyaltySettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Configuración de Fidelización</h1>
-        <p className="text-gray-600">Personaliza tu programa de clientes fieles</p>
-      </div>
+    <FeatureGuard feature="loyalty">
+      <div className="max-w-2xl space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Configuración de Fidelización</h1>
+          <p className="text-gray-600">Personaliza tu programa de clientes fieles</p>
+        </div>
 
       {message && (
         <div className={`p-4 rounded border ${
@@ -212,6 +214,7 @@ export default function LoyaltySettingsPage() {
           <li>Las recompensas se registran automáticamente</li>
         </ul>
       </div>
-    </div>
+      </div>
+    </FeatureGuard>
   );
 }

@@ -8,6 +8,7 @@ import { LoyalCustomerStats, LoyaltyReward, LoyaltyTransaction } from "@/lib/typ
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useParams } from "next/navigation";
+import { FeatureGuard } from "@/components/FeatureGuard";
 
 export default function CustomerDetailsPage() {
   const tenantId = useTenantId();
@@ -94,10 +95,11 @@ export default function CustomerDetailsPage() {
   const rewardProgress = LoyaltyService.calculateRewardProgress(currentCounter, rewardThreshold);
 
   return (
-    <div className="space-y-6">
-      <Link href="/dashboard/loyalty" className="text-blue-600 hover:underline text-sm font-medium">
-        ← Volver a Clientes
-      </Link>
+    <FeatureGuard feature="loyalty">
+      <div className="space-y-6">
+        <Link href="/dashboard/loyalty" className="text-blue-600 hover:underline text-sm font-medium">
+          ← Volver a Clientes
+        </Link>
 
       {/* Customer header */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
@@ -419,6 +421,7 @@ export default function CustomerDetailsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </FeatureGuard>
   );
 }

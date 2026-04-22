@@ -22,6 +22,7 @@ const AVAILABLE_MODULES = [
   { id: "schedules", label: "Horarios y Turnos", icon: "📅" },
   { id: "payroll", label: "Nómina", icon: "💰" },
   { id: "reports", label: "Reportes", icon: "📊" },
+  { id: "loyalty", label: "Clientes Fieles", icon: "💳" },
   { id: "settings", label: "Configuración", icon: "⚙️" },
 ];
 
@@ -40,6 +41,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     schedules: false,
     payroll: false,
     reports: false,
+    loyalty: false,
     settings: true,
   },
   professional: {
@@ -49,6 +51,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     schedules: true,
     payroll: false,
     reports: true,
+    loyalty: true,
     settings: true,
   },
   enterprise: {
@@ -58,6 +61,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     schedules: true,
     payroll: true,
     reports: true,
+    loyalty: true,
     settings: true,
   },
 };
@@ -89,6 +93,7 @@ export default function SuperAdminDashboard() {
     schedules: false,
     payroll: false,
     reports: false,
+    loyalty: false,
     settings: false,
   });
 

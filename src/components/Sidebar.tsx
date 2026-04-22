@@ -77,10 +77,12 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Loyalty Module */}
-        <NavSection label="Fidelización">
-          <NavLink href="/dashboard/loyalty" label="Clientes Fieles" icon="💳" />
-          <NavLink href="/dashboard/loyalty/settings" label="Configuración" icon="⚙️" />
-        </NavSection>
+        {features.loyalty && (
+          <NavSection label="Fidelización">
+            <NavLink href="/dashboard/loyalty" label="Clientes Fieles" icon="💳" />
+            <NavLink href="/dashboard/loyalty/settings" label="Configuración" icon="⚙️" />
+          </NavSection>
+        )}
 
         {/* Admin Section - Vérifie si l'utilisateur est admin */}
         {(canManageRoles || canManageSettings) && (
