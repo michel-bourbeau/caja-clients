@@ -197,6 +197,7 @@ export interface Expense {
   category?: string;
   expense_date: Date;
   is_recurring: boolean;
+  recurring_frequency?: "weekly" | "biweekly" | "monthly";
   recurring_day_of_month?: number;
   status: "RECORDED" | "APPROVED" | "PAID";
   notes?: string;

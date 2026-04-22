@@ -60,6 +60,7 @@ export async function POST(
       category,
       expense_date,
       is_recurring,
+      recurring_frequency,
       recurring_day_of_month,
       notes,
     } = body;
@@ -78,6 +79,7 @@ export async function POST(
           category,
           expense_date,
           is_recurring: is_recurring || false,
+          recurring_frequency: recurring_frequency || null,
           recurring_day_of_month: recurring_day_of_month || null,
           notes,
           status: "RECORDED",

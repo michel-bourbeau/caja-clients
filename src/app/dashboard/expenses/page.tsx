@@ -29,6 +29,7 @@ export default function ExpensesPage() {
     category: "",
     expense_date: new Date().toISOString().split("T")[0],
     is_recurring: false,
+    recurring_frequency: "" as "weekly" | "biweekly" | "monthly" | "",
     recurring_day_of_month: new Date().getDate(),
     notes: "",
   });
@@ -118,7 +119,8 @@ export default function ExpensesPage() {
           category: formData.category,
           expense_date: formData.expense_date,
           is_recurring: formData.is_recurring,
-          recurring_day_of_month: formData.is_recurring
+          recurring_frequency: formData.is_recurring ? formData.recurring_frequency : null,
+          recurring_day_of_month: formData.is_recurring && formData.recurring_frequency === "monthly"
             ? formData.recurring_day_of_month
             : null,
           notes: formData.notes,
@@ -199,6 +201,7 @@ export default function ExpensesPage() {
         ? expense.expense_date.toISOString().split("T")[0]
         : expense.expense_date,
       is_recurring: expense.is_recurring,
+      recurring_frequency: expense.recurring_frequency || ("" as "weekly" | "biweekly" | "monthly" | ""),
       recurring_day_of_month: expense.recurring_day_of_month || new Date().getDate(),
       notes: expense.notes || "",
     });
@@ -213,6 +216,7 @@ export default function ExpensesPage() {
       category: "",
       expense_date: new Date().toISOString().split("T")[0],
       is_recurring: false,
+      recurring_frequency: "",
       recurring_day_of_month: new Date().getDate(),
       notes: "",
     });
@@ -328,7 +332,7 @@ export default function ExpensesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gastos</h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-gray-700 mt-1">
             {totals.count} gasto{totals.count !== 1 ? "s" : ""} · Total:{" "}
             <span className="font-semibold">{fmt(totals.amount)}</span>
           </p>
@@ -404,7 +408,7 @@ export default function ExpensesPage() {
       <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
               Categoría
             </label>
             <select
@@ -412,7 +416,7 @@ export default function ExpensesPage() {
               onChange={(e) =>
                 setFilters({ ...filters, category: e.target.value })
               }
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-gray-900"
             >
               <option value="ALL">Todas</option>
               {categories.map((cat) => (
@@ -423,7 +427,7 @@ export default function ExpensesPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
               Proveedor
             </label>
             <select
@@ -431,7 +435,7 @@ export default function ExpensesPage() {
               onChange={(e) =>
                 setFilters({ ...filters, supplier_id: e.target.value })
               }
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-gray-900"
             >
               <option value="ALL">Todos</option>
               {suppliers.map((s) => (
@@ -447,30 +451,30 @@ export default function ExpensesPage() {
       {/* Expenses List */}
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         {isLoading ? (
-          <p className="text-center py-12 text-slate-500">Cargando gastos...</p>
+          <p className="text-center py-12 text-gray-700">Cargando gastos...</p>
         ) : filteredExpenses.length === 0 ? (
-          <p className="text-center py-12 text-slate-400">No hay gastos registrados.</p>
+          <p className="text-center py-12 text-gray-700">No hay gastos registrados.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-2 text-left font-semibold text-slate-600">
+                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
                     Fecha
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-slate-600">
+                  <th className="px-4 py-2 text-left font-semibold text-gray-700">
                     Descripción
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-slate-600 hidden md:table-cell">
+                  <th className="px-4 py-2 text-left font-semibold text-gray-700 hidden md:table-cell">
                     Proveedor
                   </th>
-                  <th className="px-4 py-2 text-left font-semibold text-slate-600 hidden sm:table-cell">
+                  <th className="px-4 py-2 text-left font-semibold text-gray-700 hidden sm:table-cell">
                     Categoría
                   </th>
-                  <th className="px-4 py-2 text-right font-semibold text-slate-600">
+                  <th className="px-4 py-2 text-right font-semibold text-gray-700">
                     Monto
                   </th>
-                  <th className="px-4 py-2 text-center font-semibold text-slate-600 w-20">
+                  <th className="px-4 py-2 text-center font-semibold text-gray-700 w-20">
                     Acciones
                   </th>
                 </tr>
@@ -482,18 +486,18 @@ export default function ExpensesPage() {
                     <tr className="bg-slate-100">
                       <td colSpan={6} className="px-4 py-3">
                         <div className="flex justify-between items-center">
-                          <span className="font-semibold text-slate-800">{group.label}</span>
-                          <span className="text-slate-700 font-semibold">{fmt(group.total)}</span>
+                          <span className="font-semibold text-gray-800">{group.label}</span>
+                          <span className="text-gray-800 font-semibold">{fmt(group.total)}</span>
                         </div>
                       </td>
                     </tr>
                     {/* Expenses in this period */}
                     {group.expenses.map((expense) => (
                       <tr key={expense.id} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 text-slate-700 whitespace-nowrap">
+                        <td className="px-4 py-2 text-gray-700 whitespace-nowrap">
                           {new Date(expense.expense_date).toLocaleDateString("es-NI")}
                         </td>
-                        <td className="px-4 py-2 text-slate-700">
+                        <td className="px-4 py-2 text-gray-700">
                           {expense.description}
                           {expense.is_recurring && (
                             <span className="ml-2 inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
@@ -501,10 +505,10 @@ export default function ExpensesPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-slate-700 hidden md:table-cell">
+                        <td className="px-4 py-2 text-gray-700 hidden md:table-cell">
                           {expense.supplier?.name || "—"}
                         </td>
-                        <td className="px-4 py-2 text-slate-700 hidden sm:table-cell">
+                        <td className="px-4 py-2 text-gray-700 hidden sm:table-cell">
                           {expense.category || "—"}
                         </td>
                         <td className="px-4 py-2 text-right font-semibold text-slate-900">
@@ -544,12 +548,12 @@ export default function ExpensesPage() {
       {showExpenseForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-bold text-gray-900">
               {editingExpense ? "Editar Gasto" : "Registrar Gasto"}
             </h2>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Proveedor
               </label>
               <select
@@ -557,7 +561,7 @@ export default function ExpensesPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, supplier_id: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               >
                 <option value="">Sin proveedor</option>
                 {suppliers.map((s) => (
@@ -569,7 +573,7 @@ export default function ExpensesPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Monto *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Monto *</label>
               <input
                 type="number"
                 step="0.01"
@@ -580,12 +584,12 @@ export default function ExpensesPage() {
                     amount: parseFloat(e.target.value) || 0,
                   })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Descripción
               </label>
               <input
@@ -594,12 +598,12 @@ export default function ExpensesPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Categoría
               </label>
               <select
@@ -607,7 +611,7 @@ export default function ExpensesPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, category: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               >
                 <option value="">Selecciona categoría</option>
                 <option value="Servicios">Servicios</option>
@@ -618,38 +622,43 @@ export default function ExpensesPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Fecha</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha</label>
               <input
                 type="date"
                 value={formData.expense_date}
                 onChange={(e) =>
                   setFormData({ ...formData, expense_date: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.is_recurring}
-                onChange={(e) =>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Frecuencia de Recurrencia
+              </label>
+              <select
+                value={formData.recurring_frequency}
+                onChange={(e) => {
+                  const frequency = e.target.value as "weekly" | "biweekly" | "monthly" | "";
                   setFormData({
                     ...formData,
-                    is_recurring: e.target.checked,
-                  })
-                }
-                className="rounded"
-                id="recurring-checkbox"
-              />
-              <label htmlFor="recurring-checkbox" className="text-sm font-semibold cursor-pointer">
-                Gasto Recurrente (cada mes)
-              </label>
+                    recurring_frequency: frequency,
+                    is_recurring: frequency !== "",
+                  });
+                }}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+              >
+                <option value="">No recurrente</option>
+                <option value="weekly">Semanal</option>
+                <option value="biweekly">Cada dos semanas</option>
+                <option value="monthly">Mensual</option>
+              </select>
             </div>
 
-            {formData.is_recurring && (
+            {formData.recurring_frequency === "monthly" && (
               <div>
-                <label className="block text-sm font-semibold mb-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Día del mes para repetir
                 </label>
                 <input
@@ -663,7 +672,7 @@ export default function ExpensesPage() {
                       recurring_day_of_month: parseInt(e.target.value),
                     })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
                 />
               </div>
             )}
@@ -675,6 +684,7 @@ export default function ExpensesPage() {
                   setFormData({
                     ...formData,
                     is_recurring: false,
+                    recurring_frequency: "",
                     recurring_day_of_month: new Date().getDate(),
                   })
                 }
@@ -685,13 +695,13 @@ export default function ExpensesPage() {
             )}
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Notas</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Notas</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
                 rows={2}
               />
             </div>
@@ -702,7 +712,7 @@ export default function ExpensesPage() {
                   setShowExpenseForm(false);
                   resetExpenseForm();
                 }}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50"
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50"
               >
                 Cancelar
               </button>
@@ -721,10 +731,10 @@ export default function ExpensesPage() {
       {showSupplierForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-xl font-bold">Crear Proveedor</h2>
+            <h2 className="text-xl font-bold text-gray-900">Crear Proveedor</h2>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Nombre *
               </label>
               <input
@@ -733,12 +743,12 @@ export default function ExpensesPage() {
                 onChange={(e) =>
                   setSupplierForm({ ...supplierForm, name: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Descripción
               </label>
               <input
@@ -750,12 +760,12 @@ export default function ExpensesPage() {
                     description: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Contacto
               </label>
               <input
@@ -764,7 +774,7 @@ export default function ExpensesPage() {
                 onChange={(e) =>
                   setSupplierForm({ ...supplierForm, contact: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               />
             </div>
 
@@ -774,7 +784,7 @@ export default function ExpensesPage() {
                   setShowSupplierForm(false);
                   setSupplierForm({ name: "", description: "", contact: "" });
                 }}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50"
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50"
               >
                 Cancelar
               </button>
