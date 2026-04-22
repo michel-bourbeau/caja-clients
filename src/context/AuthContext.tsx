@@ -262,6 +262,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = useCallback(
     (permission: string): boolean => {
       if (!user) return false;
+      // Admins always get all DEFAULT_PERMISSIONS regardless of what's in DB
+      // This ensures new permissions are immediately available to admins
+      if (user.roleId === "admin") {
+        const adminRole = DEFAULT_ROLES.find((r) => r.id === "admin");
+        if (adminRole) {
+          return adminRole.permissions.includes(permission);
+        }
+      }
       return user.permissions.includes(permission);
     },
     [user]
@@ -270,6 +278,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasAnyPermission = useCallback(
     (permissions: string[]): boolean => {
       if (!user) return false;
+      // Admins always get all DEFAULT_PERMISSIONS regardless of what's in DB
+      if (user.roleId === "admin") {
+        const adminRole = DEFAULT_ROLES.find((r) => r.id === "admin");
+        if (adminRole) {
+          return permissions.some((perm) => adminRole.permissions.includes(perm));
+        }
+      }
       return permissions.some((perm) => user.permissions.includes(perm));
     },
     [user]
@@ -278,6 +293,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasAllPermissions = useCallback(
     (permissions: string[]): boolean => {
       if (!user) return false;
+      // Admins always get all DEFAULT_PERMISSIONS regardless of what's in DB
+      if (user.roleId === "admin") {
+        const adminRole = DEFAULT_ROLES.find((r) => r.id === "admin");
+        if (adminRole) {
+          return permissions.every((perm) => adminRole.permissions.includes(perm));
+        }
+      }
       return permissions.every((perm) => user.permissions.includes(perm));
     },
     [user]
