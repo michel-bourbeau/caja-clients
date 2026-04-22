@@ -5,11 +5,58 @@ import { Card, Button } from "@/components/ui";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 
-const PLAN_LABELS: Record<string, { label: string; color: string; description: string }> = {
-  basic:        { label: "Basico",        color: "bg-slate-100 text-slate-700 border-slate-300",    description: "POS + Inventario" },
-  professional: { label: "Profesional",   color: "bg-blue-100 text-blue-700 border-blue-300",       description: "POS + Inventario + Empleados, Horarios, Reportes" },
-  enterprise:   { label: "Empresarial",   color: "bg-purple-100 text-purple-700 border-purple-300", description: "Todos los modulos incluidos" },
-  custom:       { label: "Personalizado", color: "bg-orange-100 text-orange-700 border-orange-300", description: "Configuracion personalizada" },
+interface PlanDetails {
+  label: string;
+  color: string;
+  description: string;
+  users: string;
+  transactions: string;
+  storage: string;
+  support: string;
+  features: string[];
+}
+
+const PLAN_LABELS: Record<string, PlanDetails> = {
+  basic: {
+    label: "Basico",
+    color: "bg-slate-100 text-slate-700 border-slate-300",
+    description: "POS + Inventario",
+    users: "Hasta 3 usuarios",
+    transactions: "500 transacciones/mes",
+    storage: "5 GB",
+    support: "Email (48h)",
+    features: ["Punto de Venta", "Inventario básico", "Reportes simples"],
+  },
+  professional: {
+    label: "Profesional",
+    color: "bg-blue-100 text-blue-700 border-blue-300",
+    description: "POS + Inventario + Empleados, Horarios, Reportes",
+    users: "Hasta 10 usuarios",
+    transactions: "5,000 transacciones/mes",
+    storage: "50 GB",
+    support: "Email y Chat (24h)",
+    features: ["Punto de Venta", "Inventario avanzado", "Gestión de empleados", "Horarios y turnos", "Reportes avanzados"],
+  },
+  enterprise: {
+    label: "Empresarial",
+    color: "bg-purple-100 text-purple-700 border-purple-300",
+    description: "Todos los modulos incluidos",
+    users: "Usuarios ilimitados",
+    transactions: "Transacciones ilimitadas",
+    storage: "500 GB",
+    support: "Teléfono y Chat (24/7)",
+    features: ["Todos los módulos", "Nómina completa", "Fidelización", "Impuestos avanzados", "API y integraciones"],
+  },
+  custom: {
+    label: "Personalizado",
+    color: "bg-orange-100 text-orange-700 border-orange-300",
+    description: "Configuracion personalizada",
+    users: "Según necesidades",
+    transactions: "Según necesidades",
+    storage: "Según necesidades",
+    support: "Dedicado",
+    features: ["Módulos personalizados", "SLA garantizado", "Soporte técnico dedicado"],
+  },
 };
 
 const AVAILABLE_MODULES = [
@@ -279,32 +326,78 @@ export default function SettingsPage() {
           {featuresLoading ? (
             <p className="text-sm text-slate-500">Cargando...</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {planInfo && (
-                <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
-                  <span className="text-base font-bold">{planInfo.label}</span>
-                  <span className="text-sm opacity-75">— {planInfo.description}</span>
+                <div className="space-y-4">
+                  {/* Plan Badge */}
+                  <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
+                    <span className="text-base font-bold">{planInfo.label}</span>
+                    <span className="text-sm opacity-75">— {planInfo.description}</span>
+                  </div>
+
+                  {/* Plan Limitations Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">👥 Usuarios</p>
+                      <p className="text-sm font-bold text-slate-900">{planInfo.users}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">📊 Transacciones</p>
+                      <p className="text-sm font-bold text-slate-900">{planInfo.transactions}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">💾 Almacenamiento</p>
+                      <p className="text-sm font-bold text-slate-900">{planInfo.storage}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <p className="text-xs text-slate-500 font-semibold uppercase mb-1">🎧 Soporte</p>
+                      <p className="text-sm font-bold text-slate-900">{planInfo.support}</p>
+                    </div>
+                  </div>
+
+                  {/* Features Included */}
+                  {planInfo.features && planInfo.features.length > 0 && (
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <p className="text-sm font-semibold text-blue-900 mb-3">✨ Características incluidas</p>
+                      <ul className="space-y-2">
+                        {planInfo.features.map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-sm text-blue-800">
+                            <span className="text-blue-500 font-bold mt-0.5">✓</span>
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                {AVAILABLE_MODULES.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
-                      features[m.id]
-                        ? "bg-green-50 text-green-800 border-green-200"
-                        : "bg-slate-50 text-slate-400 border-slate-200 line-through"
-                    }`}
-                  >
-                    <span>{m.icon}</span>
-                    <span>{m.label}</span>
-                    <span className={`ml-auto text-xs ${features[m.id] ? "text-green-600" : "text-slate-400"}`}>
-                      {features[m.id] ? "Activo" : "Inactivo"}
-                    </span>
-                  </div>
-                ))}
+
+              {/* Modules Status */}
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900 mb-3">📦 Módulos del Sistema</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {AVAILABLE_MODULES.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
+                        features[m.id]
+                          ? "bg-green-50 text-green-800 border-green-200"
+                          : "bg-slate-50 text-slate-400 border-slate-200 line-through"
+                      }`}
+                    >
+                      <span>{m.icon}</span>
+                      <span>{m.label}</span>
+                      <span className={`ml-auto text-xs ${features[m.id] ? "text-green-600" : "text-slate-400"}`}>
+                        {features[m.id] ? "Activo" : "Inactivo"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="text-xs text-slate-500">Para cambiar el plan o los modulos, comunicate con el administrador del sistema.</p>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs text-amber-800">📞 Para cambiar de plan, aumentar límites o personalizar tu configuración, comunícate con el administrador del sistema.</p>
+              </div>
             </div>
           )}
         </Card>
