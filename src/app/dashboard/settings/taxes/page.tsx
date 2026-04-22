@@ -46,8 +46,8 @@ export default function TaxesSettingsPage() {
         setTaxes(await res.json());
       }
     } catch (error) {
-      console.error("Erreur lors du chargement des taxes:", error);
-      setMessage("Erreur lors du chargement des taxes");
+      console.error("Error al cargar impuestos:", error);
+      setMessage("Error al cargar impuestos");
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export default function TaxesSettingsPage() {
 
   const handleAddTax = async () => {
     if (!formData.name.trim() || !formData.rate) {
-      setMessage("Veuillez remplir tous les champs");
+      setMessage("Por favor, completa todos los campos");
       return;
     }
 
@@ -71,23 +71,23 @@ export default function TaxesSettingsPage() {
       });
 
       if (res.ok) {
-        setMessage("Taxe créée avec succès");
+        setMessage("Impuesto creado exitosamente");
         setFormData({ name: "", rate: "" });
         setShowAddTax(false);
         await fetchTaxes();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Erreur lors de la création");
+        setMessage(error.error || "Error al crear");
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      setMessage("Error de conexión");
       console.error(error);
     }
   };
 
   const handleUpdateTax = async (taxId: string) => {
     if (!formData.name.trim() || !formData.rate) {
-      setMessage("Veuillez remplir tous les champs");
+      setMessage("Por favor, completa todos los campos");
       return;
     }
 
@@ -102,22 +102,22 @@ export default function TaxesSettingsPage() {
       });
 
       if (res.ok) {
-        setMessage("Taxe mise à jour avec succès");
+        setMessage("Impuesto actualizado exitosamente");
         setFormData({ name: "", rate: "" });
         setEditingTaxId(null);
         await fetchTaxes();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Erreur lors de la mise à jour");
+        setMessage(error.error || "Error al actualizar");
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      setMessage("Error de conexión");
       console.error(error);
     }
   };
 
   const handleDeleteTax = async (taxId: string) => {
-    if (!confirm("Confirmer la suppression de cette taxe?")) return;
+    if (!confirm("¿Confirmar la eliminación de este impuesto?")) return;
 
     try {
       const res = await fetch(`/api/tenants/${tenantId}/taxes/${taxId}`, {
@@ -125,10 +125,10 @@ export default function TaxesSettingsPage() {
       });
 
       if (res.ok) {
-        setMessage("Taxe supprimée");
+        setMessage("Impuesto eliminado");
         await fetchTaxes();
       } else {
-        setMessage("Erreur lors de la suppression");
+        setMessage("Error al eliminar");
       }
     } catch (error) {
       setMessage("Erreur réseau");
@@ -167,7 +167,7 @@ export default function TaxesSettingsPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Paramètres des Taxes</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Configuración de Impuestos</h1>
         <Button
           onClick={() => {
             setShowAddTax(!showAddTax);
@@ -176,7 +176,7 @@ export default function TaxesSettingsPage() {
           }}
           className="bg-green-600 text-white"
         >
-          + Ajouter une Taxe
+          + Agregar Impuesto
         </Button>
       </div>
 
@@ -190,19 +190,19 @@ export default function TaxesSettingsPage() {
       {(showAddTax || editingTaxId) && (
         <Card className="p-4 bg-white border-2 border-green-400">
           <h2 className="font-bold mb-4 text-gray-900 text-lg">
-            {editingTaxId ? "Modifier la Taxe" : "Nouvelle Taxe"}
+            {editingTaxId ? "Editar Impuesto" : "Nuevo Impuesto"}
           </h2>
           <div className="space-y-3">
             <Input
-              label="Nom de la Taxe"
-              placeholder="Ex: TVA, IVA, GST, etc."
+              label="Nombre del Impuesto"
+              placeholder="Ej: IVA, ISC, Impuesto Municipal, etc."
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
             <Input
-              label="Taux (%)"
+              label="Tasa (%)"
               type="number"
-              placeholder="Ex: 21"
+              placeholder="Ej: 15"
               step="0.01"
               min="0"
               max="100"
@@ -218,7 +218,7 @@ export default function TaxesSettingsPage() {
                 }
                 className="bg-green-600 text-white"
               >
-                {editingTaxId ? "Mettre à jour" : "Créer"}
+                {editingTaxId ? "Actualizar" : "Crear"}
               </Button>
               <Button
                 onClick={() => {
@@ -228,7 +228,7 @@ export default function TaxesSettingsPage() {
                 }}
                 className="bg-gray-400"
               >
-                Annuler
+                Cancelar
               </Button>
             </div>
           </div>
@@ -239,21 +239,21 @@ export default function TaxesSettingsPage() {
       <div className="space-y-3">
         {taxes.length === 0 ? (
           <Card className="p-6 text-center text-gray-900">
-            Aucune taxe configurée. Créez au moins une taxe pour l'utiliser dans les ventes.
+            Sin impuestos configurados. Crea al menos un impuesto para usarlo en las ventas.
           </Card>
         ) : (
           taxes.map((tax) => (
             <Card key={tax.id} className="p-4 flex justify-between items-center hover:bg-gray-50">
               <div>
                 <p className="font-semibold text-gray-900">{tax.name}</p>
-                <p className="text-sm text-gray-700">Taux: {tax.rate}%</p>
+                <p className="text-sm text-gray-700">Tasa: {tax.rate}%</p>
               </div>
               <div className="flex gap-2 items-center">
                 <Button
                   onClick={() => toggleTaxActive(tax)}
                   className={tax.is_active ? "bg-green-600 text-white" : "bg-gray-400"}
                 >
-                  {tax.is_active ? "✓ Actif" : "Inactif"}
+                  {tax.is_active ? "✓ Activo" : "Inactivo"}
                 </Button>
                 <Button
                   onClick={() => {
@@ -278,12 +278,12 @@ export default function TaxesSettingsPage() {
       </div>
 
       <Card className="p-4 bg-blue-50 border-2 border-blue-200">
-        <h3 className="font-bold text-gray-900 mb-2">ℹ️ Information</h3>
+        <h3 className="font-bold text-gray-900 mb-2">ℹ️ Información</h3>
         <ul className="text-sm text-gray-700 space-y-1">
-          <li>• Les taxes actives apparaîtront dans la section "Résumé de Vente" du POS</li>
-          <li>• Vous pouvez définir plusieurs taxes (TVA, Taxe locale, etc.)</li>
-          <li>• Le nom de la taxe est flexible: TVA, IVA, GST, etc.</li>
-          <li>• Les taxes inactives ne sont pas utilisées dans les calculs</li>
+          <li>• Los impuestos activos aparecerán en la sección "Resumen de Venta" del POS</li>
+          <li>• Puedes definir múltiples impuestos (IVA, Impuesto municipal, etc.)</li>
+          <li>• El nombre del impuesto es flexible: IVA, ISC, GST, etc.</li>
+          <li>• Los impuestos inactivos no se utilizan en los cálculos</li>
         </ul>
       </Card>
     </div>
