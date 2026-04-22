@@ -355,17 +355,26 @@ export default function POSPage() {
       return;
     }
 
-    // Check if payment is CASH and amount is insufficient
-    if (paymentMethod === "CASH" && changeCalculation.isInsufficientAmount) {
-      setMessage("Monto insuficiente. El cliente debe pagar más.");
-      setMessageType("error");
-      return;
+    // Validate amount received is required for CASH payments
+    if (paymentMethod === "CASH") {
+      if (amountReceived === 0 || amountReceived < 0) {
+        setMessage("Monto Recibido es obligatorio para pagos en efectivo.");
+        setMessageType("error");
+        return;
+      }
+
+      // Check if payment is sufficient
+      if (changeCalculation.isInsufficientAmount) {
+        setMessage("Monto insuficiente. El cliente debe pagar más.");
+        setMessageType("error");
+        return;
+      }
     }
 
     try {
       setLoading(true);
       const cashierName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
-      const transaction = await POSService.createTransaction(tenantId, cart, paymentMethod, user?.id || "cashier-001", discount, cashierName);
+      const transaction = await POSService.createTransaction(tenantId, cart, paymentMethod, user?.id || "cashier-001", discount, cashierName, amountReceived);
       
       // Record purchase for loyal customer if selected
       if (loyaltyModuleEnabled && selectedLoyalCustomer) {

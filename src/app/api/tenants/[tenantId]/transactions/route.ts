@@ -70,6 +70,7 @@ export async function POST(
     const cashierId: string = body.cashierId || "unknown";
     const cashierName: string = body.cashierName || "Unknown";
     const discount: number = Math.max(0, body.discount || 0);
+    const amountReceived: number = body.amountReceived || 0;
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Aucun article dans le panier" }, { status: 400 });
@@ -152,7 +153,8 @@ export async function POST(
     const configuredTaxes: Tax[] = taxesData || [];
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals(items, configuredTaxes, discount);
-    console.log("[transactions POST] Totals calculated:", { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total, configuredTaxes });
+    const change = paymentMethod === "CASH" ? amountReceived - total : 0;
+    console.log("[transactions POST] Totals calculated:", { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total, amountReceived, change, configuredTaxes });
 
     const { data, error } = await supabaseAdmin
       .from("transactions")
@@ -168,6 +170,8 @@ export async function POST(
           tax,
           total,
           payment_method: paymentMethod,
+          amount_received: amountReceived,
+          change: change,
           status: "COMPLETED",
           created_at: new Date().toISOString(),
         },
