@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+/**
+ * CORRECTED VERSION - Restores inventory when transaction is deleted
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ tenantId: string; transactionId: string }> }
@@ -27,7 +30,7 @@ export async function DELETE(
       );
     }
 
-    // ✅ Restore inventory before deleting transaction
+    // ✅ NEW: Restore inventory before deleting transaction
     const items = transaction.items || [];
     
     // Extract variant and regular items

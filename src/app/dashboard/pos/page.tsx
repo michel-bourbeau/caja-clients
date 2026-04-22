@@ -602,20 +602,9 @@ export default function POSPage() {
                         )}
                       </div>
 
-                      {/* Stock display */}
-                      <div className="flex justify-between items-start gap-1 flex-shrink-0">
-                        <div>
-                          {/* Empty space - prices are on buttons now */}
-                        </div>
-                        <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
-                          product.quantity <= 0
-                            ? "bg-red-100 text-red-700"
-                            : product.quantity <= 5
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-green-100 text-green-700"
-                        }`}>
-                          {product.quantity}
-                        </span>
+                      {/* Product details */}
+                      <div>
+                        {/* Empty space */}
                       </div>
 
                       {/* Add to cart button */}
@@ -670,8 +659,8 @@ export default function POSPage() {
                 <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5 text-left">Producto</th>
                   <th className="px-4 py-2.5 text-left hidden md:table-cell">Categoría</th>
-                  <th className="px-4 py-2.5 text-center">Stock</th>
-                  <th className="px-4 py-2.5 text-center w-24"></th>
+                  <th className="w-full"></th>
+                  <th className="px-4 py-2.5 text-right"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -679,7 +668,7 @@ export default function POSPage() {
                   if (row.type === "header") {
                     return (
                       <tr key={`header-${row.catId}`} className="bg-slate-100 border-t-2 border-slate-200">
-                        <td colSpan={5} className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <td colSpan={4} className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
                           {row.catName}
                         </td>
                       </tr>
@@ -698,7 +687,7 @@ export default function POSPage() {
                       className={`group transition-colors ${outOfStock && !hasVariants ? "opacity-50" : "hover:bg-blue-50"}`}
                     >
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-slate-900">{product.name}</p>
+                        <p className="font-medium text-slate-900 whitespace-nowrap">{product.name}</p>
                         {product.description && (
                           <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
@@ -712,30 +701,8 @@ export default function POSPage() {
                           <span className="text-sm text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {hasVariants ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((v) => (
-                              <span key={v.id} className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
-                                v.stock_quantity <= 0 ? "bg-red-100 text-red-700" :
-                                v.stock_quantity <= 5 ? "bg-amber-100 text-amber-700" :
-                                "bg-green-100 text-green-700"
-                              }`}>{v.stock_quantity}</span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
-                            product.quantity <= 0
-                              ? "bg-red-100 text-red-700"
-                              : product.quantity <= 5
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-green-100 text-green-700"
-                          }`}>
-                            {product.quantity}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
+                      <td className="w-full"></td>
+                      <td className="px-4 py-2.5 text-right">
                         {hasVariants ? (
                           /* Inline format buttons — price + stock visible */
                           <div className="flex flex-col gap-1.5 items-stretch">

@@ -30,8 +30,8 @@ export const ROUTES = {
   SCHEDULES: "/dashboard/schedules",
   
   // Payroll
-  PAYROLL: "/dashboard/payroll",
-  PAYROLL_PERIODS: "/dashboard/payroll",
+  PAYROLL: "/dashboard/payroll/receipts",
+  PAYROLL_PERIODS: "/dashboard/payroll/periods",
   PAYROLL_DETAIL: "/dashboard/payroll/:id",
   
   // Reports
