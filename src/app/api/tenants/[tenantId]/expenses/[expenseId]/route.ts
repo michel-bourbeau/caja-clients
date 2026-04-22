@@ -51,9 +51,13 @@ export async function PUT(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error updating expense:", error);
+      throw error;
+    }
     return NextResponse.json(data);
   } catch (error) {
+    console.error("Exception in PUT /expenses/[expenseId]:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

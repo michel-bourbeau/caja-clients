@@ -65,12 +65,50 @@ export async function POST(
       notes,
     } = body;
 
+    if (!amount || amount <= 0) {
+      return NextResponse.json(
+        { error: "El monto debe ser mayor a 0" },
+        { status: 400 }
+      );
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
+
+    // Try to insert with new fields first
+    let expenseData: any = {
+      tenant_id: tenantId,
+      supplier_id: supplier_id || null,
+      created_by: userId,
+      amount,
+      description,
+      category,
+      expense_date,
+      is_recurring: is_recurring || false,
+      recurring_day_of_month: recurring_day_of_month || null,
+      notes,
+      status: "RECORDED",
+    };
+
+    // Include recurring_frequency if migration has been applied
+    if (recurring_frequency) {
+      expenseData.recurring_frequency = recurring_frequency;
+    }
 
     const { data, error } = await supabaseAdmin
       .from("expenses")
-      .insert([
-        {
+      .insert([expenseData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating expense:", error);
+      
+      // If the error is about recurring_frequency column not existing, try without it
+      if (error.message?.includes("recurring_frequency") || error.code === "42703") {
+        console.log("recurring_frequency column not found, retrying without it...");
+        
+        // Remove the field that doesn't exist
+        const expenseDataWithoutNewField = {
           tenant_id: tenantId,
           supplier_id: supplier_id || null,
           created_by: userId,
@@ -79,18 +117,30 @@ export async function POST(
           category,
           expense_date,
           is_recurring: is_recurring || false,
-          recurring_frequency: recurring_frequency || null,
           recurring_day_of_month: recurring_day_of_month || null,
           notes,
           status: "RECORDED",
-        },
-      ])
-      .select()
-      .single();
+        };
 
-    if (error) throw error;
+        const { data: fallbackData, error: fallbackError } = await supabaseAdmin
+          .from("expenses")
+          .insert([expenseDataWithoutNewField])
+          .select()
+          .single();
+
+        if (fallbackError) {
+          console.error("Error creating expense (fallback):", fallbackError);
+          throw fallbackError;
+        }
+
+        return NextResponse.json(fallbackData);
+      }
+
+      throw error;
+    }
     return NextResponse.json(data);
   } catch (error) {
+    console.error("Exception in POST /expenses:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
