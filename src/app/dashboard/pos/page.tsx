@@ -46,7 +46,12 @@ export default function POSPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [amountReceived, setAmountReceived] = useState<number>(0);
-  const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [viewMode, setViewMode] = useState<"list" | "card">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("posViewMode") as "list" | "card") || "list";
+    }
+    return "list";
+  });
   
   // Loyalty states
   const [loyaltyModuleEnabled, setLoyaltyModuleEnabled] = useState(false);
@@ -104,6 +109,11 @@ export default function POSPage() {
 
     return () => clearTimeout(timer);
   }, [tenantId, loyaltyModuleEnabled, loyalCustomerSearch, showLoyalCustomerModal]);
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem("posViewMode", viewMode);
+  }, [viewMode]);
 
   const cartTotal = useMemo(
     () => {
@@ -592,21 +602,10 @@ export default function POSPage() {
                         )}
                       </div>
 
-                      {/* Price and stock */}
+                      {/* Stock display */}
                       <div className="flex justify-between items-start gap-1 flex-shrink-0">
                         <div>
-                          {hasVariants ? (
-                            <div className="space-y-0.5">
-                              {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).slice(0, 2).map((v) => (
-                                <p key={v.id} className={`text-xs font-semibold ${v.stock_quantity <= 0 ? "text-slate-300 line-through" : "text-blue-700"}`}>
-                                  {fmt(v.price)}
-                                </p>
-                              ))}
-                              {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).length > 2 && <p className="text-xs text-slate-500">+{variants.length - 2} más</p>}
-                            </div>
-                          ) : (
-                            <p className="font-semibold text-blue-700 text-sm">{fmt(product.price)}</p>
-                          )}
+                          {/* Empty space - prices are on buttons now */}
                         </div>
                         <span className={`inline-block px-2 py-0.5 text-xs rounded-full font-semibold whitespace-nowrap ${
                           product.quantity <= 0
@@ -620,17 +619,40 @@ export default function POSPage() {
                       </div>
 
                       {/* Add to cart button */}
-                      <button
-                        onClick={() => handleAddProduct(product)}
-                        disabled={outOfStock && !hasVariants}
-                        className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-colors mt-auto flex-shrink-0 ${
-                          outOfStock && !hasVariants
-                            ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
-                        }`}
-                      >
-                        {inCart ? `${inCart.quantity} en carrito` : outOfStock && !hasVariants ? "Agotado" : "Agregar"}
-                      </button>
+                      {hasVariants ? (
+                        <div className="flex flex-col gap-1.5 mt-auto">
+                          {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((variant) => {
+                            const inCartV = cart.find((i) => i.variantId === variant.id);
+                            const vOut = variant.stock_quantity <= 0;
+                            return (
+                              <button
+                                key={variant.id}
+                                disabled={vOut}
+                                onClick={() => !vOut && handleAddProduct(product, variant)}
+                                className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                  vOut
+                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                                }`}
+                              >
+                                {variant.label} ({fmt(variant.price)})
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleAddProduct(product)}
+                          disabled={outOfStock && !hasVariants}
+                          className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-colors mt-auto flex-shrink-0 ${
+                            outOfStock && !hasVariants
+                              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700 text-white"
+                          }`}
+                        >
+                          {inCart ? `${inCart.quantity} en carrito` : outOfStock && !hasVariants ? "Agotado" : fmt(product.price)}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -648,7 +670,6 @@ export default function POSPage() {
                 <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-2.5 text-left">Producto</th>
                   <th className="px-4 py-2.5 text-left hidden md:table-cell">Categoría</th>
-                  <th className="px-4 py-2.5 text-right">Precio</th>
                   <th className="px-4 py-2.5 text-center">Stock</th>
                   <th className="px-4 py-2.5 text-center w-24"></th>
                 </tr>
@@ -689,19 +710,6 @@ export default function POSPage() {
                           </span>
                         ) : (
                           <span className="text-sm text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                        {hasVariants ? (
-                          <div className="flex flex-col items-end gap-0.5">
-                            {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((v) => (
-                              <span key={v.id} className={`text-sm font-semibold ${v.stock_quantity <= 0 ? "text-slate-300 line-through" : "text-blue-700"}`}>
-                                {fmt(v.price)}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="font-semibold text-blue-700">{fmt(product.price)}</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-center">
@@ -748,7 +756,7 @@ export default function POSPage() {
                                   }`}
                                 >
                                   <span className="text-sm font-semibold leading-tight">
-                                    {inCartV ? `${inCartV.quantity}× ` : ""}{variant.label}
+                                    {inCartV ? `${inCartV.quantity}× ` : ""}{variant.label} ({fmt(variant.price)})
                                   </span>
                                 </button>
                               );
@@ -766,7 +774,7 @@ export default function POSPage() {
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            {inCart ? inCart.quantity : "Agregar"}
+                            {inCart ? `${inCart.quantity}×` : fmt(product.price)}
                           </button>
                         )}
                       </td>
