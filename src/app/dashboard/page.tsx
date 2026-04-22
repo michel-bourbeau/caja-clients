@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
@@ -46,19 +47,39 @@ export default function DashboardPage() {
   const statCards = [
     {
       id: "pos",
-      title: "Point of Sale",
+      title: "Nueva Venta",
       icon: "🛒",
-      description: "Gestionar ventas y cajas",
+      description: "Crear nueva transacción de venta",
       href: "/dashboard/pos",
       color: "bg-blue-50 border-blue-200 text-blue-800",
       iconBg: "bg-blue-100",
+      show: features.pos && hasPermission("pos.create"),
+    },
+    {
+      id: "transactions",
+      title: "Transacciones",
+      icon: "📋",
+      description: "Historial de ventas y movimientos",
+      href: "/dashboard/transactions",
+      color: "bg-slate-50 border-slate-200 text-slate-800",
+      iconBg: "bg-slate-100",
       show: features.pos && hasPermission("pos.view"),
+    },
+    {
+      id: "cierre",
+      title: "Cierre de Caja",
+      icon: "🔒",
+      description: "Cierre de caja del día",
+      href: "/dashboard/cierre",
+      color: "bg-orange-50 border-orange-200 text-orange-800",
+      iconBg: "bg-orange-100",
+      show: features.pos && (hasPermission("pos.cierre") || hasPermission("pos.cierre_review")),
     },
     {
       id: "inventory",
       title: "Inventario",
       icon: "📦",
-      description: "Productos y categorías",
+      description: "Gestión de productos y stock",
       href: "/dashboard/inventory",
       color: "bg-green-50 border-green-200 text-green-800",
       iconBg: "bg-green-100",
@@ -76,33 +97,63 @@ export default function DashboardPage() {
     },
     {
       id: "schedules",
-      title: "Horarios",
-      icon: "📅",
-      description: "Turnos y disponibilidad",
+      title: "Asistencia",
+      icon: "🕐",
+      description: "Control de horarios y asistencia",
       href: "/dashboard/schedules",
       color: "bg-amber-50 border-amber-200 text-amber-800",
       iconBg: "bg-amber-100",
-      show: features.schedules && hasPermission("schedules.view"),
+      show: features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin")),
     },
     {
-      id: "payroll",
-      title: "Nómina",
-      icon: "💰",
-      description: "Cálculo de salarios",
-      href: "/dashboard/payroll",
+      id: "payroll-periods",
+      title: "Períodos",
+      icon: "📅",
+      description: "Períodos de pago",
+      href: "/dashboard/payroll/periods",
       color: "bg-emerald-50 border-emerald-200 text-emerald-800",
       iconBg: "bg-emerald-100",
-      show: features.payroll && hasPermission("payroll.view"),
+      show: features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")),
     },
     {
-      id: "transactions",
-      title: "Transacciones",
-      icon: "📊",
-      description: "Historial de ventas",
-      href: "/dashboard/transactions",
-      color: "bg-slate-50 border-slate-200 text-slate-800",
-      iconBg: "bg-slate-100",
-      show: features.pos && hasPermission("pos.view"),
+      id: "payroll-receipts",
+      title: "Recibos",
+      icon: "🧾",
+      description: "Recibos de pago",
+      href: "/dashboard/payroll/receipts",
+      color: "bg-lime-50 border-lime-200 text-lime-800",
+      iconBg: "bg-lime-100",
+      show: features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")),
+    },
+    {
+      id: "reports",
+      title: "Reportes",
+      icon: "📈",
+      description: "Análisis y reportes de ventas",
+      href: "/dashboard/reports",
+      color: "bg-cyan-50 border-cyan-200 text-cyan-800",
+      iconBg: "bg-cyan-100",
+      show: features.reports && hasPermission("reports.view"),
+    },
+    {
+      id: "loyalty",
+      title: "Clientes Fieles",
+      icon: "💳",
+      description: "Programa de fidelización",
+      href: "/dashboard/loyalty",
+      color: "bg-rose-50 border-rose-200 text-rose-800",
+      iconBg: "bg-rose-100",
+      show: features.loyalty,
+    },
+    {
+      id: "roles",
+      title: "Gestionar Roles",
+      icon: "🔐",
+      description: "Permisos y roles de usuario",
+      href: "/dashboard/admin/roles",
+      color: "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-800",
+      iconBg: "bg-fuchsia-100",
+      show: hasPermission("settings.manage_roles"),
     },
     {
       id: "settings",
@@ -110,9 +161,9 @@ export default function DashboardPage() {
       icon: "⚙️",
       description: "Ajustes del sistema",
       href: "/dashboard/settings",
-      color: "bg-rose-50 border-rose-200 text-rose-800",
-      iconBg: "bg-rose-100",
-      show: features.settings && hasPermission("settings.view"),
+      color: "bg-indigo-50 border-indigo-200 text-indigo-800",
+      iconBg: "bg-indigo-100",
+      show: (features.settings || hasPermission("settings.manage_modules") || hasPermission("settings.manage_roles")) && hasPermission("settings.view"),
     },
   ];
 
@@ -153,20 +204,25 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-500 mt-1">Contacta con tu administrador para obtener permisos.</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {visibleCards.map((card) => (
-            <Link key={card.id} href={card.href}>
-              <div className={`flex items-start gap-4 p-5 rounded-xl border cursor-pointer hover:shadow-md transition-shadow ${card.color}`}>
-                <div className={`p-3 rounded-lg text-2xl ${card.iconBg}`}>
-                  {card.icon}
+        <div>
+          <p className="text-sm text-slate-500 mb-4">
+            {visibleCards.length} módulo{visibleCards.length !== 1 ? "s" : ""} disponible{visibleCards.length !== 1 ? "s" : ""}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {visibleCards.map((card) => (
+              <Link key={card.id} href={card.href}>
+                <div className={`flex items-start gap-4 p-5 rounded-xl border cursor-pointer hover:shadow-md transition-shadow ${card.color}`}>
+                  <div className={`p-3 rounded-lg text-2xl ${card.iconBg}`}>
+                    {card.icon}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-base">{card.title}</p>
+                    <p className="text-sm opacity-75 mt-0.5">{card.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-base">{card.title}</p>
-                  <p className="text-sm opacity-75 mt-0.5">{card.description}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
