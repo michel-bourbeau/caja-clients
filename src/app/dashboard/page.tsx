@@ -146,6 +146,16 @@ export default function DashboardPage() {
       show: features.loyalty,
     },
     {
+      id: "expenses",
+      title: "Gastos",
+      icon: "💰",
+      description: "Registro de gastos y proveedores",
+      href: "/dashboard/expenses",
+      color: "bg-yellow-50 border-yellow-200 text-yellow-800",
+      iconBg: "bg-yellow-100",
+      show: hasPermission("expenses.create") || hasPermission("expenses.view_all"),
+    },
+    {
       id: "roles",
       title: "Gestionar Roles",
       icon: "🔐",
