@@ -439,7 +439,7 @@ export default function TransactionsPage() {
                 <div className="flex justify-between px-3 py-2 font-bold text-slate-900">
                   <span>Total</span><span>{fmt(selectedTransaction.total)}</span>
                 </div>
-                {selectedTransaction.paymentMethod === "CASH" && (selectedTransaction.amount_received || 0) > 0 && (
+                {selectedTransaction.paymentMethod === "CASH" && (
                   <>
                     <div className="flex justify-between px-3 py-2 bg-blue-50 text-blue-700 font-medium">
                       <span>Monto Recibido</span><span>{fmt(selectedTransaction.amount_received || 0)}</span>
