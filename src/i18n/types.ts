@@ -1,0 +1,211 @@
+/**
+ * Translation Keys Type Definitions
+ * 
+ * This file provides TypeScript type hints for translation keys
+ * Enables IDE autocomplete for t() function calls
+ * 
+ * Usage:
+ * const { t } = useTranslation();
+ * t('auth.login'); // ✅ Autocomplete works!
+ */
+
+export type TranslationKey =
+  // Common
+  | 'common.yes'
+  | 'common.no'
+  | 'common.ok'
+  | 'common.cancel'
+  | 'common.save'
+  | 'common.delete'
+  | 'common.edit'
+  | 'common.add'
+  | 'common.close'
+  | 'common.search'
+  | 'common.loading'
+  | 'common.error'
+  | 'common.success'
+  | 'common.warning'
+  | 'common.info'
+  | 'common.confirm'
+  | 'common.back'
+  | 'common.next'
+  | 'common.previous'
+  | 'common.today'
+  | 'common.thisWeek'
+  | 'common.total'
+  | 'common.name'
+  | 'common.email'
+  | 'common.phone'
+  | 'common.address'
+  | 'common.notes'
+  | 'common.date'
+  | 'common.time'
+  | 'common.status'
+  | 'common.action'
+  | 'common.actions'
+
+  // Auth
+  | 'auth.login'
+  | 'auth.logout'
+  | 'auth.email'
+  | 'auth.password'
+  | 'auth.passwordAgain'
+  | 'auth.firstName'
+  | 'auth.lastName'
+  | 'auth.rememberMe'
+  | 'auth.forgotPassword'
+  | 'auth.createAccount'
+  | 'auth.noAccount'
+  | 'auth.alreadyAccount'
+  | 'auth.minPassword'
+  | 'auth.errors.invalidCredentials'
+  | 'auth.errors.tooManyAttempts'
+  | 'auth.errors.emailNotConfirmed'
+  | 'auth.errors.emailExists'
+  | 'auth.errors.passwordMismatch'
+  | 'auth.errors.required'
+  | 'auth.errors.invalidEmail'
+
+  // SuperAdmin
+  | 'superadmin.title'
+  | 'superadmin.console'
+  | 'superadmin.description'
+  | 'superadmin.password'
+  | 'superadmin.accessConsole'
+  | 'superadmin.access'
+  | 'superadmin.users'
+  | 'superadmin.tenants'
+  | 'superadmin.modules'
+  | 'superadmin.newUser'
+  | 'superadmin.newTenant'
+  | 'superadmin.editTenant'
+  | 'superadmin.deleteTenant'
+  | 'superadmin.confirmDelete'
+  | 'superadmin.typeNameToConfirm'
+  | 'superadmin.deleteDefinitively'
+  | 'superadmin.editModules'
+  | 'superadmin.searchUsers'
+  | 'superadmin.role'
+  | 'superadmin.lastLogin'
+  | 'superadmin.createdAt'
+
+  // Dashboard
+  | 'dashboard.asistencia'
+  | 'dashboard.nomina'
+  | 'dashboard.inventario'
+  | 'dashboard.transacciones'
+  | 'dashboard.reportes'
+  | 'dashboard.settings'
+  | 'dashboard.loyalty'
+  | 'dashboard.historia'
+  | 'dashboard.manualEntry'
+  | 'dashboard.punchClock'
+  | 'dashboard.totalHours'
+  | 'dashboard.weeklyTotal'
+
+  // Payroll
+  | 'payroll.title'
+  | 'payroll.employees'
+  | 'payroll.totalUnpaid'
+  | 'payroll.period'
+  | 'payroll.hourlyRate'
+  | 'payroll.hoursWorked'
+  | 'payroll.amountToPay'
+  | 'payroll.paid'
+  | 'payroll.unpaid'
+  | 'payroll.partialPayment'
+  | 'payroll.payEmployee'
+  | 'payroll.payAll'
+  | 'payroll.paymentRecorded'
+  | 'payroll.additionalPayment'
+  | 'payroll.confirmPayment'
+  | 'payroll.recipts'
+  | 'payroll.errors.noEmployees'
+  | 'payroll.errors.invalidAmount'
+  | 'payroll.errors.paymentFailed'
+
+  // Inventory
+  | 'inventory.title'
+  | 'inventory.products'
+  | 'inventory.categories'
+  | 'inventory.variants'
+  | 'inventory.newProduct'
+  | 'inventory.productName'
+  | 'inventory.productCode'
+  | 'inventory.category'
+  | 'inventory.price'
+  | 'inventory.cost'
+  | 'inventory.quantity'
+  | 'inventory.minStock'
+  | 'inventory.stock'
+  | 'inventory.searchProducts'
+  | 'inventory.addCategory'
+  | 'inventory.categoryName'
+
+  // Transactions
+  | 'transactions.title'
+  | 'transactions.sales'
+  | 'transactions.purchases'
+  | 'transactions.transfers'
+  | 'transactions.date'
+  | 'transactions.amount'
+  | 'transactions.vendor'
+  | 'transactions.status'
+  | 'transactions.reference'
+  | 'transactions.viewDetails'
+
+  // Loyalty
+  | 'loyalty.title'
+  | 'loyalty.customers'
+  | 'loyalty.rewards'
+  | 'loyalty.points'
+  | 'loyalty.newCustomer'
+  | 'loyalty.customerName'
+  | 'loyalty.phone'
+  | 'loyalty.email'
+  | 'loyalty.totalPoints'
+  | 'loyalty.redeemReward'
+
+  // Settings
+  | 'settings.title'
+  | 'settings.general'
+  | 'settings.theme'
+  | 'settings.language'
+  | 'settings.timezone'
+  | 'settings.currency'
+  | 'settings.companyName'
+  | 'settings.taxRate'
+  | 'settings.businessHours'
+  | 'settings.notifications'
+  | 'settings.dark'
+  | 'settings.light'
+  | 'settings.auto'
+
+  // Errors
+  | 'errors.notFound'
+  | 'errors.unauthorized'
+  | 'errors.forbidden'
+  | 'errors.serverError'
+  | 'errors.unknownError'
+  | 'errors.networkError'
+  | 'errors.tryAgain'
+  | 'errors.contactSupport'
+
+  // Validation
+  | 'validation.required'
+  | 'validation.email'
+  | 'validation.minLength'
+  | 'validation.maxLength'
+  | 'validation.number'
+  | 'validation.positive';
+
+/**
+ * Keys that accept variables (for template strings)
+ * Used to enforce that variables are provided when needed
+ */
+export type TranslationKeyWithVariables =
+  | 'payroll.additionalPayment'
+  | 'payroll.confirmPayment'
+  | 'superadmin.confirmDelete'
+  | 'validation.minLength'
+  | 'validation.maxLength';

@@ -36,3 +36,106 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ─── Accessibility: Improve text contrast for readability ────────────────────
+   Fix pale gray text on white backgrounds that violates WCAG standards.
+   Replace text-slate-300, text-slate-400, text-gray-300, text-gray-400 with
+   darker alternatives for better readability while maintaining design hierarchy.
+*/
+
+@layer utilities {
+  /* Override pale slate grays with darker alternatives */
+  .text-slate-300 {
+    @apply !text-slate-600;
+  }
+
+  .text-slate-400 {
+    @apply !text-slate-700;
+  }
+
+  .text-slate-500 {
+    @apply !text-slate-700;
+  }
+
+  .text-gray-300 {
+    @apply !text-gray-600;
+  }
+
+  .text-gray-400 {
+    @apply !text-gray-700;
+  }
+
+  /* Override SVG stroke colors */
+  svg.text-slate-300 {
+    @apply !text-slate-600;
+  }
+
+  svg.text-slate-400 {
+    @apply !text-slate-700;
+  }
+
+  svg.text-gray-300 {
+    @apply !text-gray-600;
+  }
+
+  svg.text-gray-400 {
+    @apply !text-gray-700;
+  }
+
+  /* Override hover states */
+  .hover\:text-slate-300:hover {
+    @apply !text-slate-600;
+  }
+
+  .group-hover\:text-slate-300:hover {
+    @apply !text-slate-600;
+  }
+
+  /* Secondary text that needs to be visible but slightly muted */
+  .text-secondary {
+    @apply text-slate-600;
+  }
+
+  /* Placeholder and help text - ensure readability */
+  .text-muted {
+    @apply text-slate-700;
+  }
+
+  /* Form labels - usually slate-500 to slate-700 for good readability */
+  label {
+    @apply text-slate-800;
+  }
+
+  /* Ensure placeholder text is visible */
+  input::placeholder,
+  textarea::placeholder,
+  select::placeholder {
+    @apply text-slate-500;
+  }
+}
+
+/* Fix palette for elements with specific background colors */
+@layer components {
+  /* Light gray backgrounds with text should have good contrast */
+  .bg-slate-50 .text-slate-300,
+  .bg-slate-50 .text-slate-400 {
+    @apply text-slate-700;
+  }
+
+  .bg-slate-100 .text-slate-300,
+  .bg-slate-100 .text-slate-400 {
+    @apply text-slate-700;
+  }
+
+  .bg-white .text-slate-300,
+  .bg-white .text-slate-400 {
+    @apply text-slate-700;
+  }
+
+  /* Help text and captions */
+  .help-text,
+  .text-caption {
+    @apply text-slate-700;
+  }
+}
+
