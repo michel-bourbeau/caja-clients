@@ -138,7 +138,15 @@ export default function ExpensesPage() {
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to save expense");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        const errorMessage = errorData.error || `Failed to save expense (${response.status})`;
+        console.error("API Error:", errorMessage, errorData);
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log("Expense saved successfully:", result);
 
       setMessage(editingExpense ? "Gasto actualizado" : "Gasto registrado");
       setShowExpenseForm(false);
@@ -148,7 +156,9 @@ export default function ExpensesPage() {
 
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error saving expense");
+      const errorMsg = err instanceof Error ? err.message : "Error saving expense";
+      console.error("Exception in handleSaveExpense:", errorMsg);
+      setError(errorMsg);
     }
   };
 
