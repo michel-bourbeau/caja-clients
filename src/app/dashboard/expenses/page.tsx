@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useTenantId } from "@/context/TenantContext";
-import { useCurrency } from "@/hooks/useCurrency";
+import { useTenantId } from "@/lib/utils/tenant";
+import { useCurrency } from "@/lib/utils/useCurrency";
 import { Expense, Supplier } from "@/lib/types";
 
 export default function ExpensesPage() {
