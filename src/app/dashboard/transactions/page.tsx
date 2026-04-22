@@ -375,9 +375,9 @@ export default function TransactionsPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => e.target === e.currentTarget && setSelectedTransaction(null)}
         >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-900 text-white">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-900 text-white flex-shrink-0">
               <h2 className="font-semibold text-sm">Detalles de la Transacción</h2>
               <button
                 onClick={() => setSelectedTransaction(null)}
@@ -390,7 +390,7 @@ export default function TransactionsPage() {
               </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               {/* ID */}
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
@@ -508,7 +508,7 @@ export default function TransactionsPage() {
             </div>
 
             {/* Modal footer */}
-            <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50">
+            <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
               <button
                 onClick={() => setSelectedTransaction(null)}
                 disabled={isSaving}
