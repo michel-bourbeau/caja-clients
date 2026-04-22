@@ -40,8 +40,6 @@ export default function ExpensesPage() {
   });
 
   const [filters, setFilters] = useState({
-    fromDate: "",
-    toDate: "",
     category: "ALL",
     supplier_id: "ALL",
   });
@@ -227,17 +225,6 @@ export default function ExpensesPage() {
       list = list.filter((e) => e.created_by === user?.id);
     }
 
-    if (filters.fromDate) {
-      const fromDate = new Date(filters.fromDate);
-      list = list.filter((e) => new Date(e.expense_date) >= fromDate);
-    }
-
-    if (filters.toDate) {
-      const toDate = new Date(filters.toDate);
-      toDate.setHours(23, 59, 59);
-      list = list.filter((e) => new Date(e.expense_date) <= toDate);
-    }
-
     if (filters.category !== "ALL") {
       list = list.filter((e) => e.category === filters.category);
     }
@@ -321,31 +308,7 @@ export default function ExpensesPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">
-              Desde
-            </label>
-            <input
-              type="date"
-              value={filters.fromDate}
-              onChange={(e) =>
-                setFilters({ ...filters, fromDate: e.target.value })
-              }
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-600 mb-1">
-              Hasta
-            </label>
-            <input
-              type="date"
-              value={filters.toDate}
-              onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
-              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-            />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-semibold text-slate-600 mb-1">
               Categoría
@@ -569,14 +532,17 @@ export default function ExpensesPage() {
                   })
                 }
                 className="rounded"
+                id="recurring-checkbox"
               />
-              <label className="text-sm font-semibold">Gasto Recurrente</label>
+              <label htmlFor="recurring-checkbox" className="text-sm font-semibold cursor-pointer">
+                Gasto Recurrente (cada mes)
+              </label>
             </div>
 
             {formData.is_recurring && (
               <div>
                 <label className="block text-sm font-semibold mb-1">
-                  Día del mes
+                  Día del mes para repetir
                 </label>
                 <input
                   type="number"
@@ -592,6 +558,22 @@ export default function ExpensesPage() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg"
                 />
               </div>
+            )}
+
+            {editingExpense?.is_recurring && (
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({
+                    ...formData,
+                    is_recurring: false,
+                    recurring_day_of_month: new Date().getDate(),
+                  })
+                }
+                className="w-full px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold rounded-lg transition-colors"
+              >
+                Detener Recurrencia
+              </button>
             )}
 
             <div>
