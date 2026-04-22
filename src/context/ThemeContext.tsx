@@ -105,6 +105,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadSettings();
   }, []);
 
+  // Apply font size globally to <html> element
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const htmlElement = document.documentElement;
+    const fontSizeClass = FONT_SIZE_MAP[settings.fontSize];
+    
+    // Remove all font size classes
+    htmlElement.classList.remove("text-xs", "text-sm", "text-base");
+    
+    // Add the new font size class
+    htmlElement.classList.add(fontSizeClass);
+    
+    console.log("🔤 Aplicando tamaño de letra global:", fontSizeClass);
+  }, [settings.fontSize]);
+
   const updateTheme = async (newSettings: Partial<ThemeSettings>) => {
     try {
       const tenantId = localStorage.getItem("tenantId");
