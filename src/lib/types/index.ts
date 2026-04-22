@@ -55,6 +55,8 @@ export interface Transaction {
   cashierId: string;
   cashierName?: string;
   status: "COMPLETED" | "CANCELLED";
+  amount_received?: number;
+  change?: number;
 }
 
 // ========== Employees ==========
