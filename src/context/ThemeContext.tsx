@@ -109,29 +109,40 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const tenantId = localStorage.getItem("tenantId");
       if (!tenantId) throw new Error("No tenant ID");
 
+      const payload = {
+        theme_color: newSettings.themeColor || settings.themeColor,
+        font_size: newSettings.fontSize || settings.fontSize,
+        logo_url: newSettings.logoUrl !== undefined ? newSettings.logoUrl : settings.logoUrl,
+      };
+
+      console.log("🎨 Actualizando tema:", { tenantId, payload });
+
       const res = await fetch(`/api/tenants/${tenantId}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          theme_color: newSettings.themeColor || settings.themeColor,
-          font_size: newSettings.fontSize || settings.fontSize,
-          logo_url: newSettings.logoUrl ?? settings.logoUrl,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to update settings");
+      const responseData = await res.json();
+      console.log("🎨 Respuesta del servidor:", responseData);
 
-      const updated = await res.json();
+      if (!res.ok) {
+        throw new Error(responseData.error || `Error ${res.status}`);
+      }
+
       setSettings({
-        themeColor: updated.theme_color || "slate",
-        fontSize: updated.font_size || "normal",
-        logoUrl: updated.logo_url,
+        themeColor: responseData.themeColor || "slate",
+        fontSize: responseData.fontSize || "normal",
+        logoUrl: responseData.logoUrl,
       });
 
+      console.log("✅ Tema actualizado exitosamente");
       // Trigger browser to reload styles
       window.dispatchEvent(new Event("themechange"));
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      console.error("❌ Error al actualizar tema:", message);
+      setError(message);
       throw err;
     }
   };
