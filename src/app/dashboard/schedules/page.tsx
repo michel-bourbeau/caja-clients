@@ -83,6 +83,7 @@ export default function AttendancePage() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [tick, setTick] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
 
   // Manual entry form
   const [manualForm, setManualForm] = useState({ ...EMPTY_MANUAL });
@@ -92,6 +93,9 @@ export default function AttendancePage() {
   const [editEntry, setEditEntry] = useState<TimeEntry | null>(null);
   const [editForm, setEditForm] = useState({ checkInTime: "", checkOutTime: "", notes: "", date: "" });
   const [editSaving, setEditSaving] = useState(false);
+
+  // Check if user is admin
+  const isAdmin = user?.roleId === "admin";
 
   const openEdit = (entry: TimeEntry) => {
     const dateStr = toNicaraguaDateString(new Date(entry.check_in));
@@ -160,19 +164,22 @@ export default function AttendancePage() {
       const active = Array.isArray(emp) ? emp.filter((e) => e.status === "ACTIVE") : [];
       setEmployees(active);
       setTodayEntries(Array.isArray(ent) ? ent : []);
-      // Pre-select the logged-in user in the manual entry form
+      // Pre-select the logged-in user in the manual entry form and track their ID
       if (user?.email) {
         const self = active.find(
           (e) => (e as Employee & { email?: string }).email?.toLowerCase() === user.email.toLowerCase()
         );
-        if (self) setManualForm((f) => ({ ...f, employeeId: f.employeeId || self.id }));
+        if (self) {
+          setCurrentEmployeeId(self.id);
+          setManualForm((f) => ({ ...f, employeeId: f.employeeId || self.id }));
+        }
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, user?.email]);
 
   useEffect(() => { loadToday(); }, [loadToday]);
 
@@ -225,6 +232,13 @@ export default function AttendancePage() {
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees, todayEntries, tick]);
+
+  // Filter employees: admins see all, non-admins see only themselves
+  const visibleEmployees = useMemo(() => {
+    if (isAdmin) return employees;
+    if (currentEmployeeId) return employees.filter(e => e.id === currentEmployeeId);
+    return [];
+  }, [employees, isAdmin, currentEmployeeId]);
 
   // --- Manual entry submit ---
   const handleManualEntry = async () => {
@@ -423,8 +437,8 @@ export default function AttendancePage() {
           <h1 className="text-3xl font-bold text-gray-900">Asistencia</h1>
           <p className="text-sm text-slate-600 mt-1">
             {fmtDateLong(toNicaraguaDateString(new Date()))} &mdash;{" "}
-            {employees.length} empleado{employees.length !== 1 ? "s" : ""} activo
-            {employees.length !== 1 ? "s" : ""}
+            {visibleEmployees.length} empleado{visibleEmployees.length !== 1 ? "s" : ""} {!isAdmin && "a tu cargo"}
+            {!isAdmin ? "" : "activo" + (visibleEmployees.length !== 1 ? "s" : "")}
           </p>
         </div>
         <button
@@ -478,7 +492,7 @@ export default function AttendancePage() {
               </label>
               {loading ? (
                 <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
-              ) : (
+              ) : isAdmin ? (
                 <select
                   value={manualForm.employeeId}
                   onChange={(e) => setManualForm((f) => ({ ...f, employeeId: e.target.value }))}
@@ -491,6 +505,11 @@ export default function AttendancePage() {
                     </option>
                   ))}
                 </select>
+              ) : (
+                <div className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-slate-50">
+                  {visibleEmployees[0] ? `${visibleEmployees[0].first_name} ${visibleEmployees[0].last_name}` : "Tu empleado"}
+                  <input type="hidden" value={manualForm.employeeId} />
+                </div>
               )}
             </div>
 
@@ -585,14 +604,14 @@ export default function AttendancePage() {
                 <div key={i} className="animate-pulse rounded-xl border-2 border-slate-200 bg-slate-50 h-52" />
               ))}
             </div>
-          ) : employees.length === 0 ? (
+          ) : visibleEmployees.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <p className="text-4xl mb-3">&#x1F465;</p>
               <p className="font-medium">No hay empleados activos.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {employees.map((emp) => {
+              {visibleEmployees.map((emp) => {
                 const s = empSummary.get(emp.id)!;
                 const isInside = !!s.openEntry;
                 const elapsedMin = s.openEntry ? minutesDiff(s.openEntry.check_in) : 0;

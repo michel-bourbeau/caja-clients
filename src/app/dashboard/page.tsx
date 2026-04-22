@@ -47,7 +47,7 @@ export default function DashboardPage() {
   const statCards = [
     {
       id: "pos",
-      title: "Nueva Venta",
+      title: "Caja",
       icon: "🛒",
       description: "Crear nueva transacción de venta",
       href: "/dashboard/pos",

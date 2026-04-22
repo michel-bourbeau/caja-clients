@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme, THEME_SCHEMES } from "@/context/ThemeContext";
@@ -14,6 +14,10 @@ export const Sidebar: React.FC = () => {
   const { settings } = useTheme();
   const pathname = usePathname();
 
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    admin: false,
+  });
+
   const canManageRoles = hasPermission("settings.manage_roles");
   const canManageModules = hasPermission("settings.manage_modules");
 
@@ -22,6 +26,13 @@ export const Sidebar: React.FC = () => {
     refreshPermissions();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   const theme = THEME_SCHEMES[settings.themeColor];
 
@@ -37,14 +48,15 @@ export const Sidebar: React.FC = () => {
         <span className="font-bold text-white">Caja</span>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        {/* Dashboard - Always visible */}
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" icon="📊" />
 
-        {/* POS Module - Vérifie si activé */}
+        {/* Quick Actions - Always visible */}
         {features.pos && (hasPermission("pos.view") || hasPermission("pos.create")) && (
-          <NavSection label="Cajas">
+          <>
             {hasPermission("pos.create") && (
-              <NavLink href={ROUTES.POS} label="Nueva Venta" icon="🛒" />
+              <NavLink href={ROUTES.POS} label="Caja" icon="🛒" />
             )}
             {hasPermission("pos.view") && (
               <NavLink href={ROUTES.TRANSACTIONS} label="Transacciones" icon="📋" />
@@ -52,91 +64,119 @@ export const Sidebar: React.FC = () => {
             {(hasPermission("pos.view") || hasPermission("pos.create")) && (
               <NavLink href={ROUTES.CIERRE} label="Cierre de Caja" icon="🔒" />
             )}
-          </NavSection>
+          </>
         )}
 
-        {/* Inventory Module - Vérifie si activé */}
+        {/* Gestión de Productos - Always visible if inventory enabled */}
         {features.inventory && hasPermission("inventory.view") && (
-          <NavSection label="Inventario">
-            <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" icon="📦" />
-          </NavSection>
+          <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" icon="📦" />
         )}
 
-        {/* Employee Management - Vérifie si activé */}
+        <div className="my-2 border-t border-slate-600 border-opacity-30"></div>
+
+        {/* Personal - Direct links */}
         {(features.employees || features.schedules) && 
          (hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
-          <NavSection label="Personal">
+          <>
             {features.employees && hasPermission("employees.view") && (
               <NavLink href={ROUTES.EMPLOYEES} label="Empleados" icon="👥" />
             )}
             {features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
               <NavLink href={ROUTES.SCHEDULES} label="Asistencia" icon="🕐" />
             )}
-          </NavSection>
+          </>
         )}
 
-        {/* Payroll Module - Vérifie si activé */}
+        {/* Payroll - Direct links */}
         {features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")) && (
-          <NavSection label="Nómina">
-            <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos" icon="📆" />
+          <>
             <NavLink href={ROUTES.PAYROLL} label="Recibos" icon="💰" />
-          </NavSection>
+          </>
         )}
 
-        {/* Reports Module */}
+        {/* Reports - Direct links */}
         {hasPermission("reports.view") && (
-          <NavSection label="Análisis">
-            <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" icon="📈" />
-          </NavSection>
+          <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" icon="📈" />
         )}
 
-        {/* Loyalty Module - Only show Clientes Fieles link */}
+        {/* Loyalty - Direct links */}
         {features.loyalty && (
-          <NavSection label="Fidelización">
-            <NavLink href="/dashboard/loyalty" label="Clientes Fieles" icon="💳" />
-          </NavSection>
+          <NavLink href="/dashboard/loyalty" label="Clientes Fieles" icon="💳" />
         )}
 
-        {/* Admin Section - Vérifie si l'utilisateur est admin */}
+        {/* Admin - Accordion ONLY */}
         {(canManageRoles || canManageModules) && (
-          <NavSection label="Admin">
+          <Accordion
+            label="Admin"
+            icon="🔑"
+            isOpen={expandedSections.admin}
+            onToggle={() => toggleSection("admin")}
+          >
             {canManageRoles && (
-              <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" />
+              <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" icon="🔑" isNested />
             )}
             {canManageModules && (
               <>
-                <NavLink href="/dashboard/settings/modules" label="Configuración de Módulos" icon="⚙️" />
-                <NavLink href="/dashboard/settings/taxes" label="Impuestos" icon="💳" />
+                <NavLink href="/dashboard/settings/modules" label="Configuración de Módulos" icon="⚙️" isNested />
+                {features.payroll && (
+                  <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" icon="📆" isNested />
+                )}
+                <NavLink href="/dashboard/settings/taxes" label="Impuestos" icon="💳" isNested />
               </>
             )}
             {(canManageRoles || canManageModules) && (
-              <NavLink href={ROUTES.SETTINGS} label="Configuración General" icon="📋" />
+              <NavLink href={ROUTES.SETTINGS} label="Configuración General" icon="📋" isNested />
             )}
-          </NavSection>
+          </Accordion>
         )}
       </nav>
     </aside>
   );
 };
 
-const NavSection: React.FC<{ label: string; children: React.ReactNode }> = ({
+interface AccordionProps {
+  label: string;
+  icon: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const Accordion: React.FC<AccordionProps> = ({
   label,
+  icon,
+  isOpen,
+  onToggle,
   children,
 }) => (
-  <div className="mt-4">
-    <h3 className="text-xs font-semibold uppercase text-gray-300 px-3 mb-2">{label}</h3>
-    <div className="space-y-1">{children}</div>
+  <div className="mt-2">
+    <button
+      onClick={onToggle}
+      className="flex items-center justify-between w-full px-3 py-2 rounded text-sm hover:bg-slate-800 transition group"
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-lg">{icon}</span>
+        <span className="font-medium">{label}</span>
+      </div>
+      <span className={`transform transition-transform text-lg group-hover:text-slate-300 ${isOpen ? "rotate-180" : ""}`}>
+        ▼
+      </span>
+    </button>
+    {isOpen && <div className="space-y-1 pl-2 mt-1">{children}</div>}
   </div>
 );
 
-const NavLink: React.FC<{ href: string; label: string; icon: string }> = ({
+const NavLink: React.FC<{ href: string; label: string; icon: string; isNested?: boolean }> = ({
   href,
   label,
   icon,
+  isNested = false,
 }) => (
   <Link
     href={href}
-    className="flex items-center gap-3 px-3 py-2 rounded text-sm hover:bg-slate-800 transition"
+    className={`flex items-center gap-3 px-3 py-2 rounded text-sm hover:bg-slate-800 transition ${
+      isNested ? "pl-9 text-slate-300 hover:text-white" : ""
+    }`}
   >
     <span className="text-lg">{icon}</span>
     <span>{label}</span>
