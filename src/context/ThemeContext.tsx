@@ -14,6 +14,7 @@ interface ThemeSettings {
 interface ThemeContextType {
   settings: ThemeSettings;
   updateTheme: (settings: Partial<ThemeSettings>) => Promise<void>;
+  setPreviewTheme: (settings: Partial<ThemeSettings>) => void;
   loading: boolean;
   error: string | null;
 }
@@ -147,8 +148,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const setPreviewTheme = (newSettings: Partial<ThemeSettings>) => {
+    console.log("👀 Vista previa de tema:", newSettings);
+    setSettings(prev => ({
+      ...prev,
+      themeColor: newSettings.themeColor ?? prev.themeColor,
+      fontSize: newSettings.fontSize ?? prev.fontSize,
+      logoUrl: newSettings.logoUrl !== undefined ? newSettings.logoUrl : prev.logoUrl,
+    }));
+  };
+
   return (
-    <ThemeContext.Provider value={{ settings, updateTheme, loading, error }}>
+    <ThemeContext.Provider value={{ settings, updateTheme, setPreviewTheme, loading, error }}>
       {children}
     </ThemeContext.Provider>
   );

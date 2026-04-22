@@ -20,7 +20,7 @@ const FONT_SIZE_OPTIONS: { value: FontSize; label: string; description: string }
 
 export default function ThemePage() {
   const tenantId = useTenantId();
-  const { settings, updateTheme, loading: themeLoading } = useTheme();
+  const { settings, updateTheme, setPreviewTheme, loading: themeLoading } = useTheme();
   const [themeColor, setThemeColor] = useState<ThemeColor>("slate");
   const [fontSize, setFontSize] = useState<FontSize>("normal");
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -55,8 +55,19 @@ export default function ThemePage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       setLogoPreview(e.target?.result as string);
+      setPreviewTheme({ logoUrl: e.target?.result as string });
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleThemeColorChange = (color: ThemeColor) => {
+    setThemeColor(color);
+    setPreviewTheme({ themeColor: color });
+  };
+
+  const handleFontSizeChange = (size: FontSize) => {
+    setFontSize(size);
+    setPreviewTheme({ fontSize: size });
   };
 
   const handleSaveTheme = async () => {
@@ -178,7 +189,7 @@ export default function ThemePage() {
                   name="theme"
                   value={option.value}
                   checked={themeColor === option.value}
-                  onChange={(e) => setThemeColor(e.target.value as ThemeColor)}
+                  onChange={(e) => handleThemeColorChange(e.target.value as ThemeColor)}
                   className="w-4 h-4"
                 />
                 <div className="ml-3 flex-1">
@@ -210,7 +221,7 @@ export default function ThemePage() {
                   name="fontSize"
                   value={option.value}
                   checked={fontSize === option.value}
-                  onChange={(e) => setFontSize(e.target.value as FontSize)}
+                  onChange={(e) => handleFontSizeChange(e.target.value as FontSize)}
                   className="w-4 h-4"
                 />
                 <p className={`mt-3 font-medium ${FONT_SIZE_MAP[option.value]} text-center`}>
