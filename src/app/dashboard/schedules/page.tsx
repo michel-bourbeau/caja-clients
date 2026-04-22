@@ -61,6 +61,38 @@ function toUTC(date: string, time: string): string {
   return new Date(`${date}T${time}:00-06:00`).toISOString();
 }
 
+/** Get the start of the week for a given date, based on weekStartDay (0=Sun, 1=Mon, etc.) */
+function getWeekStart(dateStr: string, weekStartDay: number = 0): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const currentDay = date.getDay();
+  const daysBack = (currentDay - weekStartDay + 7) % 7;
+  const weekStart = new Date(y, m - 1, d - daysBack);
+  return toNicaraguaDateString(weekStart);
+}
+
+/** Get dates for the week (7 days starting from the specified day) */
+function getWeekDates(weekStart: string, weekStartDay: number = 0): string[] {
+  const [y, m, d] = weekStart.split("-").map(Number);
+  const dates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(y, m - 1, d + i);
+    dates.push(toNicaraguaDateString(date));
+  }
+  return dates;
+}
+
+/** Format week range (e.g., "19 - 25 de abril") */
+function fmtWeekRange(weekStart: string, weekStartDay: number = 0): string {
+  const dates = getWeekDates(weekStart, weekStartDay);
+  const first = dates[0];
+  const last = dates[6];
+  const [y1, m1, d1] = first.split("-").map(Number);
+  const [y2, m2, d2] = last.split("-").map(Number);
+  const monthName = new Date(y1, m1 - 1).toLocaleDateString("es-NI", { month: "long" });
+  return `${d1} - ${d2} de ${monthName}`;
+}
+
 const EMPTY_MANUAL = {
   employeeId: "",
   date: toNicaraguaDateString(new Date()),
@@ -77,6 +109,9 @@ export default function AttendancePage() {
   const [todayEntries, setTodayEntries] = useState<TimeEntry[]>([]);
   const [historyEntries, setHistoryEntries] = useState<TimeEntry[]>([]);
   const [historyDate, setHistoryDate] = useState(toNicaraguaDateString(new Date()));
+  const [historyWeekStart, setHistoryWeekStart] = useState(toNicaraguaDateString(new Date()));
+  const [historyFilterEmployeeId, setHistoryFilterEmployeeId] = useState<string | null>(null);
+  const [weekStartDay, setWeekStartDay] = useState(0);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -155,15 +190,24 @@ export default function AttendancePage() {
     try {
       setLoading(true);
       const today = toNicaraguaDateString(new Date());
-      const [empRes, entRes] = await Promise.all([
+      const [empRes, entRes, settingsRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}/employees`),
         fetch(`/api/tenants/${tenantId}/attendance?fromDate=${today}&toDate=${today}`),
+        fetch(`/api/tenants/${tenantId}/settings`),
       ]);
       const emp: Employee[] = await empRes.json();
       const ent: TimeEntry[] = await entRes.json();
+      const settings: any = await settingsRes.json();
+      
       const active = Array.isArray(emp) ? emp.filter((e) => e.status === "ACTIVE") : [];
       setEmployees(active);
       setTodayEntries(Array.isArray(ent) ? ent : []);
+      
+      // Load week start day from tenant settings
+      const dayOfWeek = settings.payrollConfig?.weekStartDay ?? 0;
+      setWeekStartDay(dayOfWeek);
+      setHistoryWeekStart(getWeekStart(today, dayOfWeek));
+      
       // Pre-select the logged-in user in the manual entry form and track their ID
       if (user?.email) {
         const self = active.find(
@@ -192,8 +236,11 @@ export default function AttendancePage() {
     if (!tenantId) return;
     setHistoryLoading(true);
     try {
+      const weekDates = getWeekDates(historyWeekStart, weekStartDay);
+      const fromDate = weekDates[0];
+      const toDate = weekDates[6];
       const res = await fetch(
-        `/api/tenants/${tenantId}/attendance?fromDate=${historyDate}&toDate=${historyDate}`
+        `/api/tenants/${tenantId}/attendance?fromDate=${fromDate}&toDate=${toDate}`
       );
       const data: TimeEntry[] = await res.json();
       setHistoryEntries(Array.isArray(data) ? data : []);
@@ -202,11 +249,21 @@ export default function AttendancePage() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [tenantId, historyDate]);
+  }, [tenantId, historyWeekStart, weekStartDay]);
 
   useEffect(() => {
     if (tab === "history") loadHistory();
   }, [tab, loadHistory]);
+
+  const goToWeek = (offset: number) => {
+    const [y, m, d] = historyWeekStart.split("-").map(Number);
+    const newDate = new Date(y, m - 1, d + offset * 7);
+    setHistoryWeekStart(toNicaraguaDateString(newDate));
+  };
+
+  const goToThisWeek = () => {
+    setHistoryWeekStart(getWeekStart(toNicaraguaDateString(new Date()), weekStartDay));
+  };
 
   const empSummary = useMemo(() => {
     const map = new Map<
@@ -327,8 +384,85 @@ export default function AttendancePage() {
     }
   };
 
+  // Filter history entries based on admin status and selected employee filter
+  const visibleHistoryEntries = useMemo(() => {
+    let filtered = historyEntries;
+    
+    // Non-admins only see their own records
+    if (!isAdmin && currentEmployeeId) {
+      filtered = filtered.filter(e => e.employee_id === currentEmployeeId);
+    }
+    
+    // Admins can further filter by selected employee
+    if (isAdmin && historyFilterEmployeeId) {
+      filtered = filtered.filter(e => e.employee_id === historyFilterEmployeeId);
+    }
+    
+    return filtered;
+  }, [historyEntries, isAdmin, currentEmployeeId, historyFilterEmployeeId]);
+
+  // Get summary by employee for the week
+  const weeklyEmployeeSummary = useMemo(() => {
+    const sorted = [...visibleHistoryEntries].sort(
+      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+    );
+    const map = new Map<string, { name: string; totalMin: number; dayCount: number }>();
+    
+    sorted.forEach((e) => {
+      const key = e.employee_id;
+      if (!map.has(key)) {
+        map.set(key, {
+          name: `${e.employee_first_name ?? ""} ${e.employee_last_name ?? ""}`.trim(),
+          totalMin: 0,
+          dayCount: 0,
+        });
+      }
+      const s = map.get(key)!;
+      if (e.check_out) {
+        s.totalMin += minutesDiff(e.check_in, e.check_out);
+        s.dayCount++;
+      }
+    });
+    
+    return map;
+  }, [visibleHistoryEntries]);
+
+  const historyByDay = useMemo(() => {
+    const sorted = [...visibleHistoryEntries].sort(
+      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+    );
+    const weekDates = getWeekDates(historyWeekStart, weekStartDay);
+    const dayMap = new Map<string, Map<string, { name: string; entries: TimeEntry[]; totalMin: number }>>();
+    
+    // Initialize all days
+    weekDates.forEach(date => {
+      dayMap.set(date, new Map());
+    });
+    
+    // Group by day then employee
+    sorted.forEach((e) => {
+      const dayStr = toNicaraguaDateString(new Date(e.check_in));
+      const dayEmployees = dayMap.get(dayStr);
+      if (!dayEmployees) return;
+      
+      const key = e.employee_id;
+      if (!dayEmployees.has(key)) {
+        dayEmployees.set(key, {
+          name: `${e.employee_first_name ?? ""} ${e.employee_last_name ?? ""}`.trim(),
+          entries: [],
+          totalMin: 0,
+        });
+      }
+      const s = dayEmployees.get(key)!;
+      s.entries.push(e);
+      if (e.check_out) s.totalMin += minutesDiff(e.check_in, e.check_out);
+    });
+    
+    return dayMap;
+  }, [visibleHistoryEntries, historyWeekStart, weekStartDay]);
+
   const historyByEmployee = useMemo(() => {
-    const sorted = [...historyEntries].sort(
+    const sorted = [...visibleHistoryEntries].sort(
       (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
     );
     const map = new Map<
@@ -349,7 +483,7 @@ export default function AttendancePage() {
       if (e.check_out) s.totalMin += minutesDiff(e.check_in, e.check_out);
     });
     return map;
-  }, [historyEntries]);
+  }, [visibleHistoryEntries]);
 
   const TABS = [
     { id: "manual",  label: "Entrada Manual" },
@@ -695,96 +829,160 @@ export default function AttendancePage() {
 
       {/* ── History Tab ───────────────────────────────────────────────────────── */}
       {tab === "history" && (
-        <div className="space-y-5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <input
-              type="date"
-              value={historyDate}
-              max={toNicaraguaDateString(new Date())}
-              onChange={(e) => setHistoryDate(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={loadHistory}
-              disabled={historyLoading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              {historyLoading ? "Buscando..." : "Buscar"}
-            </button>
-            {historyEntries.length > 0 && (
-              <span className="text-sm text-slate-500">
-                {historyEntries.length} registro{historyEntries.length !== 1 ? "s" : ""}
-              </span>
+        <div className="space-y-6">
+          {/* Header Section */}
+          <div className="space-y-4">
+            {/* Week Navigation */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => goToWeek(-1)}
+                  disabled={historyLoading}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-sm font-semibold rounded-lg transition-colors"
+                >
+                  ← Anterior
+                </button>
+                <div className="text-center min-w-[220px]">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Semana del {fmtWeekRange(historyWeekStart, weekStartDay)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => goToWeek(1)}
+                  disabled={historyLoading}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-sm font-semibold rounded-lg transition-colors"
+                >
+                  Siguiente →
+                </button>
+              </div>
+              <button
+                onClick={goToThisWeek}
+                disabled={historyLoading}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                Esta Semana
+              </button>
+            </div>
+
+            {/* Employee Filter (Admin Only) */}
+            {isAdmin && (
+              <div className="max-w-xs">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Filtrar por empleado</label>
+                <select
+                  value={historyFilterEmployeeId || ""}
+                  onChange={(e) => setHistoryFilterEmployeeId(e.target.value || null)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">-- Todos los empleados --</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
 
+          {/* Content Section */}
           {historyLoading ? (
             <div className="py-10 text-center text-slate-400 text-sm">Cargando...</div>
-          ) : historyEntries.length === 0 ? (
+          ) : visibleHistoryEntries.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
-              <p className="text-3xl mb-2">&#x1F4CB;</p>
-              <p>No hay registros para {fmtDateLong(historyDate)}.</p>
+              <p className="text-3xl mb-2">📋</p>
+              <p>No hay registros para esta semana.</p>
             </div>
           ) : (
             <>
-              <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">
-                {fmtDateLong(historyDate)}
-              </p>
-              {[...historyByEmployee.entries()].map(([empId, { name, entries, totalMin }]) => (
-                <div key={empId} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                  <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-200">
-                    <span className="font-semibold text-slate-900">{name || empId}</span>
-                    <span className="text-sm font-bold text-blue-700">Total: {fmtDuration(totalMin)}</span>
+              {/* Weekly Summary by Employee */}
+              {weeklyEmployeeSummary.size > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
+                    <h3 className="font-semibold text-slate-900">Resumen de la Semana</h3>
                   </div>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-slate-100">
-                        <th className="px-5 py-2 text-left">Turno</th>
-                        <th className="px-5 py-2 text-left">Entrada</th>
-                        <th className="px-5 py-2 text-left">Salida</th>
-                        <th className="px-5 py-2 text-left">Duracion</th>
-                        <th className="px-5 py-2 text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {entries.map((entry, i) => (
-                        <tr key={entry.id} className="hover:bg-slate-50">
-                          <td className="px-5 py-2.5 text-slate-500">#{i + 1}</td>
-                          <td className="px-5 py-2.5 font-medium text-slate-800">{fmtTime(entry.check_in)}</td>
-                          <td className="px-5 py-2.5">
-                            {entry.check_out
-                              ? <span className="font-medium text-slate-800">{fmtTime(entry.check_out)}</span>
-                              : <span className="text-amber-600 font-semibold text-xs">Sin salida</span>
-                            }
-                          </td>
-                          <td className="px-5 py-2.5 text-slate-600">
-                            {entry.check_out ? fmtDuration(minutesDiff(entry.check_in, entry.check_out)) : "---"}
-                          </td>
-                          <td className="px-5 py-2.5 text-right">
-                            {deleteConfirm === entry.id ? (
-                              <span className="inline-flex gap-2">
-                                <button onClick={() => handleDeleteEntry(entry.id)} className="text-xs font-semibold text-red-600 hover:underline">Confirmar</button>
-                                <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-3">
-                                <button
-                                  onClick={() => openEdit(entry)}
-                                  className="text-xs text-blue-500 hover:text-blue-700 font-semibold transition-colors"
-                                  title="Editar"
-                                >
-                                  Editar
-                                </button>
-                                <button onClick={() => setDeleteConfirm(entry.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors" title="Eliminar">x</button>
-                              </span>
-                            )}
-                          </td>
-                        </tr>
+                  <div className="divide-y divide-slate-100">
+                    {[...weeklyEmployeeSummary.entries()]
+                      .sort((a, b) => b[1].totalMin - a[1].totalMin)
+                      .map(([empId, { name, totalMin, dayCount }]) => (
+                        <div key={empId} className="px-5 py-4 flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-slate-900">{name || empId}</p>
+                            <p className="text-xs text-slate-500">{dayCount} día{dayCount !== 1 ? "s" : ""} registrado{dayCount !== 1 ? "s" : ""}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg text-blue-700">{fmtDuration(totalMin)}</p>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Detailed Entries by Day */}
+              <div className="space-y-6">
+                {getWeekDates(historyWeekStart, weekStartDay).map((dateStr) => {
+                  const dayEmployees = historyByDay.get(dateStr);
+                  const hasEntries = dayEmployees && dayEmployees.size > 0;
+                  
+                  if (!hasEntries) return null;
+                  
+                  return (
+                    <div key={dateStr}>
+                      <h4 className="text-sm font-semibold text-slate-900 mb-3">
+                        {fmtDateLong(dateStr)}
+                      </h4>
+                      <div className="space-y-3">
+                        {[...dayEmployees!.entries()].map(([empId, { name, entries, totalMin }]) => (
+                          <div key={empId} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                              <span className="font-medium text-slate-900 text-sm">{name || empId}</span>
+                              <span className="text-xs font-semibold text-blue-700">Total: {fmtDuration(totalMin)}</span>
+                            </div>
+                            <div className="divide-y divide-slate-50">
+                              {entries.map((entry, i) => (
+                                <div key={entry.id} className="px-4 py-2.5 text-xs hover:bg-slate-50">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-slate-500">#{i + 1}</span>
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <span className="font-medium text-slate-700">{fmtTime(entry.check_in)}</span>
+                                      <span className="text-slate-400">→</span>
+                                      {entry.check_out ? (
+                                        <>
+                                          <span className="font-medium text-slate-700">{fmtTime(entry.check_out)}</span>
+                                          <span className="text-slate-500 ml-auto">({fmtDuration(minutesDiff(entry.check_in, entry.check_out))})</span>
+                                        </>
+                                      ) : (
+                                        <span className="text-amber-600 font-semibold ml-auto">Sin salida</span>
+                                      )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => openEdit(entry)}
+                                        className="text-blue-500 hover:text-blue-700 font-semibold transition-colors"
+                                        title="Editar"
+                                      >
+                                        Editar
+                                      </button>
+                                      {deleteConfirm === entry.id ? (
+                                        <>
+                                          <button onClick={() => handleDeleteEntry(entry.id)} className="text-red-600 hover:text-red-700 font-semibold">Confirmar</button>
+                                          <button onClick={() => setDeleteConfirm(null)} className="text-slate-400">Cancelar</button>
+                                        </>
+                                      ) : (
+                                        <button onClick={() => setDeleteConfirm(entry.id)} className="text-slate-400 hover:text-red-500 transition-colors">✕</button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </>
           )}
         </div>

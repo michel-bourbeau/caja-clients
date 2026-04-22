@@ -131,20 +131,28 @@ function PayrollContent() {
     if (!tenantId || !selectedPeriod) return;
     setPayingId(emp.employeeId);
     try {
+      const unpaidInfo = getUnpaidInfo(emp);
+      // For partial payments, only send unpaid hours
+      const hoursToPayNow = unpaidInfo.isPartial ? unpaidInfo.unpaidHours : emp.hoursWorked;
+      const amountToPayNow = unpaidInfo.isPartial ? unpaidInfo.unpaidAmount : emp.salaryDue;
+      
       const res = await fetch(`/api/tenants/${tenantId}/employees/${emp.employeeId}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           periodStart: selectedPeriod.startDate,
           periodEnd:   selectedPeriod.endDate,
-          hoursWorked: emp.hoursWorked,
+          hoursWorked: hoursToPayNow,
           hourlyRate:  emp.hourlyRate,
-          amount:      emp.salaryDue,
+          amount:      amountToPayNow,
+          notes:       unpaidInfo.isPartial ? `Pago adicional de ${fmtHours(hoursToPayNow)} nuevas horas` : null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const newPay: PeriodPayment = await res.json();
       setPeriodPayments((prev) => [...prev, newPay]);
+      // Refresh the summary to get updated hours
+      if (selectedPeriod) loadPeriodData(selectedPeriod);
     } catch (e) {
       console.error(e);
     } finally {
@@ -155,9 +163,10 @@ function PayrollContent() {
   // Pay all unpaid employees in one go
   const payAll = async () => {
     if (!tenantId || !selectedPeriod) return;
-    const unpaid = summary.filter(
-      (emp) => emp.salaryDue > 0 && !periodPayments.find((p) => p.employee_id === emp.employeeId)
-    );
+    const unpaid = summary.filter((emp) => {
+      const info = getUnpaidInfo(emp);
+      return info.unpaidAmount > 0;
+    });
     if (unpaid.length === 0) return;
     setPayingAll(true);
     try {
@@ -177,11 +186,30 @@ function PayrollContent() {
     setDeleteConfirm(null);
   };
 
+  // Calculate unpaid amounts (considering new hours added after payment)
+  const getUnpaidInfo = (emp: EmployeeSummary) => {
+    const payment = periodPayments.find((p) => p.employee_id === emp.employeeId);
+    if (!payment) {
+      return { unpaidHours: emp.hoursWorked, unpaidAmount: emp.salaryDue, isPartial: false };
+    }
+    // Hours/amount paid already
+    const paidHours = payment.hours_worked;
+    const paidAmount = payment.amount;
+    // New hours added after payment
+    const unpaidHours = Math.max(0, emp.hoursWorked - paidHours);
+    const unpaidAmount = Math.round(unpaidHours * emp.hourlyRate * 100) / 100;
+    return { unpaidHours, unpaidAmount, isPartial: unpaidHours > 0 };
+  };
+
   const totalSalaryDue  = summary.reduce((acc, e) => acc + e.salaryDue, 0);
   const totalHours      = summary.reduce((acc, e) => acc + e.hoursWorked, 0);
   const totalPaid       = periodPayments.reduce((acc, p) => acc + p.amount, 0);
+  const totalUnpaid     = summary.reduce((acc, e) => acc + getUnpaidInfo(e).unpaidAmount, 0);
   const unpaidCount     = summary.filter(
-    (e) => e.salaryDue > 0 && !periodPayments.find((p) => p.employee_id === e.employeeId)
+    (e) => {
+      const info = getUnpaidInfo(e);
+      return info.unpaidAmount > 0;
+    }
   ).length;
 
   return (
@@ -278,7 +306,7 @@ function PayrollContent() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Pendiente</p>
-                    <p className="text-xl font-bold text-amber-600">{fmt(Math.max(0, totalSalaryDue - totalPaid))}</p>
+                    <p className="text-xl font-bold text-amber-600">{fmt(totalUnpaid)}</p>
                   </div>
                 </div>
               )}
@@ -317,12 +345,15 @@ function PayrollContent() {
                 <tbody className="divide-y divide-slate-100">
                   {summary.map((emp) => {
                     const payment = periodPayments.find((p) => p.employee_id === emp.employeeId);
-                    const isPaid  = !!payment;
+                    const unpaidInfo = getUnpaidInfo(emp);
                     const isPayingThis = payingId === emp.employeeId;
+                    const isPaid = unpaidInfo.unpaidAmount === 0 && payment;
+                    const isPartiallyPaid = unpaidInfo.isPartial;
                     return (
                       <tr key={emp.employeeId}
                         className={`transition-colors ${
                           isPaid ? "bg-emerald-50 hover:bg-emerald-100" :
+                          isPartiallyPaid ? "bg-amber-50 hover:bg-amber-100" :
                           emp.hoursWorked === 0 ? "opacity-40 hover:opacity-60" :
                           "hover:bg-slate-50"
                         }`}>
@@ -334,6 +365,11 @@ function PayrollContent() {
                           {payment?.notes && (
                             <p className="text-xs text-slate-400 mt-0.5">{payment.notes}</p>
                           )}
+                          {isPartiallyPaid && (
+                            <p className="text-xs text-amber-600 font-semibold mt-0.5">
+                              💡 +{fmtHours(unpaidInfo.unpaidHours)} nuevas horas por pagar
+                            </p>
+                          )}
                         </td>
                         <td className="px-5 py-3 text-right text-slate-700 font-medium">
                           {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
@@ -341,8 +377,11 @@ function PayrollContent() {
                         <td className="px-5 py-3 text-right text-slate-500">
                           {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
                         </td>
-                        <td className="px-5 py-3 text-right font-bold text-slate-900">
-                          {emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}
+                        <td className="px-5 py-3 text-right font-bold">
+                          <div className="text-slate-900">{emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}</div>
+                          {isPartiallyPaid && (
+                            <div className="text-amber-600 font-bold text-sm">{fmt(unpaidInfo.unpaidAmount)}</div>
+                          )}
                         </td>
                         <td className="px-5 py-3 text-center">
                           {isPaid ? (
@@ -350,6 +389,27 @@ function PayrollContent() {
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
                                 ✓ Pagado
                               </span>
+                              {deleteConfirm === payment.id ? (
+                                <span className="inline-flex gap-1">
+                                  <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
+                                  <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                </span>
+                              ) : (
+                                <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
+                              )}
+                            </span>
+                          ) : isPartiallyPaid && payment ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
+                                ⚠ Pago Parcial
+                              </span>
+                              <button
+                                onClick={() => payEmployee(emp)}
+                                disabled={isPayingThis || payingAll}
+                                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+                              >
+                                {isPayingThis ? "..." : `Pagar ${fmt(unpaidInfo.unpaidAmount)}`}
+                              </button>
                               {deleteConfirm === payment.id ? (
                                 <span className="inline-flex gap-1">
                                   <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
@@ -380,8 +440,12 @@ function PayrollContent() {
                     <tr className="bg-slate-50 border-t-2 border-slate-200">
                       <td className="px-5 py-3 text-sm font-bold text-slate-700" colSpan={2}>Total</td>
                       <td></td>
-                      <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">{fmt(totalSalaryDue)}</td>
+                      <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">
+                        <div>{fmt(totalSalaryDue)}</div>
+                        {totalUnpaid > 0 && <div className="text-amber-600 text-sm font-bold">{fmt(totalUnpaid)} pendiente</div>}
+                      </td>
                       <td className="px-5 py-3 text-center text-xs text-emerald-700 font-semibold">
+                        {unpaidCount > 0 && <div className="text-amber-600 font-bold">{unpaidCount} con pagos pendientes</div>}
                         {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e => e.salaryDue > 0).length} pagados`}
                       </td>
                     </tr>

@@ -79,6 +79,8 @@ export default function SuperAdminDashboard() {
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [editingPlan, setEditingPlan] = useState<string>("basic");
   const [message, setMessage] = useState("");
+  const [deletingTenantId, setDeletingTenantId] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -204,6 +206,34 @@ export default function SuperAdminDashboard() {
   const handleLogout = () => {
     logout();
     router.push("/superadmin/login");
+  };
+
+  const handleDeleteTenant = async (tenant: Tenant) => {
+    if (deleteConfirmation !== tenant.name) {
+      setMessage("❌ Erreur: veuillez confirmer en tapant le nom du tenant");
+      return;
+    }
+
+    try {
+      setDeletingTenantId(tenant.id);
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setMessage(`✅ Tenant "${tenant.name}" et toutes ses données ont été supprimés`);
+        setTenants((prev) => prev.filter((t) => t.id !== tenant.id));
+        setDeletingTenantId(null);
+        setDeleteConfirmation("");
+      } else {
+        const error = await response.json();
+        setMessage(`❌ Erreur: ${error.message}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
+    } finally {
+      setDeletingTenantId(null);
+    }
   };
 
   const enterTenant = (tenant: Tenant) => {
@@ -467,6 +497,43 @@ export default function SuperAdminDashboard() {
                         </Button>
                       </div>
                     </form>
+                  ) : deletingTenantId === tenant.id ? (
+                    <div className="bg-red-50 border border-red-300 rounded-lg p-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-bold text-red-900 mb-3">
+                          ⚠️ Attention: Cela supprimera le tenant "{tenant.name}" et TOUTES ses données (employés, transactions, configurations, etc.).
+                        </p>
+                        <p className="text-xs text-red-700 mb-3">
+                          Tapez le nom du tenant pour confirmer:
+                        </p>
+                        <input
+                          type="text"
+                          placeholder={tenant.name}
+                          value={deleteConfirmation}
+                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                          className="w-full px-3 py-2 border border-red-300 rounded-lg bg-white text-red-900 mb-3 font-mono text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleDeleteTenant(tenant)}
+                          disabled={deleteConfirmation !== tenant.name}
+                          className="bg-red-600 disabled:opacity-50"
+                        >
+                          🗑️ Supprimer Définitivement
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setDeletingTenantId(null);
+                            setDeleteConfirmation("");
+                          }}
+                          className="bg-slate-400"
+                        >
+                          ❌ Annuler
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <div>
                       <div className="mb-4">
@@ -493,16 +560,27 @@ export default function SuperAdminDashboard() {
                           )}
                         </div>
                       </div>
-                      <Button
-                        onClick={() => {
-                          setEditingTenant(tenant);
-                          setSelectedModules(tenant.features || {});
-                          setEditingPlan(tenant.plan || "basic");
-                        }}
-                        className="bg-blue-600"
-                      >
-                        ✏️ Modifier Modules
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setEditingTenant(tenant);
+                            setSelectedModules(tenant.features || {});
+                            setEditingPlan(tenant.plan || "basic");
+                          }}
+                          className="bg-blue-600"
+                        >
+                          ✏️ Modifier Modules
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setDeletingTenantId(tenant.id);
+                            setDeleteConfirmation("");
+                          }}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          🗑️ Supprimer
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </Card>
