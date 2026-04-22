@@ -204,6 +204,28 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Quick Links */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+        <a href="/dashboard/settings/theme" className="block p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🎨</span>
+            <div>
+              <h3 className="font-bold text-slate-900">Tema y Personalización</h3>
+              <p className="text-sm text-slate-500">Colores, logo y tamaño de letra</p>
+            </div>
+          </div>
+        </a>
+        <a href="/dashboard/settings/taxes" className="block p-4 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💳</span>
+            <div>
+              <h3 className="font-bold text-slate-900">Impuestos</h3>
+              <p className="text-sm text-slate-500">Gestiona tasas y categorías</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
       <div className="space-y-6 max-w-2xl">
 
         <Card title="Plan y Modulos Activos">

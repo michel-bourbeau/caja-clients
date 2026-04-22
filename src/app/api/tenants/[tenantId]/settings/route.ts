@@ -19,6 +19,9 @@ function toClient(row: Record<string, unknown>) {
     taxRate:         row.tax_rate         ?? 0,
     posConfig:       row.pos_config       ?? { roundTotal: false, printReceipt: true },
     payrollConfig:   row.payroll_config   ?? DEFAULT_PAYROLL_CONFIG,
+    themeColor:      row.theme_color      ?? "slate",
+    fontSize:        row.font_size        ?? "normal",
+    logoUrl:         row.logo_url,
     updatedAt:       row.updated_at,
   };
 }
@@ -79,10 +82,48 @@ export async function PUT(
     if (body.taxRate        !== undefined) row.tax_rate        = body.taxRate;
     if (body.posConfig      !== undefined) row.pos_config      = body.posConfig;
     if (body.payrollConfig  !== undefined) row.payroll_config  = body.payrollConfig;
+    if (body.theme_color    !== undefined) row.theme_color     = body.theme_color;
+    if (body.font_size      !== undefined) row.font_size       = body.font_size;
+    if (body.logo_url       !== undefined) row.logo_url        = body.logo_url;
 
     const { data, error } = await supabase
       .from("tenant_settings")
       .upsert(row, { onConflict: "tenant_id" })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json(toClient(data));
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/tenants/[tenantId]/settings
+ * Partial update for theme customization
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ tenantId: string }> }
+) {
+  try {
+    const { tenantId } = await params;
+    const body = await request.json();
+    const supabase = getSupabaseAdmin();
+
+    const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (body.theme_color !== undefined) row.theme_color = body.theme_color;
+    if (body.font_size   !== undefined) row.font_size   = body.font_size;
+    if (body.logo_url    !== undefined) row.logo_url    = body.logo_url;
+
+    const { data, error } = await supabase
+      .from("tenant_settings")
+      .update(row)
+      .eq("tenant_id", tenantId)
       .select()
       .single();
 

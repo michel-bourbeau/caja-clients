@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AuthProvider } from "@/context/AuthContext";
 import { SuperAdminProvider } from "@/context/SuperAdminContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { restoreTenantIdFromStorage } from "@/lib/utils/session";
 
 export function RootProviders({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,9 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <SuperAdminProvider>
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </SuperAdminProvider>
     </AuthProvider>
   );

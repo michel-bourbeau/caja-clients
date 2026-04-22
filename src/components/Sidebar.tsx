@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme, THEME_SCHEMES } from "@/context/ThemeContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { ROUTES } from "@/lib/constants";
 
 export const Sidebar: React.FC = () => {
   const { hasPermission, refreshPermissions } = useAuth();
   const { features } = useTenantFeatures();
+  const { settings } = useTheme();
   const pathname = usePathname();
 
   const canManageRoles = hasPermission("settings.manage_roles");
@@ -21,9 +23,21 @@ export const Sidebar: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
+  const theme = THEME_SCHEMES[settings.themeColor];
+
   return (
-    <aside className="w-64 bg-slate-900 text-white h-screen overflow-hidden flex flex-col">
-      <nav className="flex-1 p-4 pt-6 space-y-2 overflow-y-auto">
+    <aside className={`w-64 ${theme.bg} text-white h-screen overflow-hidden flex flex-col`}>
+      {/* Header with Logo */}
+      <div className={`flex items-center gap-3 p-4 ${theme.accent} border-b border-opacity-20`}>
+        {settings.logoUrl ? (
+          <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded object-contain" />
+        ) : (
+          <div className="w-10 h-10 rounded bg-white/10 flex items-center justify-center text-lg">📦</div>
+        )}
+        <span className="font-bold text-white">Caja</span>
+      </div>
+
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" icon="📊" />
 
         {/* POS Module - Vérifie si activé */}
