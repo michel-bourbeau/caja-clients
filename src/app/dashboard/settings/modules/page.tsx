@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { LoyaltyService } from "@/features/loyalty/services";
 
-type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "settings";
+type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "settings";
 
 interface ModuleConfig {
   enabled: boolean;
@@ -62,6 +62,12 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
     name: "Fidelización",
     icon: "💳",
     description: "Programa de clientes fieles",
+  },
+  expenses: {
+    enabled: true,
+    name: "Gastos",
+    icon: "💸",
+    description: "Gestión de gastos y proveedores",
   },
   settings: {
     enabled: true,

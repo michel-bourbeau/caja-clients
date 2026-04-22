@@ -11,13 +11,14 @@ interface TenantFeatures {
   payroll?: boolean;
   reports?: boolean;
   loyalty?: boolean;
+  expenses?: boolean;
   settings?: boolean;
   [key: string]: boolean | undefined;
 }
 
 const ALL_FEATURES_ON: TenantFeatures = {
   pos: true, inventory: true, employees: true,
-  schedules: true, payroll: true, reports: true, loyalty: true, settings: true,
+  schedules: true, payroll: true, reports: true, loyalty: true, expenses: true, settings: true,
 };
 
 export function useTenantFeatures() {

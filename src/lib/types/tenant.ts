@@ -26,6 +26,8 @@ export interface Tenant {
     payroll: boolean;
     schedules: boolean;
     reports: boolean;
+    loyalty: boolean;
+    expenses: boolean;
     customRoles: boolean;
     api: boolean;
   };

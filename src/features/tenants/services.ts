@@ -85,22 +85,65 @@ export class TenantService {
         throw new Error(`Slug '${slug}' is already in use`);
       }
 
+      // Default features by plan
+      const defaultFeaturesByPlan: Record<string, Record<string, boolean>> = {
+        free: {
+          pos: true,
+          inventory: true,
+          employees: false,
+          schedules: false,
+          payroll: false,
+          reports: false,
+          loyalty: false,
+          expenses: false,
+          customRoles: false,
+          api: false,
+        },
+        basic: {
+          pos: true,
+          inventory: true,
+          employees: false,
+          schedules: false,
+          payroll: false,
+          reports: false,
+          loyalty: false,
+          expenses: false,
+          customRoles: true,
+          api: false,
+        },
+        professional: {
+          pos: true,
+          inventory: true,
+          employees: true,
+          schedules: true,
+          payroll: false,
+          reports: true,
+          loyalty: true,
+          expenses: true,
+          customRoles: true,
+          api: false,
+        },
+        enterprise: {
+          pos: true,
+          inventory: true,
+          employees: true,
+          schedules: true,
+          payroll: true,
+          reports: true,
+          loyalty: true,
+          expenses: true,
+          customRoles: true,
+          api: true,
+        },
+      };
+
       const { data, error } = await supabaseAdmin
         .from("tenants")
         .insert({
           name,
           slug: slug.toLowerCase(),
           plan,
-          features: {
-            pos: plan !== "free",
-            inventory: true,
-            employees: true,
-            payroll: plan !== "free",
-            schedules: true,
-            reports: plan === "enterprise",
-            customRoles: true,
-            api: plan === "enterprise",
-          },
+          features: defaultFeaturesByPlan[plan] || defaultFeaturesByPlan.basic,
         })
         .select()
         .single();
