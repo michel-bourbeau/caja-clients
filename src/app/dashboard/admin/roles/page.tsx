@@ -106,7 +106,9 @@ export default function RolesPage() {
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchRoles(); }, [fetchRoles]);
+  useEffect(() => { 
+    fetchRoles(); 
+  }, [tenantId]); // Use tenantId instead of fetchRoles to avoid infinite loop
 
   // ── Selected role ────────────────────────────────────────────────────────────
 
