@@ -12,8 +12,8 @@ import {
   LOCALE_STORAGE_KEY,
   Locale,
   LOCALES,
-} from './config';
-import { getTranslation, loadTranslations } from './helpers';
+} from '@/i18n/config';
+import { getTranslation, loadTranslations } from '@/i18n/helpers';
 
 type TranslationData = Record<string, any>;
 
