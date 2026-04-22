@@ -245,3 +245,6 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
     isSystem: true,
   },
 ];
+
+// Permissions only admins can manage
+export const ADMIN_ONLY_PERMISSIONS = ["settings.manage_modules"];

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { DEFAULT_PERMISSIONS, Permission } from "@/lib/types/roles";
+import { DEFAULT_PERMISSIONS, ADMIN_ONLY_PERMISSIONS, Permission } from "@/lib/types/roles";
 import { useTenantId } from "@/lib/utils/tenant";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[];
 
 const GROUPED_PERMISSIONS = CATEGORIES.reduce<Record<string, Permission[]>>((acc, cat) => {
-  acc[cat] = DEFAULT_PERMISSIONS.filter((p) => p.category === cat);
+  acc[cat] = DEFAULT_PERMISSIONS.filter((p) => p.category === cat && !ADMIN_ONLY_PERMISSIONS.includes(p.id));
   return acc;
 }, {});
 
