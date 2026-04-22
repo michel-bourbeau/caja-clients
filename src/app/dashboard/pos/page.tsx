@@ -24,6 +24,8 @@ interface ProductVariant {
   sku: string;
   price: number;
   stock_quantity: number;
+  min_stock?: number;
+  sort_order?: number;
 }
 
 export default function POSPage() {
@@ -595,12 +597,12 @@ export default function POSPage() {
                         <div>
                           {hasVariants ? (
                             <div className="space-y-0.5">
-                              {variants.slice(0, 2).map((v) => (
+                              {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).slice(0, 2).map((v) => (
                                 <p key={v.id} className={`text-xs font-semibold ${v.stock_quantity <= 0 ? "text-slate-300 line-through" : "text-blue-700"}`}>
                                   {fmt(v.price)}
                                 </p>
                               ))}
-                              {variants.length > 2 && <p className="text-xs text-slate-500">+{variants.length - 2} más</p>}
+                              {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).length > 2 && <p className="text-xs text-slate-500">+{variants.length - 2} más</p>}
                             </div>
                           ) : (
                             <p className="font-semibold text-blue-700 text-sm">{fmt(product.price)}</p>
@@ -692,7 +694,7 @@ export default function POSPage() {
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {hasVariants ? (
                           <div className="flex flex-col items-end gap-0.5">
-                            {variants.map((v) => (
+                            {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((v) => (
                               <span key={v.id} className={`text-sm font-semibold ${v.stock_quantity <= 0 ? "text-slate-300 line-through" : "text-blue-700"}`}>
                                 {fmt(v.price)}
                               </span>
@@ -705,7 +707,7 @@ export default function POSPage() {
                       <td className="px-4 py-2.5 text-center">
                         {hasVariants ? (
                           <div className="flex flex-col items-center gap-0.5">
-                            {variants.map((v) => (
+                            {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((v) => (
                               <span key={v.id} className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${
                                 v.stock_quantity <= 0 ? "bg-red-100 text-red-700" :
                                 v.stock_quantity <= 5 ? "bg-amber-100 text-amber-700" :
@@ -729,7 +731,7 @@ export default function POSPage() {
                         {hasVariants ? (
                           /* Inline format buttons — price + stock visible */
                           <div className="flex flex-col gap-1.5 items-stretch">
-                            {variants.map((variant) => {
+                            {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((variant) => {
                               const inCartV = cart.find((i) => i.variantId === variant.id);
                               const vOut = variant.stock_quantity <= 0;
                               return (

@@ -14,6 +14,8 @@ interface ProductVariant {
   sku: string;
   price: number;
   stock_quantity: number;
+  min_stock?: number;
+  sort_order?: number;
 }
 
 interface Product {
@@ -24,6 +26,7 @@ interface Product {
   quantity: number;
   category_id?: string;
   description?: string;
+  min_stock?: number;
   has_variants?: boolean;
   variants?: ProductVariant[];
   sort_order?: number;
@@ -77,8 +80,11 @@ export default function InventoryPage() {
   const [editingVariantQty, setEditingVariantQty] = useState<string>("");
   const [editingMinStockId, setEditingMinStockId] = useState<string | null>(null);
   const [editingMinStock, setEditingMinStock] = useState<string>("");
+  const [editingVariantMinStockId, setEditingVariantMinStockId] = useState<string | null>(null);
+  const [editingVariantMinStock, setEditingVariantMinStock] = useState<string>("");
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [reorderingVariantMode, setReorderingVariantMode] = useState<string | null>(null);
 
   // Edit product modal
   const [editProductModal, setEditProductModal] = useState<Product | null>(null);
@@ -431,6 +437,99 @@ export default function InventoryPage() {
     }
   };
 
+  const handleUpdateVariantMinStock = async (productId: string, variantId: string, minStock: string) => {
+    if (!minStock || isNaN(parseInt(minStock))) {
+      setMessage("Stock minimum invalide");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ min_stock: parseInt(minStock) }),
+      });
+      if (res.ok) {
+        setMessage("Stock minimum mis à jour");
+        setEditingVariantMinStockId(null);
+        setEditingVariantMinStock("");
+        await fetchData();
+      } else {
+        setMessage("Erreur lors de la mise à jour");
+      }
+    } catch {
+      setMessage("Erreur réseau");
+    }
+  };
+
+  const handleReorderVariant = async (productId: string, variantId: string, direction: "up" | "down") => {
+    const product = products.find(p => p.id === productId);
+    if (!product?.variants) return;
+    
+    // Sort variants by sort_order to get correct current position
+    const sortedVariants = [...product.variants].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const currentIdx = sortedVariants.findIndex(v => v.id === variantId);
+    if (currentIdx === -1) return;
+    
+    const newIdx = direction === "up" ? currentIdx - 1 : currentIdx + 1;
+    if (newIdx < 0 || newIdx >= sortedVariants.length) return;
+
+    const currentVariant = sortedVariants[currentIdx];
+    const neighborVariant = sortedVariants[newIdx];
+    
+    try {
+      // Swap sort_order values
+      const currentSortOrder = currentVariant.sort_order ?? currentIdx;
+      const neighborSortOrder = neighborVariant.sort_order ?? newIdx;
+      
+      // Update both variants
+      const res1 = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sort_order: neighborSortOrder }),
+      });
+      
+      const res2 = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${neighborVariant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sort_order: currentSortOrder }),
+      });
+      
+      if (res1.ok && res2.ok) {
+        // Update local state without reloading - swap sort_order in the products array
+        setProducts((prev) =>
+          prev.map((p) => {
+            if (p.id !== productId) return p;
+            
+            // Swap sort_order in the variants array
+            const updatedVariants = p.variants?.map((v) => {
+              if (v.id === variantId) return { ...v, sort_order: neighborSortOrder };
+              if (v.id === neighborVariant.id) return { ...v, sort_order: currentSortOrder };
+              return v;
+            }) ?? [];
+            
+            return { ...p, variants: updatedVariants };
+          })
+        );
+        
+        // Also update the edit modal if it's currently open
+        if ((editProductModal as any).id === productId) {
+          setEditProductModal((prev: any) => ({
+            ...prev,
+            variants: prev.variants?.map((v: ProductVariant) => {
+              if (v.id === variantId) return { ...v, sort_order: neighborSortOrder };
+              if (v.id === neighborVariant.id) return { ...v, sort_order: currentSortOrder };
+              return v;
+            }) ?? [],
+          }));
+        }
+      } else {
+        setMessage("Erreur lors du réordonnancement");
+      }
+    } catch {
+      setMessage("Erreur réseau");
+    }
+  };
+
   const openEditModal = (product: Product) => {
     setEditProductModal(product);
     setEditForm({
@@ -655,6 +754,75 @@ export default function InventoryPage() {
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                 placeholder="Descripción opcional"
               />
+              
+              {/* Variants section */}
+              {(editProductModal as any).has_variants && (editProductModal as any).variants && (editProductModal as any).variants.length > 0 && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Gestionar Formatos</h3>
+                  <div className="space-y-2">
+                    {((editProductModal as any).variants as ProductVariant[])
+                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                      .map((variant: ProductVariant, idx: number, sortedArray: ProductVariant[]) => (
+                      <div key={variant.id} className="bg-white border border-purple-100 rounded p-3 flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-900">{variant.label}</p>
+                          <p className="text-xs text-slate-500">SKU: {variant.sku} · ${variant.price}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {/* Stock mínimo */}
+                          {editingVariantMinStockId === variant.id ? (
+                            <div className="flex gap-1">
+                              <input
+                                type="number"
+                                value={editingVariantMinStock}
+                                onChange={(e) => setEditingVariantMinStock(e.target.value)}
+                                className="w-14 px-2 py-1 border border-slate-300 rounded text-sm"
+                                placeholder="Mín"
+                              />
+                              <button
+                                onClick={() => handleUpdateVariantMinStock((editProductModal as any).id, variant.id, editingVariantMinStock)}
+                                className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded"
+                              >✓</button>
+                              <button
+                                onClick={() => { setEditingVariantMinStockId(null); setEditingVariantMinStock(""); }}
+                                className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-semibold rounded"
+                              >✕</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingVariantMinStockId(variant.id); setEditingVariantMinStock(String(variant.min_stock ?? 0)); }}
+                              title="Editar stock mínimo"
+                              className="px-2 py-1 bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-semibold rounded"
+                            >
+                              Mín: {variant.min_stock ?? 0}
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {/* Reorder buttons */}
+                          <button
+                            onClick={() => handleReorderVariant((editProductModal as any).id, variant.id, "up")}
+                            disabled={idx === 0}
+                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs font-semibold rounded"
+                            title="Subir"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => handleReorderVariant((editProductModal as any).id, variant.id, "down")}
+                            disabled={idx === sortedArray.length - 1}
+                            className="px-2 py-1 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs font-semibold rounded"
+                            title="Bajar"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
                 <input
@@ -1263,7 +1431,9 @@ export default function InventoryPage() {
                       </td>
                     </tr>
                     {/* Variant sub-rows */}
-                    {hasVariants && isExpanded && product.variants!.map((variant) => {
+                    {hasVariants && isExpanded && product.variants!
+                      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                      .map((variant, sortedIdx, sortedArray) => {
                       const isEditingV = editingVariantId === variant.id;
                       return (
                         <tr key={variant.id} className="bg-purple-50 border-b border-purple-100">
@@ -1273,7 +1443,6 @@ export default function InventoryPage() {
                           </td>
                           <td className="px-4 py-2 hidden md:table-cell"></td>
                           <td className="px-4 py-2 hidden lg:table-cell"></td>
-                          <td className="px-4 py-2 hidden sm:table-cell"></td>
                           <td className="px-4 py-2 text-right font-semibold text-purple-700 text-sm whitespace-nowrap">
                             {fmt(variant.price)}
                           </td>
@@ -1299,6 +1468,36 @@ export default function InventoryPage() {
                               </span>
                             )}
                           </td>
+                          <td className="px-4 py-2 text-center hidden sm:table-cell">
+                            {editingVariantMinStockId === variant.id ? (
+                              <div className="flex gap-1 justify-center">
+                                <input
+                                  type="number"
+                                  value={editingVariantMinStock}
+                                  onChange={(e) => setEditingVariantMinStock(e.target.value)}
+                                  className="w-12 px-1 py-0.5 border border-purple-400 rounded text-center text-xs text-slate-900"
+                                  min="0"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateVariantMinStock(product.id, variant.id, editingVariantMinStock)}
+                                  className="px-1 py-0.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded"
+                                >✓</button>
+                                <button
+                                  onClick={() => { setEditingVariantMinStockId(null); setEditingVariantMinStock(""); }}
+                                  className="px-1 py-0.5 bg-slate-200 text-slate-700 text-xs font-semibold rounded"
+                                >✕</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setEditingVariantMinStockId(variant.id); setEditingVariantMinStock(String(variant.min_stock ?? 0)); }}
+                                className="px-2 py-0.5 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-semibold rounded"
+                                title="Editar stock mínimo"
+                              >
+                                {variant.min_stock ?? 0}
+                              </button>
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-center">
                             {isEditingV ? (
                               <div className="flex gap-1 justify-center">
@@ -1313,6 +1512,22 @@ export default function InventoryPage() {
                               </div>
                             ) : (
                               <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={() => handleReorderVariant(product.id, variant.id, "up")}
+                                  disabled={sortedIdx === 0}
+                                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold rounded-lg"
+                                  title="Subir orden"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  onClick={() => handleReorderVariant(product.id, variant.id, "down")}
+                                  disabled={sortedIdx === sortedArray.length - 1}
+                                  className="px-2 py-1 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-sm font-semibold rounded-lg"
+                                  title="Bajar orden"
+                                >
+                                  ↓
+                                </button>
                                 <button
                                   onClick={() => { setEditingVariantId(variant.id); setEditingVariantQty(variant.stock_quantity.toString()); }}
                                   className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"
