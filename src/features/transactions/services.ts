@@ -78,7 +78,7 @@ export const TransactionService = {
   async updateTransaction(
     tenantId: string,
     transactionId: string,
-    updates: { payment_method?: string; created_at?: string }
+    updates: { payment_method?: string; created_at?: string; amount_received?: number; change?: number }
   ): Promise<Transaction> {
     const response = await fetch(
       `/api/tenants/${tenantId}/transactions/${transactionId}`,

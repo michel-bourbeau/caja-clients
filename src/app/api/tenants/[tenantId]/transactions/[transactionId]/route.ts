@@ -129,10 +129,10 @@ export async function PUT(
   try {
     const { tenantId, transactionId } = await params;
     const body = await request.json();
-    const { payment_method, created_at } = body;
+    const { payment_method, created_at, amount_received, change } = body;
 
     console.log("[transactions PUT] Updating transaction:", transactionId, "for tenant:", tenantId);
-    console.log("[transactions PUT] Updates:", { payment_method, created_at });
+    console.log("[transactions PUT] Updates:", { payment_method, created_at, amount_received, change });
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -159,6 +159,12 @@ export async function PUT(
     }
     if (created_at !== undefined) {
       updateData.created_at = created_at;
+    }
+    if (amount_received !== undefined) {
+      updateData.amount_received = amount_received;
+    }
+    if (change !== undefined) {
+      updateData.change = change;
     }
 
     if (Object.keys(updateData).length === 0) {

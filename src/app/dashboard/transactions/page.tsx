@@ -37,6 +37,8 @@ export default function TransactionsPage() {
   const [editForm, setEditForm] = useState({
     paymentMethod: "CASH" as "CASH" | "CARD" | "TRANSFER",
     datetime: "",
+    amount_received: 0,
+    change: 0,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -156,6 +158,8 @@ export default function TransactionsPage() {
     setEditForm({
       paymentMethod: transaction.paymentMethod,
       datetime: localDT,
+      amount_received: transaction.amount_received || 0,
+      change: transaction.change || 0,
     });
   };
 
@@ -167,6 +171,8 @@ export default function TransactionsPage() {
       await TransactionService.updateTransaction(tenantId, selectedTransaction.id, {
         payment_method: editForm.paymentMethod,
         created_at: new Date(editForm.datetime).toISOString(),
+        amount_received: editForm.amount_received,
+        change: editForm.change,
       });
       await loadData();
       setSelectedTransaction(null);
@@ -475,6 +481,30 @@ export default function TransactionsPage() {
                   />
                 </div>
               </div>
+
+              {/* Payment tracking fields (CASH only) */}
+              {selectedTransaction.paymentMethod === "CASH" && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-blue-50 rounded border border-blue-200">
+                  <div>
+                    <label className="block text-sm font-semibold text-blue-700 mb-1">Monto Recibido</label>
+                    <input
+                      type="number"
+                      value={editForm.amount_received}
+                      onChange={(e) => setEditForm({ ...editForm, amount_received: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-1.5 border border-blue-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-green-700 mb-1">Cambio</label>
+                    <input
+                      type="number"
+                      value={editForm.change}
+                      onChange={(e) => setEditForm({ ...editForm, change: parseFloat(e.target.value) || 0 })}
+                      className="w-full px-3 py-1.5 border border-green-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal footer */}
