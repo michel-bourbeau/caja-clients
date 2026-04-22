@@ -13,22 +13,25 @@ export async function GET(
     // Get user permissions to determine what they can see
     let userPermissions: string[] = [];
     let validUserId = userId;
+    let userRoleId: string | null = null;
 
     const { data: userData } = await supabaseAdmin
       .from("users")
-      .select("permissions, id")
+      .select("permissions, id, role_id")
       .eq("id", userId)
       .single();
 
     if (userData) {
       userPermissions = userData.permissions || [];
       validUserId = userData.id;
+      userRoleId = userData.role_id;
+      console.log(`User ${userId}: role_id=${userRoleId}, permissions=${userPermissions.length}`);
     } else {
       // User not found, check if there's an employee that corresponds
       console.log(`User ${userId} not found in GET, looking for employee...`);
       const { data: employee } = await supabaseAdmin
         .from("employees")
-        .select("id, email")
+        .select("id, email, role_id")
         .eq("tenant_id", tenantId)
         .limit(1)
         .single();
@@ -37,7 +40,7 @@ export async function GET(
         // Check if a user exists for this employee email
         const { data: employeeUser } = await supabaseAdmin
           .from("users")
-          .select("id, permissions")
+          .select("id, permissions, role_id")
           .eq("tenant_id", tenantId)
           .eq("email", employee.email)
           .single();
@@ -45,12 +48,15 @@ export async function GET(
         if (employeeUser) {
           validUserId = employeeUser.id;
           userPermissions = employeeUser.permissions || [];
-          console.log(`Using employee user ${validUserId} for expenses query`);
+          userRoleId = employeeUser.role_id || employee.role_id;
+          console.log(`Using employee user ${validUserId} (role=${userRoleId}) for expenses query`);
         }
       }
     }
 
-    const canViewAll = userPermissions.includes("expenses.view_all");
+    // Admins always have view_all permission
+    const canViewAll = userRoleId === "admin" || userPermissions.includes("expenses.view_all");
+    console.log(`Expenses access: canViewAll=${canViewAll}, role=${userRoleId}`);
 
     // Build query
     let query = supabaseAdmin

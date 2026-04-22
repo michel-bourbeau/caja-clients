@@ -54,11 +54,41 @@ export default function ExpensesPage() {
   });
 
   const [viewMode, setViewMode] = useState<"week" | "month" | "year">("month");
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const canViewAll = hasPermission("expenses.view_all");
   const canCreate = hasPermission("expenses.create");
   const canEdit = hasPermission("expenses.edit");
   const canManageSuppliers = hasPermission("expenses.manage_suppliers");
+
+  // Navigation functions
+  const goToPreviousPeriod = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() - 7);
+    } else if (viewMode === "month") {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else {
+      newDate.setFullYear(newDate.getFullYear() - 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const goToNextPeriod = () => {
+    const newDate = new Date(currentDate);
+    if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() + 7);
+    } else if (viewMode === "month") {
+      newDate.setMonth(newDate.getMonth() + 1);
+    } else {
+      newDate.setFullYear(newDate.getFullYear() + 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
 
   // Load data
   const loadData = useCallback(async () => {
@@ -355,6 +385,38 @@ export default function ExpensesPage() {
       list = list.filter((e) => e.supplier_id === filters.supplier_id);
     }
 
+    // Filter by current period
+    const periodStart = new Date(currentDate);
+    const periodEnd = new Date(currentDate);
+
+    if (viewMode === "week") {
+      // Get start of week (Sunday)
+      const day = periodStart.getDay();
+      periodStart.setDate(periodStart.getDate() - day);
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setDate(periodStart.getDate() + 6);
+      periodEnd.setHours(23, 59, 59, 999);
+    } else if (viewMode === "month") {
+      periodStart.setDate(1);
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      periodEnd.setDate(0);
+      periodEnd.setHours(23, 59, 59, 999);
+    } else {
+      // Year
+      periodStart.setMonth(0);
+      periodStart.setDate(1);
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setMonth(11);
+      periodEnd.setDate(31);
+      periodEnd.setHours(23, 59, 59, 999);
+    }
+
+    list = list.filter((e) => {
+      const expenseDate = new Date(e.expense_date);
+      return expenseDate >= periodStart && expenseDate <= periodEnd;
+    });
+
     // Group by period
     const grouped: Record<string, Expense[]> = {};
     list.forEach((exp) => {
@@ -383,7 +445,7 @@ export default function ExpensesPage() {
       }));
 
     return sorted;
-  }, [expenses, filters, canViewAll, user?.id, viewMode]);
+  }, [expenses, filters, canViewAll, user?.id, viewMode, currentDate]);
 
   const totals = useMemo(() => {
     const allExpenses = filteredExpenses.flatMap((group) => group.expenses);
@@ -466,38 +528,74 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* View Mode Selector */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setViewMode("week")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            viewMode === "week"
-              ? "bg-blue-600 text-white"
-              : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-          }`}
-        >
-          Por Semana
-        </button>
-        <button
-          onClick={() => setViewMode("month")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            viewMode === "month"
-              ? "bg-blue-600 text-white"
-              : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-          }`}
-        >
-          Por Mes
-        </button>
-        <button
-          onClick={() => setViewMode("year")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            viewMode === "year"
-              ? "bg-blue-600 text-white"
-              : "bg-slate-200 text-slate-700 hover:bg-slate-300"
-          }`}
-        >
-          Por Año
-        </button>
+      {/* View Mode Selector with Navigation */}
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode("week")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              viewMode === "week"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+            }`}
+          >
+            Por Semana
+          </button>
+          <button
+            onClick={() => setViewMode("month")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              viewMode === "month"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+            }`}
+          >
+            Por Mes
+          </button>
+          <button
+            onClick={() => setViewMode("year")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              viewMode === "year"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+            }`}
+          >
+            Por Año
+          </button>
+        </div>
+
+        {/* Period Navigation */}
+        <div className="flex items-center gap-3 bg-white rounded-lg border border-slate-200 p-3">
+          <button
+            onClick={goToPreviousPeriod}
+            className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
+          >
+            ← Anterior
+          </button>
+          
+          <div className="flex-1 text-center">
+            <span className="text-sm font-semibold text-gray-700">
+              {viewMode === "week"
+                ? `Semana del ${new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - currentDate.getDay()).toLocaleDateString("es-ES")}`
+                : viewMode === "month"
+                ? currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
+                : `Año ${currentDate.getFullYear()}`}
+            </span>
+          </div>
+
+          <button
+            onClick={goToToday}
+            className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
+          >
+            Hoy
+          </button>
+
+          <button
+            onClick={goToNextPeriod}
+            className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
+          >
+            Siguiente →
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
