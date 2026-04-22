@@ -44,6 +44,8 @@ export default function ExpensesPage() {
     supplier_id: "ALL",
   });
 
+  const [viewMode, setViewMode] = useState<"week" | "month" | "year">("month");
+
   const canViewAll = hasPermission("expenses.view_all");
   const canCreate = hasPermission("expenses.create");
   const canEdit = hasPermission("expenses.edit");
@@ -218,6 +220,39 @@ export default function ExpensesPage() {
   };
 
   // Filtering
+  // Helper functions for grouping by period
+  const getWeekKey = (date: Date | string) => {
+    const d = new Date(date);
+    const weekStart = new Date(d.setDate(d.getDate() - d.getDay()));
+    return weekStart.toISOString().split("T")[0];
+  };
+
+  const getMonthKey = (date: Date | string) => {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const getYearKey = (date: Date | string) => {
+    const d = new Date(date);
+    return d.getFullYear().toString();
+  };
+
+  const getPeriodLabel = (key: string, mode: "week" | "month" | "year") => {
+    if (mode === "week") {
+      const date = new Date(key);
+      const weekEnd = new Date(date.getTime() + 6 * 24 * 60 * 60 * 1000);
+      return `Semana ${date.toLocaleDateString("es-NI", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("es-NI", { month: "short", day: "numeric" })}`;
+    } else if (mode === "month") {
+      const [year, month] = key.split("-");
+      return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("es-NI", {
+        year: "numeric",
+        month: "long",
+      });
+    } else {
+      return key;
+    }
+  };
+
   const filteredExpenses = useMemo(() => {
     let list = [...expenses];
 
@@ -233,18 +268,43 @@ export default function ExpensesPage() {
       list = list.filter((e) => e.supplier_id === filters.supplier_id);
     }
 
-    return list.sort(
-      (a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime()
-    );
-  }, [expenses, filters, canViewAll, user?.id]);
+    // Group by period
+    const grouped: Record<string, Expense[]> = {};
+    list.forEach((exp) => {
+      let key: string;
+      if (viewMode === "week") {
+        key = getWeekKey(exp.expense_date);
+      } else if (viewMode === "month") {
+        key = getMonthKey(exp.expense_date);
+      } else {
+        key = getYearKey(exp.expense_date);
+      }
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(exp);
+    });
 
-  const totals = useMemo(
-    () => ({
-      count: filteredExpenses.length,
-      amount: filteredExpenses.reduce((sum, e) => sum + e.amount, 0),
-    }),
-    [filteredExpenses]
-  );
+    // Sort groups and expenses within groups
+    const sorted = Object.entries(grouped)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, exps]) => ({
+        key,
+        label: getPeriodLabel(key, viewMode),
+        expenses: exps.sort(
+          (a, b) => new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime()
+        ),
+        total: exps.reduce((sum, e) => sum + e.amount, 0),
+      }));
+
+    return sorted;
+  }, [expenses, filters, canViewAll, user?.id, viewMode]);
+
+  const totals = useMemo(() => {
+    const allExpenses = filteredExpenses.flatMap((group) => group.expenses);
+    return {
+      count: allExpenses.length,
+      amount: allExpenses.reduce((sum, e) => sum + e.amount, 0),
+    };
+  }, [filteredExpenses]);
 
   const categories = useMemo(
     () => [...new Set(expenses.map((e) => e.category).filter(Boolean))],
@@ -305,6 +365,40 @@ export default function ExpensesPage() {
           {message}
         </div>
       )}
+
+      {/* View Mode Selector */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setViewMode("week")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            viewMode === "week"
+              ? "bg-blue-600 text-white"
+              : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+          }`}
+        >
+          Por Semana
+        </button>
+        <button
+          onClick={() => setViewMode("month")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            viewMode === "month"
+              ? "bg-blue-600 text-white"
+              : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+          }`}
+        >
+          Por Mes
+        </button>
+        <button
+          onClick={() => setViewMode("year")}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            viewMode === "year"
+              ? "bg-blue-600 text-white"
+              : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+          }`}
+        >
+          Por Año
+        </button>
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-3">
@@ -382,49 +476,63 @@ export default function ExpensesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredExpenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 text-slate-700 whitespace-nowrap">
-                      {new Date(expense.expense_date).toLocaleDateString("es-NI")}
-                    </td>
-                    <td className="px-4 py-2 text-slate-700">
-                      {expense.description}
-                      {expense.is_recurring && (
-                        <span className="ml-2 inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                          Recurrente
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-slate-700 hidden md:table-cell">
-                      {expense.supplier?.name || "—"}
-                    </td>
-                    <td className="px-4 py-2 text-slate-700 hidden sm:table-cell">
-                      {expense.category || "—"}
-                    </td>
-                    <td className="px-4 py-2 text-right font-semibold text-slate-900">
-                      {fmt(expense.amount)}
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <div className="flex gap-1 justify-center">
-                        {(canEdit || expense.created_by === user?.id) && (
-                          <button
-                            onClick={() => handleEditExpense(expense)}
-                            className="px-2 py-1 bg-blue-100 hover:bg-blue-600 text-blue-600 hover:text-white text-xs rounded transition-colors"
-                          >
-                            ✎
-                          </button>
-                        )}
-                        {(canEdit || expense.created_by === user?.id) && (
-                          <button
-                            onClick={() => handleDeleteExpense(expense.id)}
-                            className="px-2 py-1 bg-red-100 hover:bg-red-600 text-red-600 hover:text-white text-xs rounded transition-colors"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                {filteredExpenses.map((group) => (
+                  <React.Fragment key={group.key}>
+                    {/* Period header row */}
+                    <tr className="bg-slate-100">
+                      <td colSpan={6} className="px-4 py-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-slate-800">{group.label}</span>
+                          <span className="text-slate-700 font-semibold">{fmt(group.total)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Expenses in this period */}
+                    {group.expenses.map((expense) => (
+                      <tr key={expense.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-2 text-slate-700 whitespace-nowrap">
+                          {new Date(expense.expense_date).toLocaleDateString("es-NI")}
+                        </td>
+                        <td className="px-4 py-2 text-slate-700">
+                          {expense.description}
+                          {expense.is_recurring && (
+                            <span className="ml-2 inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                              Recurrente
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-slate-700 hidden md:table-cell">
+                          {expense.supplier?.name || "—"}
+                        </td>
+                        <td className="px-4 py-2 text-slate-700 hidden sm:table-cell">
+                          {expense.category || "—"}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                          {fmt(expense.amount)}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          <div className="flex gap-1 justify-center">
+                            {(canEdit || expense.created_by === user?.id) && (
+                              <button
+                                onClick={() => handleEditExpense(expense)}
+                                className="px-2 py-1 bg-blue-100 hover:bg-blue-600 text-blue-600 hover:text-white text-xs rounded transition-colors"
+                              >
+                                ✎
+                              </button>
+                            )}
+                            {(canEdit || expense.created_by === user?.id) && (
+                              <button
+                                onClick={() => handleDeleteExpense(expense.id)}
+                                className="px-2 py-1 bg-red-100 hover:bg-red-600 text-red-600 hover:text-white text-xs rounded transition-colors"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
