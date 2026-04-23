@@ -115,15 +115,10 @@ export async function PATCH(
     const body = await request.json();
     const supabase = getSupabaseAdmin();
 
-    console.log("🎨 PATCH /settings - tenantId:", tenantId);
-    console.log("🎨 PATCH /settings - body:", body);
-
     const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (body.theme_color !== undefined) row.theme_color = body.theme_color;
     if (body.font_size   !== undefined) row.font_size   = body.font_size;
     if (body.logo_url    !== undefined) row.logo_url    = body.logo_url;
-
-    console.log("🎨 PATCH /settings - row to update:", row);
 
     const { data, error } = await supabase
       .from("tenant_settings")
@@ -132,14 +127,10 @@ export async function PATCH(
       .select()
       .single();
 
-    console.log("🎨 PATCH /settings - error:", error);
-    console.log("🎨 PATCH /settings - data:", data);
-
     if (error) throw error;
     return NextResponse.json(toClient(data));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("❌ PATCH /settings - error:", message);
     return NextResponse.json(
       { error: message },
       { status: 500 }

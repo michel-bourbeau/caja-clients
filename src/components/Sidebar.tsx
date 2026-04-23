@@ -34,21 +34,22 @@ export const Sidebar: React.FC = () => {
     }));
   };
 
-  const theme = THEME_SCHEMES[settings.themeColor];
-
   return (
-    <aside className={`w-64 ${theme.bg} text-white h-screen overflow-hidden flex flex-col`}>
+    <aside className="sidebar">
       {/* Header with Logo */}
-      <div className={`flex items-center gap-3 p-4 ${theme.accent} border-b border-opacity-20`}>
+      <div className="sidebar-header">
         {settings.logoUrl ? (
-          <img src={settings.logoUrl} alt="Logo" className="w-10 h-10 rounded object-contain" />
+          <div className="sidebar-logo">
+            <img src={settings.logoUrl} alt="Logo" />
+          </div>
         ) : (
-          <div className="w-10 h-10 rounded bg-white/10 flex items-center justify-center text-lg">📦</div>
+          <div className="sidebar-logo">📦</div>
         )}
-        <span className="font-bold text-white">Caja</span>
+        <span className="sidebar-brand">Caja</span>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      {/* Navigation */}
+      <nav className="sidebar-nav">
         {/* Dashboard - Always visible */}
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" icon="📊" />
 
@@ -72,7 +73,10 @@ export const Sidebar: React.FC = () => {
           <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" icon="📦" />
         )}
 
-        <div className="my-2 border-t border-slate-600 border-opacity-30"></div>
+        {/* Divider */}
+        {((features.employees || features.schedules) || (features.payroll) || hasPermission("reports.view") || features.loyalty) && (
+          <div className="sidebar-divider"></div>
+        )}
 
         {/* Personal - Direct links */}
         {(features.employees || features.schedules) && 
@@ -89,9 +93,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Payroll - Direct links */}
         {features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")) && (
-          <>
-            <NavLink href={ROUTES.PAYROLL} label="Recibos" icon="💰" />
-          </>
+          <NavLink href={ROUTES.PAYROLL} label="Recibos" icon="💰" />
         )}
 
         {/* Reports - Direct links */}
@@ -102,6 +104,11 @@ export const Sidebar: React.FC = () => {
         {/* Loyalty - Direct links */}
         {features.loyalty && (
           <NavLink href="/dashboard/loyalty" label="Clientes Fieles" icon="💳" />
+        )}
+
+        {/* Divider before Admin */}
+        {(canManageRoles || canManageModules) && (
+          <div className="sidebar-divider"></div>
         )}
 
         {/* Admin - Accordion ONLY */}
@@ -117,7 +124,7 @@ export const Sidebar: React.FC = () => {
             )}
             {canManageModules && (
               <>
-                <NavLink href="/dashboard/settings/modules" label="Configuración de Módulos" icon="⚙️" isNested />
+                <NavLink href="/dashboard/settings/modules" label="Módulos" icon="⚙️" isNested />
                 {features.payroll && (
                   <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" icon="📆" isNested />
                 )}
@@ -149,20 +156,20 @@ const Accordion: React.FC<AccordionProps> = ({
   onToggle,
   children,
 }) => (
-  <div className="mt-2">
+  <div>
     <button
       onClick={onToggle}
-      className="flex items-center justify-between w-full px-3 py-2 rounded text-sm hover:bg-slate-800 transition group"
+      className="accordion-btn"
     >
       <div className="flex items-center gap-3">
-        <span className="text-lg">{icon}</span>
-        <span className="font-medium">{label}</span>
+        <span className="nav-link-icon">{icon}</span>
+        <span>{label}</span>
       </div>
-      <span className={`transform transition-transform text-lg group-hover:text-slate-300 ${isOpen ? "rotate-180" : ""}`}>
+      <span className={`accordion-icon ${isOpen ? "open" : ""}`}>
         ▼
       </span>
     </button>
-    {isOpen && <div className="space-y-1 pl-2 mt-1">{children}</div>}
+    {isOpen && <div className="accordion-content">{children}</div>}
   </div>
 );
 
@@ -174,11 +181,9 @@ const NavLink: React.FC<{ href: string; label: string; icon: string; isNested?: 
 }) => (
   <Link
     href={href}
-    className={`flex items-center gap-3 px-3 py-2 rounded text-sm hover:bg-slate-800 transition ${
-      isNested ? "pl-9 text-slate-300 hover:text-white" : ""
-    }`}
+    className={`nav-link ${isNested ? "nav-link-nested" : ""}`}
   >
-    <span className="text-lg">{icon}</span>
-    <span>{label}</span>
+    <span className="nav-link-icon">{icon}</span>
+    <span className="nav-link-label">{label}</span>
   </Link>
 );

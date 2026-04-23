@@ -176,7 +176,7 @@ export default function ExpensesPage() {
       }
 
       const result = await response.json();
-      console.log("Expense saved successfully:", result);
+
 
       setMessage(editingExpense ? "Gasto actualizado" : "Gasto registrado");
       setShowExpenseForm(false);

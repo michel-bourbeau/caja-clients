@@ -118,7 +118,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Add the new font size class
     htmlElement.classList.add(fontSizeClass);
     
-    console.log("🔤 Aplicando tamaño de letra global:", fontSizeClass);
+
   }, [settings.fontSize]);
 
   const updateTheme = async (newSettings: Partial<ThemeSettings>) => {
@@ -132,7 +132,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         logo_url: newSettings.logoUrl !== undefined ? newSettings.logoUrl : settings.logoUrl,
       };
 
-      console.log("🎨 Actualizando tema:", { tenantId, payload });
+
 
       const res = await fetch(`/api/tenants/${tenantId}/settings`, {
         method: "PATCH",
@@ -141,7 +141,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
 
       const responseData = await res.json();
-      console.log("🎨 Respuesta del servidor:", responseData);
+
 
       if (!res.ok) {
         throw new Error(responseData.error || `Error ${res.status}`);
@@ -153,7 +153,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         logoUrl: responseData.logoUrl,
       });
 
-      console.log("✅ Tema actualizado exitosamente");
+
       // Trigger browser to reload styles
       window.dispatchEvent(new Event("themechange"));
     } catch (err) {
@@ -165,7 +165,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const setPreviewTheme = (newSettings: Partial<ThemeSettings>) => {
-    console.log("👀 Vista previa de tema:", newSettings);
+
     setSettings(prev => ({
       ...prev,
       themeColor: newSettings.themeColor ?? prev.themeColor,

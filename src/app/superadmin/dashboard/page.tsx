@@ -125,7 +125,7 @@ export default function SuperAdminDashboard() {
         setTenants(data);
       }
     } catch (error) {
-      console.error("Erreur chargement tenants:", error);
+
       setMessage("❌ Erreur lors du chargement des tenants");
     } finally {
       setLoading(false);

@@ -136,7 +136,7 @@ export async function DELETE(
 
       // Ignorer les erreurs si la table n'existe pas ou n'a pas de tenant_id
       if (deleteError && !deleteError.message.includes("does not exist")) {
-        console.warn(`Avertissement suppression ${table}:`, deleteError);
+
       }
     }
 

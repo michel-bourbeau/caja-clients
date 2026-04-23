@@ -20,7 +20,7 @@ export function useTenantName() {
         : null;
 
       if (!tenantId) {
-        console.warn("No tenant ID found");
+
         setLoading(false);
         return;
       }

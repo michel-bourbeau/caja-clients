@@ -192,9 +192,6 @@ export function PayrollPaymentExample() {
 
   const handlePayment = async () => {
     // Simulate payment
-    console.log(
-      t('payroll.additionalPayment', { hours: employee.unpaidHours })
-    );
   };
 
   return (
@@ -284,7 +281,7 @@ export function FormWithValidationExample() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validate()) {
-      console.log(t('common.success'), formData);
+
     }
   };
 

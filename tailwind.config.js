@@ -16,8 +16,8 @@ export default {
   safelist: [
     // Slate colors
     { pattern: /^bg-slate-(100|300|800|900)$/ },
-    { pattern: /^text-slate-(300|500|700|900)$/ },
-    { pattern: /^border-slate-300$/ },
+    { pattern: /^text-slate-(300|400|500|700|900)$/ },
+    { pattern: /^border-slate-(200|300|500)$/ },
     // Blue colors
     { pattern: /^bg-blue-(100|300|800|900)$/ },
     { pattern: /^text-blue-(300|500|700|900)$/ },
@@ -34,6 +34,28 @@ export default {
     { pattern: /^bg-orange-(100|300|800|900)$/ },
     { pattern: /^text-orange-(300|500|700|900)$/ },
     { pattern: /^border-orange-300$/ },
+    // Yellow colors
+    { pattern: /^bg-yellow-(100|300|800|900)$/ },
+    { pattern: /^text-yellow-(300|500|700|900)$/ },
+    { pattern: /^border-yellow-300$/ },
+    // Pink colors
+    { pattern: /^bg-pink-(100|300|800|900)$/ },
+    { pattern: /^text-pink-(300|500|700|900)$/ },
+    { pattern: /^border-pink-300$/ },
+    // Red colors
+    { pattern: /^bg-red-(100|300|600|700|800|900)$/ },
+    { pattern: /^text-red-(300|500|600|700|900)$/ },
+    { pattern: /^border-red-(200|300)$/ },
+    // Amber colors
+    { pattern: /^bg-amber-(50|100|200|700)$/ },
+    { pattern: /^text-amber-700$/ },
+    { pattern: /^border-amber-200$/ },
+    // Indigo colors
+    { pattern: /^bg-indigo-(100|700)$/ },
+    { pattern: /^text-indigo-700$/ },
   ],
+  corePlugins: {
+    preflight: true,
+  },
   plugins: [],
 };

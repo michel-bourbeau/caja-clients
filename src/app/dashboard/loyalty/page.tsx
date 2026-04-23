@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui";
+import { Button as UIButton } from "@/components/ui";
+import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { LoyalCustomer } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -152,214 +153,199 @@ export default function LoyaltyPage() {
 
   return (
     <FeatureGuard feature="loyalty">
-      <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clientes Fieles</h1>
-          <p className="text-gray-600">Gestiona tu programa de fidelización</p>
-        </div>
-        <Button onClick={handleOpenAddModal} className="bg-blue-600 hover:bg-blue-700">
-          + Nuevo Cliente
-        </Button>
-      </div>
-
-      {message && (
-        <div className={`p-4 rounded border ${
-          messageType === "success"
-            ? "border-green-300 bg-green-50 text-green-900"
-            : "border-red-300 bg-red-50 text-red-900"
-        }`}>
-          {message}
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Buscar por nombre, teléfono o tarjeta..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
-        />
-      </div>
-
-      {/* Customers table */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Cargando...</div>
-        ) : customers.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            {search ? "No hay clientes que coincidan" : "No hay clientes fideles todavía"}
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Nombre</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">Tarjeta</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700 hidden md:table-cell">Teléfono</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Gastado</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-700">Visitas</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-700">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link href={`/dashboard/loyalty/${customer.id}`} className="text-blue-600 hover:underline font-medium">
-                      {customer.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{customer.card_number}</td>
-                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{customer.phone || "—"}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmt(customer.total_accumulated)}</td>
-                  <td className="px-4 py-3 text-center text-gray-600">{customer.total_visits}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => setShowDeleteConfirm(customer.id)}
-                      className="text-red-600 hover:text-red-800 text-xs font-semibold hover:underline"
-                    >
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Add Customer Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">Agregar Cliente Fiel</h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      <Container>
+        <Section>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Clientes Fieles</h1>
+              <p className="text-slate-600 mt-1">Gestiona tu programa de fidelización</p>
             </div>
+            <Button variant="primary" onClick={handleOpenAddModal}>
+              + Nuevo Cliente
+            </Button>
+          </div>
 
-            <form onSubmit={handleAddCustomer} className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Tarjeta</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={formData.card_number}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-900 font-semibold"
-                  />
+          {message && (
+            <Alert variant={messageType === "success" ? "success" : "error"} title={messageType === "success" ? "Éxito" : "Error"}>
+              {message}
+            </Alert>
+          )}
+
+          {/* Search */}
+          <div className="relative mb-6">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar por nombre, teléfono o tarjeta..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Customers table */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="p-8 text-center text-slate-500">Cargando...</div>
+            ) : customers.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">
+                {search ? "No hay clientes que coincidan" : "No hay clientes fideles todavía"}
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-900">
+                    <th className="px-4 py-3 text-left font-semibold text-white">Nombre</th>
+                    <th className="px-4 py-3 text-left font-semibold text-white">Tarjeta</th>
+                    <th className="px-4 py-3 text-left font-semibold text-white hidden md:table-cell">Teléfono</th>
+                    <th className="px-4 py-3 text-right font-semibold text-white">Total Gastado</th>
+                    <th className="px-4 py-3 text-center font-semibold text-white">Visitas</th>
+                    <th className="px-4 py-3 text-center font-semibold text-white">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {customers.map((customer) => (
+                    <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <Link href={`/dashboard/loyalty/${customer.id}`} className="text-blue-600 hover:underline font-medium">
+                          {customer.name}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{customer.card_number}</td>
+                      <td className="px-4 py-3 text-slate-700 hidden md:table-cell">{customer.phone || "—"}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{fmt(customer.total_accumulated)}</td>
+                      <td className="px-4 py-3 text-center text-slate-700">{customer.total_visits}</td>
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => setShowDeleteConfirm(customer.id)}
+                          className="text-red-600 hover:text-red-800 text-xs font-semibold hover:underline"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Add Customer Modal */}
+          {showAddModal && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-900 rounded-t-lg flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-white">Agregar Cliente Fiel</h2>
                   <button
-                    type="button"
-                    onClick={async () => {
-                      const newCardNumber = await generateUniqueCardNumber();
-                      if (newCardNumber) {
-                        setFormData({ ...formData, card_number: newCardNumber });
-                      }
-                    }}
-                    className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium transition"
-                    title="Generar nuevo número"
+                    onClick={() => setShowAddModal(false)}
+                    className="text-slate-400 hover:text-slate-300 transition-colors"
                   >
-                    🔄
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
-                  placeholder="Juan Pérez"
-                />
-              </div>
+                <form onSubmit={handleAddCustomer} className="px-6 py-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Número de Tarjeta</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={formData.card_number}
+                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 text-slate-900 font-semibold"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const newCardNumber = await generateUniqueCardNumber();
+                          if (newCardNumber) {
+                            setFormData({ ...formData, card_number: newCardNumber });
+                          }
+                        }}
+                        className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition"
+                        title="Generar nuevo número"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
-                  placeholder="+505 8765 4321"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Nombre *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Juan Pérez"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Correo</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
-                  placeholder="juan@ejemplo.com"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Teléfono</label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="+505 8765 4321"
+                    />
+                  </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
-                >
-                  Crear Cliente
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Correo</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="juan@ejemplo.com"
+                    />
+                  </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-sm w-full">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Confirmar eliminación</h2>
+                  <div className="flex gap-3 pt-4">
+                    <Button variant="ghost" onClick={() => setShowAddModal(false)} className="flex-1">
+                      Cancelar
+                    </Button>
+                    <Button variant="primary" type="submit" className="flex-1">
+                      Crear Cliente
+                    </Button>
+                  </div>
+                </form>
+              </div>
             </div>
+          )}
 
-            <div className="px-6 py-4">
-              <p className="text-gray-700">¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.</p>
-            </div>
+          {/* Delete Confirmation Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg shadow-lg max-w-sm w-full">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-900 rounded-t-lg">
+                  <h2 className="text-lg font-semibold text-white">Confirmar eliminación</h2>
+                </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(null)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleDelete(showDeleteConfirm)}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700"
-              >
-                Eliminar
-              </button>
+                <div className="px-6 py-4">
+                  <p className="text-slate-700">¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.</p>
+                </div>
+
+                <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
+                  <Button variant="ghost" onClick={() => setShowDeleteConfirm(null)} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button variant="danger" onClick={() => handleDelete(showDeleteConfirm)} className="flex-1">
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-      </div>
+          )}
+        </Section>
+      </Container>
     </FeatureGuard>
   );
 }

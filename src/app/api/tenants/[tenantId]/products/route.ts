@@ -47,12 +47,10 @@ export async function POST(
   try {
     const { tenantId } = await params;
     const body = await request.json();
-    console.log("[POST /products] Request body:", body);
     
     const { name, sku, price, quantity, category_id, description, min_stock, image } = body;
 
     if (!name?.trim() || !sku?.trim() || price === undefined) {
-      console.log("[POST /products] Validation failed:", { name, sku, price });
       return NextResponse.json(
         { error: "Nom, SKU et prix sont requis" },
         { status: 400 }
@@ -77,8 +75,6 @@ export async function POST(
       productData.image = image;
     }
 
-    console.log("[POST /products] Inserting data:", productData);
-
     const { data, error } = await supabaseAdmin
       .from("products")
       .insert([productData])
@@ -86,11 +82,8 @@ export async function POST(
       .single();
 
     if (error) {
-      console.error("[POST /products] Database error:", error);
       throw error;
     }
-
-    console.log("[POST /products] Success:", data);
     
     // Map stock_quantity to quantity for compatibility with frontend
     const mappedData = {
@@ -100,7 +93,6 @@ export async function POST(
     
     return NextResponse.json(mappedData, { status: 201 });
   } catch (error) {
-    console.error("[POST /products] Exception:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

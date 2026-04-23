@@ -54,7 +54,7 @@ export function I18nProvider({
         setLocaleState(localeToLoad);
         setTranslations(loadedTranslations);
       } catch (error) {
-        console.error('Failed to initialize translations:', error);
+
         // Fallback to Spanish Nicaragua
         const loadedTranslations = await loadTranslations(DEFAULT_LOCALE);
         setLocaleState(DEFAULT_LOCALE);
@@ -75,7 +75,7 @@ export function I18nProvider({
       setTranslations(loadedTranslations);
       localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
     } catch (error) {
-      console.error(`Failed to set locale to ${newLocale}:`, error);
+
     } finally {
       setIsLoading(false);
     }

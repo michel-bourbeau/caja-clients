@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
@@ -9,6 +8,7 @@ import { CartItem, Product, LoyalCustomer, LoyalCustomerStats } from "@/lib/type
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
+import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 
@@ -103,7 +103,7 @@ export default function POSPage() {
       setLoadingLoyalCustomers(true);
       LoyaltyService.getCustomers(tenantId, loyalCustomerSearch)
         .then((customers) => setLoyalCustomers(customers))
-        .catch((err) => console.error('Error loading loyal customers:', err))
+
         .finally(() => setLoadingLoyalCustomers(false));
     }, 300); // Debounce search
 
@@ -423,151 +423,158 @@ export default function POSPage() {
   };
 
   return (
-    <div>
-      <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Caja</h1>
-        
-        </div>
+    <div className="min-h-screen bg-slate-50">
+      <Container>
+        <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="h1">Caja</h1>
+          </div>
 
-        {/* Cart toggle button — hidden on lg (cart always visible) */}
-        <button
-          onClick={() => setIsCartOpen(true)}
-          className="relative flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow transition-colors lg:hidden"
-          aria-label="Abrir carrito"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h12.8M7 13H5.4M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"
-            />
-          </svg>
-          <span className="text-sm font-semibold">Carrito</span>
-          {cartItemCount > 0 && (
-            <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 text-white rounded-full">
-              {cartItemCount > 99 ? "99+" : cartItemCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {message ? (
-        <div className={`mb-6 rounded border p-4 ${
-          messageType === "success"
-            ? "border-green-300 bg-green-50 text-green-900"
-            : "border-amber-300 bg-amber-50 text-amber-900"
-        }`}>
-          {message}
-        </div>
-      ) : null}
-
-      {/* Products + Cart side-by-side on lg */}
-      <div className="lg:flex lg:gap-6 lg:items-start">
-
-      {/* Products */}
-      <div className="flex-1 min-w-0 bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
-          {/* Search */}
-          <div className="relative flex-1">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          {/* Cart toggle button — hidden on lg (cart always visible) */}
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="btn-primary lg:hidden relative flex items-center gap-2"
+            aria-label="Abrir carrito"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h12.8M7 13H5.4M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"
+              />
             </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar producto..."
-              className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode("list")}
-              className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold transition-colors ${
-                viewMode === "list"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              Lista
-            </button>
-            <button
-              onClick={() => setViewMode("card")}
-              className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold transition-colors ${
-                viewMode === "card"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
-              </svg>
-              Tarjetas
-            </button>
-          </div>
-
-          {/* Category filter — pill buttons */}
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                selectedCategory === null
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
-              }`}
-            >
-              Todas
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                  selectedCategory === cat.id
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+            <span className="text-sm font-semibold">Carrito</span>
+            {cartItemCount > 0 && (
+              <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 text-white rounded-full">
+                {cartItemCount > 99 ? "99+" : cartItemCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {productsLoading ? (
-          <div className={viewMode === "card" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4" : "w-full"}>
-            {viewMode === "card" ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-slate-200 rounded-lg h-48 animate-pulse" />
-              ))
-            ) : (
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-slate-100">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-3/4 mb-1" /><div className="h-3 bg-slate-100 rounded w-1/2" /></td>
-                      <td className="px-4 py-3 hidden md:table-cell"><div className="h-5 bg-slate-200 rounded-full w-20" /></td>
-                      <td className="px-4 py-3 text-right"><div className="h-4 bg-slate-200 rounded w-16 ml-auto" /></td>
-                      <td className="px-4 py-3 text-center"><div className="h-5 bg-slate-200 rounded-full w-10 mx-auto" /></td>
-                      <td className="px-4 py-3 text-center"><div className="h-7 bg-slate-200 rounded-lg w-20 mx-auto" /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        ) : displayedProducts.length === 0 ? (
-          <p className="text-gray-500 text-center py-12">Sin resultados.</p>
-        ) : viewMode === "card" ? (
-          // CARD VIEW
-          <div className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
+        {message ? (
+          <Alert
+            variant={messageType === "success" ? "success" : "warning"}
+            title={messageType === "success" ? "✓ Éxito" : "⚠ Aviso"}
+            className="mb-6"
+          >
+            {message}
+          </Alert>
+        ) : null}
+
+        {/* Products + Cart side-by-side on lg */}
+        <div className="lg:flex lg:gap-6 lg:items-start">
+
+        {/* Products */}
+        <div className="flex-1 min-w-0">
+          <Card>
+            {/* Toolbar */}
+            <div className="flex flex-col gap-2 p-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+              {/* Line 1: Search + View Mode */}
+              <div className="flex gap-2">
+                {/* Search */}
+                <div className="relative flex-1">
+                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar producto..."
+                    className="w-full pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ paddingLeft: '32px' }}
+                  />
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex gap-1 bg-slate-200 rounded-lg p-1 flex-shrink-0">
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold transition-colors leading-none ${
+                      viewMode === "list"
+                        ? "btn-primary"
+                        : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    <span>Lista</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode("card")}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold transition-colors leading-none ${
+                      viewMode === "card"
+                        ? "btn-primary"
+                        : "bg-white text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
+                    </svg>
+                    <span>Tarjetas</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Line 2: Category filter — pill buttons */}
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                    selectedCategory === null
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
+                  }`}
+                >
+                  Todas
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                      selectedCategory === cat.id
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Products content */}
+            <div className="p-4">
+
+            {productsLoading ? (
+              <div className={viewMode === "card" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" : "w-full"}>
+                {viewMode === "card" ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="bg-slate-200 rounded-lg h-48 animate-pulse" />
+                  ))
+                ) : (
+                  <table className="w-full text-sm">
+                    <tbody className="divide-y divide-slate-100">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="px-4 py-3"><div className="h-4 bg-slate-200 rounded w-3/4 mb-1" /><div className="h-3 bg-slate-100 rounded w-1/2" /></td>
+                          <td className="px-4 py-3 hidden md:table-cell"><div className="h-5 bg-slate-200 rounded-full w-20" /></td>
+                          <td className="px-4 py-3 text-right"><div className="h-4 bg-slate-200 rounded w-16 ml-auto" /></td>
+                          <td className="px-4 py-3 text-center"><div className="h-5 bg-slate-200 rounded-full w-10 mx-auto" /></td>
+                          <td className="px-4 py-3 text-center"><div className="h-7 bg-slate-200 rounded-lg w-20 mx-auto" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ) : displayedProducts.length === 0 ? (
+              <p className="text-slate-500 text-center py-12">Sin resultados.</p>
+            ) : viewMode === "card" ? (
+              // CARD VIEW
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
               {displayedProducts.map((product) => {
                 const inCart = cart.find((i) => !i.variantId && i.productId === product.id);
                 const category = categories.find((c) => c.id === (product as any).category_id);
@@ -579,7 +586,7 @@ export default function POSPage() {
                 return (
                   <div
                     key={product.id}
-                    className={`rounded-lg border border-slate-200 overflow-hidden transition-all hover:shadow-lg flex flex-col h-full ${
+                    className={`rounded-lg border border-slate-200 overflow-hidden transition-all hover:shadow-lg hover:border-slate-300 flex flex-col h-full ${
                       outOfStock && !hasVariants ? "opacity-50" : ""
                     }`}
                   >
@@ -656,18 +663,18 @@ export default function POSPage() {
                 );
               })}
             </div>
-            <div className="mt-4 px-4 py-2 text-sm text-slate-400">
+            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
             </div>
-          </div>
+          </>
         ) : (
           // LIST VIEW
-          <div className="overflow-x-auto">
+          <>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-2.5 text-left">Producto</th>
-                  <th className="px-4 py-2.5 text-left hidden md:table-cell">Categoría</th>
+                <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
+                  <th className="px-4 py-2.5 text-left text-white">Producto</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">Categoría</th>
                   <th className="w-full"></th>
                   <th className="px-4 py-2.5 text-right"></th>
                 </tr>
@@ -703,7 +710,7 @@ export default function POSPage() {
                       </td>
                       <td className="px-4 py-2.5 hidden md:table-cell">
                         {category ? (
-                          <span className="inline-block px-2 py-0.5 text-sm rounded-full bg-slate-100 text-slate-600 font-medium">
+                          <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-lg bg-blue-100 text-blue-700">
                             {category.name}
                           </span>
                         ) : (
@@ -762,52 +769,53 @@ export default function POSPage() {
             <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
             </div>
-          </div>
+          </>
         )}
-      </div>
+            </div>
+          </Card>
+        </div>
 
-      {/* Cart — drawer on < lg, always visible on lg */}
-      <div className="lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-4">
+        {/* Cart — drawer on < lg, always visible on lg */}
+        <div className="lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-4">
 
-        {/* Backdrop — mobile only */}
-        {isCartOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={() => setIsCartOpen(false)}
-          />
-        )}
+          {/* Backdrop — mobile only */}
+          {isCartOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              onClick={() => setIsCartOpen(false)}
+            />
+          )}
 
-        {/* Cart panel */}
-        <div
-          className={`fixed right-0 top-0 h-screen w-80 z-50 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col
-            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:shadow-sm lg:rounded-lg lg:border lg:border-slate-200 lg:z-auto lg:flex lg:flex-col
+          {/* Cart panel */}
+          <Card className={`fixed right-0 top-0 h-screen w-80 z-50 transform transition-transform duration-300 ease-in-out flex flex-col
+            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:rounded-lg lg:z-auto lg:flex lg:flex-col
             ${
               isCartOpen ? "translate-x-0" : "translate-x-full"
             }`}
-        >
-        {/* Drawer header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-900 text-white">
-          <div className="flex items-center gap-2">
+          >
+            {/* Drawer header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-t-lg lg:rounded-t-lg">
+          <div className="flex items-center gap-3">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h12.8M7 13H5.4M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"
               />
             </svg>
             <div className="flex flex-col">
-              <h2 className="font-semibold text-sm">Carrito</h2>
+              <h2 className="font-semibold text-sm text-white">Carrito</h2>
               {user && (
-                <p className="text-xs text-gray-300">Cajero: {user.firstName} {user.lastName}</p>
+                <p className="text-xs text-white">Cajero: {user.firstName} {user.lastName}</p>
               )}
             </div>
             {cartItemCount > 0 && (
-              <span className="flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 rounded-full ml-2">
+              <span className="flex items-center justify-center w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full ml-2">
                 {cartItemCount}
               </span>
             )}
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
-            className="p-1 rounded hover:bg-slate-700 transition-colors lg:hidden"
+            className="p-1.5 rounded hover:bg-white/10 transition-colors lg:hidden"
             aria-label="Cerrar carrito"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -819,7 +827,7 @@ export default function POSPage() {
         {/* Cart items — scrollable */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {cart.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center mt-8">Carrito vacío</p>
+            <p className="text-sm text-slate-500 text-center mt-8">Carrito vacío</p>
           ) : (
             cart.map((item) => {
               const product = products.find((p) => p.id === item.productId);
@@ -930,9 +938,9 @@ export default function POSPage() {
               ) : (
                 <button
                   onClick={() => setShowLoyalCustomerModal(true)}
-                  className="w-full px-3 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
+                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-bold rounded-lg transition-colors shadow-md text-center"
                 >
-                  💳 Agregar Cliente Fiel
+                  Agregar Cliente Fiel
                 </button>
               )}
             </div>
@@ -1001,16 +1009,14 @@ export default function POSPage() {
 
           <Button
             onClick={handleCompleteSale}
-            size="sm"
-            className="w-full bg-green-600 hover:bg-green-700"
+            className="w-full"
             disabled={cart.length === 0 || loading}
           >
             {loading ? "Procesando..." : "Completar Venta"}
           </Button>
           <Button
-            className="w-full"
-            size="sm"
             variant="secondary"
+            className="w-full"
             onClick={() => {
               setCart([]);
               setDiscount(0);
@@ -1021,14 +1027,15 @@ export default function POSPage() {
             Cancelar
           </Button>
         </div>
-      </div>
-      </div>
+          </Card>
+        </div>
+        </div>
 
       {/* Loyal Customer Modal */}
       {showLoyalCustomerModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-96 flex flex-col">
-            <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+          <Card className="max-w-md w-full max-h-96 flex flex-col -m-6">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
               <h2 className="font-semibold text-slate-900">Seleccionar Cliente Fiel</h2>
               <button
                 onClick={() => setShowLoyalCustomerModal(false)}
@@ -1040,17 +1047,17 @@ export default function POSPage() {
               </button>
             </div>
 
-            <div className="px-4 py-3 border-b border-slate-200">
+            <div className="px-6 py-3 border-b border-slate-200 -mx-6">
               <input
                 type="text"
                 placeholder="Buscar por nombre, teléfono o tarjeta..."
                 value={loyalCustomerSearch}
                 onChange={(e) => setLoyalCustomerSearch(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
               />
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-3">
+            <div className="flex-1 overflow-y-auto px-6 py-4">
               {loadingLoyalCustomers ? (
                 <p className="text-sm text-slate-500 text-center py-4">Cargando...</p>
               ) : loyalCustomers.length === 0 ? (
@@ -1080,7 +1087,7 @@ export default function POSPage() {
               )}
             </div>
 
-            <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 -mx-6 -mb-6 rounded-b-lg">
               <button
                 onClick={async () => {
                   const cardNumber = await generateUniqueCardNumber();
@@ -1095,20 +1102,20 @@ export default function POSPage() {
                     setShowCreateLoyalCustomerModal(true);
                   }
                 }}
-                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded transition-colors"
+                className="btn-primary w-full"
               >
                 + Crear Nuevo Cliente
               </button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Create Loyal Customer Modal */}
       {showCreateLoyalCustomerModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
-            <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+          <Card className="max-w-md w-full -m-6">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
               <h2 className="font-semibold text-slate-900">Crear Cliente Fiel</h2>
               <button
                 onClick={() => setShowCreateLoyalCustomerModal(false)}
@@ -1120,15 +1127,15 @@ export default function POSPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateLoyalCustomer} className="px-4 py-4 space-y-3">
+            <form onSubmit={handleCreateLoyalCustomer} className="px-6 py-4 space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Número de Tarjeta</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">Número de Tarjeta</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     readOnly
                     value={newLoyalCustomerForm.card_number}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded text-sm bg-slate-50 text-slate-900 font-semibold"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 text-slate-900 font-semibold"
                   />
                   <button
                     type="button"
@@ -1138,7 +1145,7 @@ export default function POSPage() {
                         setNewLoyalCustomerForm({ ...newLoyalCustomerForm, card_number: cardNumber });
                       }
                     }}
-                    className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded text-sm transition"
+                    className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm transition"
                   >
                     🔄
                   </button>
@@ -1146,7 +1153,7 @@ export default function POSPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre *</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">Nombre *</label>
                 <input
                   type="text"
                   required
@@ -1154,59 +1161,58 @@ export default function POSPage() {
                   onChange={(e) =>
                     setNewLoyalCustomerForm({ ...newLoyalCustomerForm, name: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
                   placeholder="Juan Pérez"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">Teléfono</label>
                 <input
                   type="tel"
                   value={newLoyalCustomerForm.phone}
                   onChange={(e) =>
                     setNewLoyalCustomerForm({ ...newLoyalCustomerForm, phone: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
                   placeholder="+505 8765 4321"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Correo</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">Correo</label>
                 <input
                   type="email"
                   value={newLoyalCustomerForm.email}
                   onChange={(e) =>
                     setNewLoyalCustomerForm({ ...newLoyalCustomerForm, email: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm text-slate-900"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
                   placeholder="juan@ejemplo.com"
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateLoyalCustomerModal(false)}
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+                  className="btn-secondary flex-1"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition"
+                  className="btn-primary flex-1"
                 >
                   {loading ? "Creando..." : "Crear"}
                 </button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
-
+      </Container>
       </div>
-    </div>
-  );
+    );
 }

@@ -117,7 +117,7 @@ export default function ModulesPage() {
             });
           }
         } catch (err) {
-          console.log("No loyalty settings found, using defaults");
+
         }
       } catch (err) {
         console.error("Error loading settings:", err);

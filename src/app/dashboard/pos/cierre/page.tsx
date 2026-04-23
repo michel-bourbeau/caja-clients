@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
@@ -285,23 +285,23 @@ export default function CierreCajaPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <Container>
+      <Section>
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900">Cierre de Caja</h1>
+          <p className="text-slate-600 mt-2 text-sm">
+            {isManager
+              ? "Reconciliación diaria — compara las ventas registradas con el efectivo contado y el reporte de la terminal de pago."
+              : "Cuenta el efectivo de la caja e ingresa el total del reporte de la terminal. No se muestran los montos del sistema hasta que un administrador revise el cierre."}
+          </p>
+        </div>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Cierre de Caja</h1>
-        <p className="text-slate-500 mt-1 text-sm">
-          {isManager
-            ? "Reconciliación diaria — compara las ventas registradas con el efectivo contado y el reporte de la terminal de pago."
-            : "Cuenta el efectivo de la caja e ingresa el total del reporte de la terminal. No se muestran los montos del sistema hasta que un administrador revise el cierre."}
-        </p>
-      </div>
+        {/* Main form card */}
+        <Card>
 
-      {/* Main form card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-
-        {/* Card header — date selector */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50">
+          {/* Card header — date selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Fecha de cierre</p>
             <input
@@ -471,28 +471,28 @@ export default function CierreCajaPage() {
 
               {/* Actions */}
               {formMessage && (
-                <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
-                  formMessage.type === "success"
-                    ? "bg-green-50 text-green-800 border border-green-200"
-                    : "bg-red-50 text-red-800 border border-red-200"
-                }`}>
+                <Alert
+                  variant={formMessage.type === "success" ? "success" : "error"}
+                  title={formMessage.type === "success" ? "Éxito" : "Error"}
+                >
                   {formMessage.text}
-                </div>
+                </Alert>
               )}
 
               <div className="flex gap-2 pt-1">
                 <Button
+                  variant="primary"
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold"
+                  className="flex-1"
                 >
                   {saving ? "Guardando..." : current ? "Actualizar Cierre" : "Registrar Cierre"}
                 </Button>
                 {/* Print — MANAGER ONLY (report contains system totals) */}
                 {isManager && systemTotals && (
                   <Button
+                    variant="secondary"
                     onClick={handlePrint}
-                    className="px-4 bg-slate-700 hover:bg-slate-800 text-white"
                     title="Imprimir reporte"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -505,92 +505,95 @@ export default function CierreCajaPage() {
           </div>
         </div>
 
-        {/* Summary row — MANAGER ONLY */}
-        {isManager && systemTotals && systemTotals.tx_count > 0 && (declaredCash !== "" || declaredCard !== "") && preview && (
-          <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "Efectivo", diff: preview.diff_cash },
-              { label: "Tarjeta", diff: preview.diff_card },
-            ].map(({ label, diff }) => (
-              <div key={label} className="text-center">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</p>
-                <DiffBadge diff={diff} />
-                <p className={`text-sm font-bold mt-1 ${
-                  Math.abs(diff) < 0.01 ? "text-green-700" : diff < 0 ? "text-red-600" : "text-blue-700"
-                }`}>
-                  {diff >= 0 ? "+" : ""}{fmt(diff)}
-                </p>
+          {/* Summary row — MANAGER ONLY */}
+          {isManager && systemTotals && systemTotals.tx_count > 0 && (declaredCash !== "" || declaredCard !== "") && preview && (
+            <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: "Efectivo", diff: preview.diff_cash },
+                { label: "Tarjeta", diff: preview.diff_card },
+              ].map(({ label, diff }) => (
+                <div key={label} className="text-center">
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">{label}</p>
+                  <DiffBadge diff={diff} />
+                  <p className={`text-sm font-bold mt-1 ${
+                    Math.abs(diff) < 0.01 ? "text-green-700" : diff < 0 ? "text-red-600" : "text-blue-700"
+                  }`}>
+                    {diff >= 0 ? "+" : ""}{fmt(diff)}
+                  </p>
+                </div>
+              ))}
+              <div className="text-center col-span-2 sm:col-span-2">
+                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Total Sistema</p>
+                <p className="text-lg font-bold text-slate-900">{fmt(systemTotals.system_total)}</p>
               </div>
-            ))}
-            <div className="text-center col-span-2 sm:col-span-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Total Sistema</p>
-              <p className="text-lg font-bold text-slate-900">{fmt(systemTotals.system_total)}</p>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </Card>
 
-      {/* History */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Historial de Cierres</h2>
-        {loadingHistory ? (
-          <div className="space-y-2">
-            {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
-          </div>
-        ) : history.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8 border border-dashed border-slate-200 rounded-xl">
-            Sin cierres registrados aún.
-          </p>
-        ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-3 text-left">Fecha</th>
-                  <th className="px-4 py-3 text-right hidden sm:table-cell">Total Sistema</th>
-                  {isManager && <th className="px-4 py-3 text-center">Efectivo</th>}
-                  {isManager && <th className="px-4 py-3 text-center">Tarjeta</th>}
-                  <th className="px-4 py-3 text-left hidden md:table-cell">Cajero</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {history.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => {
-                      setSelectedDate(c.closing_date);
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }}
-                    className="hover:bg-blue-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">{fmtLocalDate(c.closing_date)}</p>
-                      {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs">{c.notes}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-semibold text-slate-700">
-                      {fmt(c.system_total)}
-                    </td>
-                    {isManager && (
-                      <td className="px-4 py-3 text-center">
-                        <DiffBadge diff={c.diff_cash} />
-                      </td>
-                    )}
-                    {isManager && (
-                      <td className="px-4 py-3 text-center">
-                        <DiffBadge diff={c.diff_card} />
-                      </td>
-                    )}
-                    <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
-                      {c.closed_by ?? "—"}
-                    </td>
+        {/* History */}
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 mb-4">Historial de Cierres</h2>
+          {loadingHistory ? (
+            <div className="space-y-2">
+              {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
+            </div>
+          ) : history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-dashed border-slate-300 bg-slate-50">
+              <svg className="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p className="text-sm text-slate-500">Sin cierres registrados aún.</p>
+            </div>
+          ) : (
+            <Card>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
+                    <th className="px-4 py-3 text-left text-white">Fecha</th>
+                    <th className="px-4 py-3 text-right hidden sm:table-cell text-white">Total Sistema</th>
+                    {isManager && <th className="px-4 py-3 text-center text-white">Efectivo</th>}
+                    {isManager && <th className="px-4 py-3 text-center text-white">Tarjeta</th>}
+                    <th className="px-4 py-3 text-left hidden md:table-cell text-white">Cajero</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-    </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {history.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedDate(c.closing_date);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="hover:bg-blue-50 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-900">{fmtLocalDate(c.closing_date)}</p>
+                        {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs">{c.notes}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-semibold text-slate-700">
+                        {fmt(c.system_total)}
+                      </td>
+                      {isManager && (
+                        <td className="px-4 py-3 text-center">
+                          <DiffBadge diff={c.diff_cash} />
+                        </td>
+                      )}
+                      {isManager && (
+                        <td className="px-4 py-3 text-center">
+                          <DiffBadge diff={c.diff_card} />
+                        </td>
+                      )}
+                      <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
+                        {c.closed_by ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+        </div>
+      </Section>
+    </Container>
   );
 }

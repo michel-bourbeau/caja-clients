@@ -96,7 +96,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto flex flex-col w-full min-w-0">
+        <main className="flex-1 overflow-hidden flex flex-col w-full min-w-0">
 
           {/* SuperAdmin impersonation banner */}
           {impersonation && (
@@ -171,7 +171,7 @@ export default function DashboardLayout({
             </div>
           </header>
 
-          <div className="p-6 flex-1">
+          <div className="p-6 flex-1 overflow-y-auto">
             {children}
           </div>
         </main>

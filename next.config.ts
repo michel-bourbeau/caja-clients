@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  turbopack: {
+    // Turbopack configuration for Tailwind CSS
+  },
 };
 
 export default nextConfig;

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
+import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
 
 const TZ = "America/Managua";
 
@@ -492,74 +493,70 @@ export default function AttendancePage() {
   ] as const;
 
   return (
-    <div>
+    <Container>
+      <Section>
       {/* Edit entry modal */}
       {editEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Editar Registro</h2>
-              <button onClick={() => setEditEntry(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl">
+              <h2 className="text-base font-semibold text-white">Editar Registro</h2>
+              <button onClick={() => setEditEntry(null)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <p className="text-sm text-slate-500">
-              {editEntry.employee_first_name} {editEntry.employee_last_name} &mdash; {editForm.date}
-            </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="p-6 space-y-4">
+              <div className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-900">{editEntry.employee_first_name} {editEntry.employee_last_name}</span> — {editForm.date}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Hora entrada</label>
+                  <input
+                    type="time"
+                    value={editForm.checkInTime}
+                    onChange={(e) => setEditForm((f) => ({ ...f, checkInTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Hora salida</label>
+                  <input
+                    type="time"
+                    value={editForm.checkOutTime}
+                    onChange={(e) => setEditForm((f) => ({ ...f, checkOutTime: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              {editForm.checkInTime && editForm.checkOutTime && editForm.checkOutTime > editForm.checkInTime && (
+                <Alert variant="success" title="Duración">
+                  {fmtDuration(Math.floor(
+                    (new Date(`2000-01-01T${editForm.checkOutTime}`).getTime() -
+                      new Date(`2000-01-01T${editForm.checkInTime}`).getTime()) / 60000
+                  ))}
+                </Alert>
+              )}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Hora entrada</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
                 <input
-                  type="time"
-                  value={editForm.checkInTime}
-                  onChange={(e) => setEditForm((f) => ({ ...f, checkInTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                  placeholder="Opcional..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Hora salida</label>
-                <input
-                  type="time"
-                  value={editForm.checkOutTime}
-                  onChange={(e) => setEditForm((f) => ({ ...f, checkOutTime: e.target.value }))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="flex gap-2 pt-2">
+                <Button variant="secondary" onClick={() => setEditEntry(null)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button variant="primary" onClick={handleEditSave} disabled={editSaving || !editForm.checkInTime} className="flex-1">
+                  {editSaving ? "Guardando..." : "Guardar"}
+                </Button>
               </div>
-            </div>
-            {editForm.checkInTime && editForm.checkOutTime && editForm.checkOutTime > editForm.checkInTime && (
-              <div className="text-sm text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                Duración: <span className="font-bold">{fmtDuration(Math.floor(
-                  (new Date(`2000-01-01T${editForm.checkOutTime}`).getTime() -
-                    new Date(`2000-01-01T${editForm.checkInTime}`).getTime()) / 60000
-                ))}</span>
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
-              <input
-                type="text"
-                value={editForm.notes}
-                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Opcional..."
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button
-                onClick={() => setEditEntry(null)}
-                className="flex-1 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleEditSave}
-                disabled={editSaving || !editForm.checkInTime}
-                className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold"
-              >
-                {editSaving ? "Guardando..." : "Guardar"}
-              </button>
             </div>
           </div>
         </div>
@@ -568,23 +565,19 @@ export default function AttendancePage() {
       {/* Header */}
       <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Asistencia</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Asistencia</h1>
           <p className="text-sm text-slate-600 mt-1">
-            {fmtDateLong(toNicaraguaDateString(new Date()))} &mdash;{" "}
+            {fmtDateLong(toNicaraguaDateString(new Date()))} —{" "}
             {visibleEmployees.length} empleado{visibleEmployees.length !== 1 ? "s" : ""} {!isAdmin && "a tu cargo"}
             {!isAdmin ? "" : "activo" + (visibleEmployees.length !== 1 ? "s" : "")}
           </p>
         </div>
-        <button
-          onClick={loadToday}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
+        <Button variant="secondary" onClick={loadToday} disabled={loading}>
           <svg className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
           </svg>
           {loading ? "Cargando..." : "Actualizar"}
-        </button>
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -614,9 +607,9 @@ export default function AttendancePage() {
       {/* ── Manual Entry Tab ─────────────────────────────────────────────────── */}
       {tab === "manual" && (
         <div className="max-w-lg">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
-            <p className="text-sm text-slate-500">
-              Registra las horas trabajadas de un empleado para cualquier dia.
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-5">
+            <p className="text-sm text-slate-600">
+              Registra las horas trabajadas de un empleado para cualquier día.
             </p>
 
             {/* Employee */}
@@ -718,13 +711,9 @@ export default function AttendancePage() {
               />
             </div>
 
-            <button
-              onClick={handleManualEntry}
-              disabled={manualSaving || !manualForm.employeeId || !manualForm.checkInTime}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold text-sm rounded-lg transition-colors"
-            >
+            <Button variant="primary" onClick={handleManualEntry} disabled={manualSaving || !manualForm.employeeId || !manualForm.checkInTime} className="w-full">
               {manualSaving ? "Guardando..." : "Guardar Registro"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -934,9 +923,9 @@ export default function AttendancePage() {
                       <div className="space-y-3">
                         {[...dayEmployees!.entries()].map(([empId, { name, entries, totalMin }]) => (
                           <div key={empId} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-                              <span className="font-medium text-slate-900 text-sm">{name || empId}</span>
-                              <span className="text-xs font-semibold text-blue-700">Total: {fmtDuration(totalMin)}</span>
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-slate-800 text-white border-b border-slate-700">
+                              <span className="font-medium text-white text-sm">{name || empId}</span>
+                              <span className="text-xs font-semibold text-blue-200">Total: {fmtDuration(totalMin)}</span>
                             </div>
                             <div className="divide-y divide-slate-50">
                               {entries.map((entry, i) => (
@@ -987,6 +976,7 @@ export default function AttendancePage() {
           )}
         </div>
       )}
-    </div>
+      </Section>
+    </Container>
   );
 }

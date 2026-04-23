@@ -11,7 +11,7 @@ export async function GET(
 ) {
   try {
     const { tenantId } = await params;
-    console.log("[taxes GET] Fetching taxes for tenant:", tenantId);
+
     
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -26,7 +26,7 @@ export async function GET(
       throw error;
     }
 
-    console.log("[taxes GET] Found taxes:", data?.length || 0);
+
     return NextResponse.json(data || []);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";

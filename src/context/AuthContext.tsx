@@ -59,7 +59,7 @@ async function resolveProfile(email: string): Promise<Record<string, any> | null
   try {
     const res = await fetch(`/api/auth/profile?email=${encodeURIComponent(email)}`);
     if (!res.ok) {
-      console.warn("[Auth] resolveProfile: profil introuvable pour", email);
+
       return null;
     }
     return await res.json();
@@ -74,17 +74,16 @@ async function fetchTenantRolePermissions(tenantId: string, slug: string): Promi
   try {
     const res = await fetch(`/api/tenants/${tenantId}/roles`);
     if (!res.ok) {
-      console.warn("[Auth] fetchTenantRolePermissions: API error", res.status);
+
       return null;
     }
     const roles: Array<{ slug: string; name: string; permissions: string[] }> = await res.json();
-    console.log("[Auth] roles disponibles:", roles.map((r) => `${r.name} (slug="${r.slug}")`));
-    console.log("[Auth] recherche slug:", slug);
+
     const match = roles.find((r) => r.slug === slug);
     if (!match) {
-      console.warn(`[Auth] Aucun rôle trouvé avec slug="${slug}". Slugs disponibles: ${roles.map((r) => r.slug).join(", ")}`);
+
     } else {
-      console.log("[Auth] Permissions chargées depuis DB:", match.permissions);
+
     }
     return match?.permissions ?? null;
   } catch (err) {
@@ -255,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const resolvedPerms = customPerms ?? permissionsForRole(profile?.role_id ?? "");
       setUser((prev) => prev ? { ...prev, permissions: resolvedPerms } : prev);
     } catch (err) {
-      console.warn("[Auth] refreshPermissions failed:", err);
+
     }
   }, [user?.email, user?.id]);
 

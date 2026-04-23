@@ -57,17 +57,17 @@ export default function CustomerDetailsPage() {
     if (!tenantId || !customerId) return;
 
     try {
-      console.log("Awarding reward...");
+
       const result = await LoyaltyService.awardReward(tenantId, customerId, {
         reward_type: loyaltySettings?.loyalty_reward_type || "DISCOUNT_PERCENT",
         reward_value: loyaltySettings?.loyalty_reward_value,
         notes: `Recompensa por ${fmt(customer?.total_accumulated || 0)} gastado`,
       });
       
-      console.log("Reward result:", result);
+
       
       if (result?.updatedCustomer) {
-        console.log("Updated customer from API:", result.updatedCustomer);
+
         // Update customer with the returned data immediately
         setCustomer(prev => prev ? { ...prev, ...result.updatedCustomer } : null);
       }

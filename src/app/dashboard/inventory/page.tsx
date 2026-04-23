@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
-import { Button, Input, Card } from "@/components/ui";
+import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
 interface ProductVariant {
@@ -173,7 +173,7 @@ export default function InventoryPage() {
 
     try {
       const url = `/api/tenants/${tenantId}/categories`;
-      console.log("POST to:", url);
+
       
       const res = await fetch(url, {
         method: "POST",
@@ -675,7 +675,8 @@ export default function InventoryPage() {
   const uncategorizedProducts = products.filter((p) => !p.category_id);
 
   return (
-    <div className="space-y-6">
+    <Container>
+      <Section>
 
       {/* Edit product modal */}
       {editProductModal && (
@@ -695,25 +696,34 @@ export default function InventoryPage() {
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="Nombre *"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  placeholder="Nombre del producto"
-                />
-                <Input
-                  label="SKU"
-                  value={editForm.sku}
-                  onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
-                  placeholder="Código único"
-                />
-                <Input
-                  label="Precio"
-                  type="number"
-                  value={editForm.price}
-                  onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
-                  placeholder="Precio unitario"
-                />
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre *</label>
+                  <input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    placeholder="Nombre del producto"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">SKU</label>
+                  <input
+                    value={editForm.sku}
+                    onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
+                    placeholder="Código único"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Precio</label>
+                  <input
+                    type="number"
+                    value={editForm.price}
+                    onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                    placeholder="Precio unitario"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
                   <select
@@ -728,33 +738,40 @@ export default function InventoryPage() {
                   </select>
                 </div>
                 {!(editProductModal as any).has_variants && (
-                  <Input
-                    label="Stock actual"
-                    type="number"
-                    value={editForm.quantity}
-                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                    placeholder="Cantidad en stock"
-                  />
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Stock actual</label>
+                    <input
+                      type="number"
+                      value={editForm.quantity}
+                      onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                      placeholder="Cantidad en stock"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 )}
                 {!(editProductModal as any).has_variants && (
                   <div>
-                    <Input
-                      label="Stock mínimo"
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
+                    <input
                       type="number"
                       value={editForm.min_stock}
                       onChange={(e) => setEditForm({ ...editForm, min_stock: e.target.value })}
                       placeholder="Alerta bajo inventario"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
                   </div>
                 )}
               </div>
-              <Input
-                label="Descripción"
-                value={editForm.description}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                placeholder="Descripción opcional"
-              />
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
+                <input
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="Descripción opcional"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
               
               {/* Variants section */}
               {(editProductModal as any).has_variants && (editProductModal as any).variants && (editProductModal as any).variants.length > 0 && (
@@ -891,248 +908,302 @@ export default function InventoryPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap gap-3 justify-between items-center">
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Productos</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Gestión de Productos</h1>
           <p className="text-sm text-slate-600 mt-1">{products.length} producto{products.length !== 1 ? "s" : ""} en inventario</p>
         </div>
         <div className="flex gap-2">
-          <Button
+        <Button
+            variant={reorderMode ? "danger" : "secondary"}
             onClick={() => setReorderMode((v) => !v)}
-            className={reorderMode ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-200 text-slate-700 hover:bg-slate-300"}
           >
             {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
           </Button>
-          <Button onClick={() => setShowAddCategory(!showAddCategory)} className="bg-blue-600 hover:bg-blue-700">
+          <Button variant="primary" onClick={() => setShowAddCategory(!showAddCategory)}>
             + Categoría
           </Button>
-          <Button onClick={() => setShowAddProduct(!showAddProduct)} className="bg-green-600 hover:bg-green-700">
+          <Button variant="primary" onClick={() => setShowAddProduct(!showAddProduct)}>
             + Producto
           </Button>
         </div>
       </div>
 
       {message && (
-        <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm">
+        <Alert variant="success" title="Mensaje">
           {message}
-        </div>
+        </Alert>
       )}
 
       {/* Add Category Form */}
       {showAddCategory && (
-        <div className="bg-white rounded-lg border-2 border-blue-400 shadow-sm p-5">
-          <h2 className="font-semibold mb-4 text-slate-900 text-base">Nueva Categoría</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input
-              label="Nombre"
-              placeholder="Ej: Electrónica"
-              value={newCategory.name}
-              onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-            />
-            <Input
-              label="Descripción"
-              placeholder="Descripción opcional"
-              value={newCategory.description}
-              onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-            />
+        <Card>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+            <h2 className="font-semibold text-slate-900 text-base">Nueva Categoría</h2>
+            <button
+              onClick={() => setShowAddCategory(false)}
+              className="p-1 rounded hover:bg-slate-200 text-slate-500 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleAddCategory} className="bg-blue-600 hover:bg-blue-700 text-white">Crear</Button>
-            <Button onClick={() => setShowAddCategory(false)} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
+                <input
+                  placeholder="Ej: Electrónica"
+                  value={newCategory.name}
+                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
+                <input
+                  placeholder="Descripción opcional"
+                  value={newCategory.description}
+                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button variant="primary" onClick={handleAddCategory}>Crear</Button>
+              <Button variant="secondary" onClick={() => setShowAddCategory(false)}>Cancelar</Button>
+            </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Add Product Form */}
       {showAddProduct && (
-        <div className="bg-white rounded-lg border-2 border-green-400 shadow-sm p-5">
-          <h2 className="font-semibold mb-4 text-slate-900 text-base">Nuevo Producto</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Input
-              label="Nombre *"
-              placeholder="Nombre del producto"
-              value={newProduct.name}
-              onChange={(e) => {
-                const newName = e.target.value;
-                setNewProduct({ ...newProduct, name: newName, sku: generateSKU(newName) });
-              }}
-            />
-            <Input
-              label="SKU *"
-              placeholder="Generado automáticamente"
-              value={newProduct.sku}
-              readOnly
-              className="bg-slate-50 cursor-not-allowed opacity-75"
-              title="El SKU se genera automáticamente a partir del nombre"
-            />
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
-              <select
-                value={newProduct.category_id}
-                onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">— Sin categoría —</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-            <Input
-              label="Descripción"
-              placeholder="Descripción opcional"
-              value={newProduct.description}
-              onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-            />
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
-            </div>
+        <Card>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+            <h2 className="font-semibold text-slate-900 text-base">Nuevo Producto</h2>
+            <button
+              onClick={() => setShowAddProduct(false)}
+              className="p-1 rounded hover:bg-slate-200 text-slate-500 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-
-          {/* Image preview */}
-          {productImagePreview && (
-            <div className="mt-3 flex items-center gap-3">
-              <img
-                src={productImagePreview}
-                alt="Preview"
-                className="w-16 h-16 object-cover rounded-lg border border-slate-200"
-              />
-              <button
-                onClick={() => {
-                  setProductImage(null);
-                  setProductImagePreview("");
-                }}
-                className="text-sm text-red-600 hover:text-red-700 font-semibold"
-              >
-                Eliminar imagen
-              </button>
-            </div>
-          )}
-
-          {/* Multi-format toggle */}
-          <label className="inline-flex items-center gap-2 mt-4 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={isMultiFormat}
-              onChange={(e) => {
-                setIsMultiFormat(e.target.checked);
-                setVariantRows([{ label: "", price: "", quantity: "" }]);
-              }}
-              className="w-4 h-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
-            />
-            <span className="text-sm font-semibold text-slate-700">Multi-formato (varios tamaños / presentaciones)</span>
-          </label>
-
-          {/* Single product price+qty OR variant rows */}
-          {isMultiFormat ? (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm font-semibold text-slate-600 mb-1">Formatos:</p>
-              {variantRows.map((v, i) => (
-                <div key={i} className="flex flex-wrap gap-2 items-end">
-                  <div className="flex-1 min-w-[120px]">
-                    <Input
-                      label={i === 0 ? "Formato *" : ""}
-                      placeholder="Ej: 15g"
-                      value={v.label}
-                      onChange={(e) => {
-                        const copy = [...variantRows];
-                        copy[i] = { ...copy[i], label: e.target.value };
-                        setVariantRows(copy);
-                      }}
-                    />
-                  </div>
-                  <div className="w-28">
-                    <Input
-                      label={i === 0 ? "Precio *" : ""}
-                      type="number"
-                      placeholder="Precio"
-                      value={v.price}
-                      onChange={(e) => {
-                        const copy = [...variantRows];
-                        copy[i] = { ...copy[i], price: e.target.value };
-                        setVariantRows(copy);
-                      }}
-                    />
-                  </div>
-                  <div className="w-24">
-                    <Input
-                      label={i === 0 ? "Stock" : ""}
-                      type="number"
-                      placeholder="Stock"
-                      value={v.quantity}
-                      onChange={(e) => {
-                        const copy = [...variantRows];
-                        copy[i] = { ...copy[i], quantity: e.target.value };
-                        setVariantRows(copy);
-                      }}
-                    />
-                  </div>
-                  {variantRows.length > 1 && (
-                    <button
-                      onClick={() => setVariantRows(variantRows.filter((_, idx) => idx !== i))}
-                      className="px-2 py-1 text-red-500 hover:text-red-700 text-lg font-bold"
-                      title="Eliminar formato"
-                    >×</button>
-                  )}
-                </div>
-              ))}
-              <button
-                onClick={() => setVariantRows([...variantRows, { label: "", price: "", quantity: "" }])}
-                className="mt-1 text-sm text-green-700 hover:text-green-900 font-semibold"
-              >+ Agregar formato</button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-              <Input
-                label="Precio *"
-                type="number"
-                placeholder="Precio unitario"
-                value={newProduct.price}
-                onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-              />
-              <Input
-                label="Stock inicial"
-                type="number"
-                placeholder="Cantidad disponible"
-                value={newProduct.quantity}
-                onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
-              />
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
               <div>
-                <Input
-                  label="Stock mínimo"
-                  type="number"
-                  placeholder="Alerta bajo inventario"
-                  value={newProduct.min_stock}
-                  onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre *</label>
+                <input
+                  placeholder="Nombre del producto"
+                  value={newProduct.name}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    setNewProduct({ ...newProduct, name: newName, sku: generateSKU(newName) });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">SKU *</label>
+                <input
+                  placeholder="Generado automáticamente"
+                  value={newProduct.sku}
+                  readOnly
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-500 bg-slate-50 cursor-not-allowed"
+                  title="El SKU se genera automáticamente a partir del nombre"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
+                <select
+                  value={newProduct.category_id}
+                  onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— Sin categoría —</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
+                <input
+                  placeholder="Descripción opcional"
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
               </div>
             </div>
-          )}
 
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleAddProduct} disabled={uploadingImage} className="bg-green-600 hover:bg-green-700 text-white">{uploadingImage ? "Subiendo..." : "Agregar"}</Button>
-            <Button onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="bg-slate-200 text-slate-700 hover:bg-slate-300">Cancelar</Button>
+            {/* Image preview */}
+            {productImagePreview && (
+              <div className="mt-3 flex items-center gap-3 mb-4">
+                <img
+                  src={productImagePreview}
+                  alt="Preview"
+                  className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                />
+                <button
+                  onClick={() => {
+                    setProductImage(null);
+                    setProductImagePreview("");
+                  }}
+                  className="text-sm text-red-600 hover:text-red-700 font-semibold"
+                >
+                  Eliminar imagen
+                </button>
+              </div>
+            )}
+
+            {/* Multi-format toggle */}
+            <label className="inline-flex items-center gap-2 mb-4 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isMultiFormat}
+                onChange={(e) => {
+                  setIsMultiFormat(e.target.checked);
+                  setVariantRows([{ label: "", price: "", quantity: "" }]);
+                }}
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm font-semibold text-slate-700">Multi-formato (varios tamaños / presentaciones)</span>
+            </label>
+
+            {/* Single product price+qty OR variant rows */}
+            {isMultiFormat ? (
+              <div className="space-y-2 mb-4">
+                <p className="text-sm font-semibold text-slate-600">Formatos:</p>
+                {variantRows.map((v, i) => (
+                  <div key={i} className="flex flex-wrap gap-2 items-end">
+                    <div className="flex-1 min-w-[120px]">
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Formato *" : ""}</label>
+                      <input
+                        placeholder="Ej: 15g"
+                        value={v.label}
+                        onChange={(e) => {
+                          const copy = [...variantRows];
+                          copy[i] = { ...copy[i], label: e.target.value };
+                          setVariantRows(copy);
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="w-28">
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Precio *" : ""}</label>
+                      <input
+                        type="number"
+                        placeholder="Precio"
+                        value={v.price}
+                        onChange={(e) => {
+                          const copy = [...variantRows];
+                          copy[i] = { ...copy[i], price: e.target.value };
+                          setVariantRows(copy);
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Stock" : ""}</label>
+                      <input
+                        type="number"
+                        placeholder="Stock"
+                        value={v.quantity}
+                        onChange={(e) => {
+                          const copy = [...variantRows];
+                          copy[i] = { ...copy[i], quantity: e.target.value };
+                          setVariantRows(copy);
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    {variantRows.length > 1 && (
+                      <button
+                        onClick={() => setVariantRows(variantRows.filter((_, idx) => idx !== i))}
+                        className="px-2 py-1 text-red-500 hover:text-red-700 text-lg font-bold"
+                        title="Eliminar formato"
+                      >×</button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => setVariantRows([...variantRows, { label: "", price: "", quantity: "" }])}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-semibold"
+                >+ Agregar formato</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Precio *</label>
+                  <input
+                    type="number"
+                    placeholder="Precio unitario"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Stock inicial</label>
+                  <input
+                    type="number"
+                    placeholder="Cantidad disponible"
+                    value={newProduct.quantity}
+                    onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
+                  <input
+                    type="number"
+                    placeholder="Alerta bajo inventario"
+                    value={newProduct.min_stock}
+                    onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={handleAddProduct} disabled={uploadingImage}>
+                {uploadingImage ? "Subiendo..." : "Agregar"}
+              </Button>
+              <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }}>
+                Cancelar
+              </Button>
+            </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Reorder mode — grouped by category with ↑↓ buttons */}
       {reorderMode && (
-        <div className="bg-white rounded-lg border-2 border-amber-400 shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200">
-            <p className="text-sm font-semibold text-amber-800">
+        <Card>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+            <p className="text-sm font-semibold text-slate-700">
               Modo ordenar — usa las flechas para reorganizar categorías y productos
             </p>
-            {savingOrder && <span className="text-xs text-amber-600 animate-pulse">Guardando...</span>}
+            {savingOrder && <span className="text-xs text-slate-600 animate-pulse">Guardando...</span>}
           </div>
+
+          <div className="divide-y divide-slate-200">
 
           {/* Uncategorized products */}
           {products.filter((p) => !p.category_id).length > 0 && (
@@ -1213,15 +1284,15 @@ export default function InventoryPage() {
               </div>
             );
           })}
-        </div>
+          </div>
+        </Card>
       )}
 
       {/* Products table */}
       {!reorderMode && (
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <Card>
 
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex flex-col sm:flex-row gap-2 px-6 py-3 border-b border-slate-200 bg-slate-50">
           <div className="relative flex-1">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -1248,9 +1319,9 @@ export default function InventoryPage() {
         </div>
 
         {loading ? (
-          <p className="p-6 text-gray-500">Cargando...</p>
+          <p className="p-6 text-slate-500">Cargando...</p>
         ) : filteredProducts.length === 0 ? (
-          <p className="p-12 text-center text-gray-400">
+          <p className="p-12 text-center text-slate-400">
             {products.length === 0
               ? "Ningún producto. Comience creando una categoría y agregando un producto."
               : "Sin resultados para esta búsqueda."}
@@ -1259,17 +1330,17 @@ export default function InventoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-2.5 text-left">Producto</th>
-                  <th className="px-4 py-2.5 text-left hidden md:table-cell">SKU</th>
-                  <th className="px-4 py-2.5 text-left hidden lg:table-cell">Categoría</th>
-                  <th className="px-4 py-2.5 text-right">Precio</th>
-                  <th className="px-4 py-2.5 text-center">Stock</th>
-                  <th className="px-4 py-2.5 text-center hidden sm:table-cell" title="Stock mínimo requerido">Mín.</th>
-                  <th className="px-4 py-2.5 text-center w-28">Acciones</th>
+                <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
+                  <th className="px-4 py-2.5 text-left text-white">Producto</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">SKU</th>
+                  <th className="px-4 py-2.5 text-left hidden lg:table-cell text-white">Categoría</th>
+                  <th className="px-4 py-2.5 text-right text-white">Precio</th>
+                  <th className="px-4 py-2.5 text-center text-white">Stock</th>
+                  <th className="px-4 py-2.5 text-center hidden sm:table-cell text-white" title="Stock mínimo requerido">Mín.</th>
+                  <th className="px-4 py-2.5 text-center w-28 text-white">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-200">
                 {filteredProducts.map((product) => {
                   const category = categories.find((c) => c.id === product.category_id);
                   const isEditing = editingProductId === product.id;
@@ -1277,7 +1348,7 @@ export default function InventoryPage() {
                   const hasVariants = product.has_variants && (product.variants?.length ?? 0) > 0;
                   return (
                     <React.Fragment key={product.id}>
-                    <tr className="group hover:bg-blue-50 transition-colors">
+                    <tr className="group hover:bg-blue-50 transition-colors border-b border-slate-200">
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
                           {hasVariants && (
@@ -1558,14 +1629,15 @@ export default function InventoryPage() {
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
+            <div className="px-4 py-2 border-t border-slate-200 text-sm text-slate-400 bg-slate-50">
               {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
               {(search || filterCategory) && ` · filtrado de ${products.length}`}
             </div>
           </div>
         )}
-      </div>
+      </Card>
       )}
-    </div>
+      </Section>
+    </Container>
   );
 }

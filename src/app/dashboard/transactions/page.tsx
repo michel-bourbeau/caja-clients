@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { Transaction, Product } from "@/lib/types";
@@ -20,6 +20,8 @@ const PAYMENT_LABEL: Record<string, string> = {
   TRANSFER: "Transferencia",
 };
 
+type PeriodType = "WEEK" | "MONTH" | "YEAR";
+
 export default function TransactionsPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
@@ -27,9 +29,9 @@ export default function TransactionsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [periodType, setPeriodType] = useState<PeriodType>("MONTH");
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [filters, setFilters] = useState({
-    fromDate: "",
-    toDate: "",
     paymentMethod: "ALL",
     search: "",
   });
@@ -41,6 +43,74 @@ export default function TransactionsPage() {
     change: 0,
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Calculate date range based on period type
+  const getDateRange = (date: Date, type: PeriodType): { from: string; to: string } => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+
+    if (type === "WEEK") {
+      // Get start of week (Monday)
+      const d = new Date(year, month, day);
+      const dayOfWeek = d.getDay();
+      const diff = d.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const startDate = new Date(year, month, diff);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 6);
+      return {
+        from: toNicaraguaDateString(startDate),
+        to: toNicaraguaDateString(endDate),
+      };
+    } else if (type === "MONTH") {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+      return {
+        from: toNicaraguaDateString(startDate),
+        to: toNicaraguaDateString(endDate),
+      };
+    } else {
+      // YEAR
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(year, 11, 31);
+      return {
+        from: toNicaraguaDateString(startDate),
+        to: toNicaraguaDateString(endDate),
+      };
+    }
+  };
+
+  const dateRange = getDateRange(currentDate, periodType);
+
+  const navigatePeriod = (direction: -1 | 1) => {
+    const newDate = new Date(currentDate);
+    if (periodType === "WEEK") {
+      newDate.setDate(newDate.getDate() + direction * 7);
+    } else if (periodType === "MONTH") {
+      newDate.setMonth(newDate.getMonth() + direction);
+    } else {
+      newDate.setFullYear(newDate.getFullYear() + direction);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const formatPeriodLabel = (): string => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    if (periodType === "WEEK") {
+      const range = getDateRange(currentDate, "WEEK");
+      const [y1, m1, d1] = range.from.split("-").map(Number);
+      const [y2, m2, d2] = range.to.split("-").map(Number);
+      const startDate = new Date(y1, m1 - 1, d1);
+      const endDate = new Date(y2, m2 - 1, d2);
+      return `${startDate.toLocaleDateString("es-NI", { day: "numeric", month: "short" })} - ${endDate.toLocaleDateString("es-NI", { day: "numeric", month: "short", year: "numeric" })}`;
+    } else if (periodType === "MONTH") {
+      return currentDate.toLocaleDateString("es-NI", { month: "long", year: "numeric" });
+    } else {
+      return year.toString();
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -77,12 +147,12 @@ export default function TransactionsPage() {
   const filteredTransactions = useMemo(() => {
     let list = [...transactions];
 
-    if (filters.fromDate) {
-      list = list.filter((tx) => toNicaraguaDateString(tx.timestamp) >= filters.fromDate);
-    }
-    if (filters.toDate) {
-      list = list.filter((tx) => toNicaraguaDateString(tx.timestamp) <= filters.toDate);
-    }
+    // Apply date range filter
+    list = list.filter((tx) => {
+      const txDate = toNicaraguaDateString(tx.timestamp);
+      return txDate >= dateRange.from && txDate <= dateRange.to;
+    });
+
     if (filters.paymentMethod !== "ALL") {
       list = list.filter((tx) => tx.paymentMethod === filters.paymentMethod);
     }
@@ -97,7 +167,7 @@ export default function TransactionsPage() {
       );
     }
     return list;
-  }, [transactions, filters]);
+  }, [transactions, filters, dateRange]);
 
   const groupedByDate = useMemo(() => {
     const grouped: Record<string, Transaction[]> = {};
@@ -184,112 +254,143 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap gap-3 justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Transacciones</h1>
-          <p className="text-sm text-slate-600 mt-1">
-            {totals.count} transacción{totals.count !== 1 ? "es" : ""}
-            {totals.count > 0 && <> · Total: <span className="font-semibold text-slate-800">{fmt(totals.amount)}</span></>}
-          </p>
-        </div>
-        <button
-          onClick={loadData}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg shadow transition-colors"
-        >
-          <svg className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
-          </svg>
-          {isLoading ? "Cargando..." : "Actualizar"}
-        </button>
-      </div>
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* Table container */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
-          {/* Search */}
-          <div className="relative flex-1">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-              placeholder="Buscar por ID o producto..."
-              className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+    <Container>
+      <Section>
+        {/* Header */}
+        <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Transacciones</h1>
+            <p className="text-sm text-slate-600 mt-1">
+              {totals.count} transacción{totals.count !== 1 ? "es" : ""}
+              {totals.count > 0 && <> · Total: <span className="font-semibold text-slate-800">{fmt(totals.amount)}</span></>}
+            </p>
           </div>
-          {/* Date from */}
-          <input
-            type="date"
-            value={filters.fromDate}
-            onChange={(e) => setFilters((f) => ({ ...f, fromDate: e.target.value }))}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {/* Date to */}
-          <input
-            type="date"
-            value={filters.toDate}
-            onChange={(e) => setFilters((f) => ({ ...f, toDate: e.target.value }))}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {/* Payment method */}
-          <select
-            value={filters.paymentMethod}
-            onChange={(e) => setFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <Button
+            variant="secondary"
+            onClick={loadData}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2"
           >
-            <option value="ALL">Todos los métodos</option>
-            <option value="CASH">Efectivo</option>
-            <option value="CARD">Tarjeta</option>
-            <option value="TRANSFER">Transferencia</option>
-          </select>
+            <svg className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
+            </svg>
+            {isLoading ? "Cargando..." : "Actualizar"}
+          </Button>
         </div>
 
-        {isLoading ? (
-          <p className="text-center py-12 text-slate-500">Cargando transacciones...</p>
-        ) : filteredTransactions.length === 0 ? (
-          <p className="text-center py-12 text-slate-400">No hay transacciones disponibles.</p>
-        ) : (
+        {error && (
+          <Alert variant="error" title="Error" className="mb-6">
+            {error}
+          </Alert>
+        )}
+
+        {/* Table container */}
+        <Card>
+          {/* Toolbar */}
+          <div className="flex flex-col gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+            {/* Line 1: Search */}
+            <div className="relative flex-1">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                placeholder="Buscar por ID o producto..."
+                className="w-full pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ paddingLeft: '32px' }}
+              />
+            </div>
+            {/* Line 2: Period Filters + Payment Method */}
+            <div className="flex gap-2 items-center justify-between flex-wrap">
+              <div className="flex gap-2 items-center">
+                {/* Period Buttons */}
+                <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
+                  {(["WEEK", "MONTH", "YEAR"] as PeriodType[]).map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => setPeriodType(period)}
+                      className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-colors ${
+                        periodType === period
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {period === "WEEK" ? "Semana" : period === "MONTH" ? "Mes" : "Año"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Navigation */}
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => navigatePeriod(-1)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => navigatePeriod(1)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                  >
+                    →
+                  </button>
+                </div>
+
+                {/* Period Label */}
+                <span className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 whitespace-nowrap">
+                  {formatPeriodLabel()}
+                </span>
+              </div>
+
+              {/* Payment Method */}
+              <select
+                value={filters.paymentMethod}
+                onChange={(e) => setFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
+                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="ALL">Todos los métodos</option>
+                <option value="CASH">Efectivo</option>
+                <option value="CARD">Tarjeta</option>
+                <option value="TRANSFER">Transferencia</option>
+              </select>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <p className="text-center py-12 text-slate-500">Cargando transacciones...</p>
+          ) : filteredTransactions.length === 0 ? (
+            <p className="text-center py-12 text-slate-400">No hay transacciones disponibles.</p>
+          ) : (
           <div className="overflow-x-auto">
             {Object.entries(groupedByDate).map(([dateKey, dayTxs]) => {
               const dayTotal = dayTxs.reduce((s, tx) => s + tx.total, 0);
               return (
                 <div key={dateKey}>
                   {/* Date group header */}
-                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 text-white text-sm font-semibold sticky top-0 z-10">
+                  <div className="flex justify-between items-center px-4 py-2 bg-slate-700 text-white text-sm font-semibold sticky top-0 z-10">
                     <span className="capitalize">{formatDateHeader(dateKey)}</span>
                     <div className="flex items-center gap-3">
                       <span className="bg-slate-600 px-2 py-0.5 rounded-full">
                         {dayTxs.length} venta{dayTxs.length > 1 ? "s" : ""}
                       </span>
-                      <span className="text-slate-300">{fmt(dayTotal)}</span>
+                      <span className="text-white">{fmt(dayTotal)}</span>
                     </div>
                   </div>
 
                   {/* Table for this day */}
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                        <th className="px-4 py-2 text-left">Hora</th>
-                        <th className="px-4 py-2 text-left">Productos</th>
-                        <th className="px-4 py-2 text-left hidden lg:table-cell">Cajero</th>
-                        <th className="px-4 py-2 text-center hidden sm:table-cell">Método</th>
-                        <th className="px-4 py-2 text-right hidden md:table-cell">Subtotal</th>
-                        <th className="px-4 py-2 text-right hidden md:table-cell">Desc.</th>
-                        <th className="px-4 py-2 text-right hidden md:table-cell">Imp.</th>
-                        <th className="px-4 py-2 text-right font-bold">Total</th>
+                      <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
+                        <th className="px-4 py-2 text-left text-white">Hora</th>
+                        <th className="px-4 py-2 text-left text-white">Productos</th>
+                        <th className="px-4 py-2 text-left hidden lg:table-cell text-white">Cajero</th>
+                        <th className="px-4 py-2 text-center hidden sm:table-cell text-white">Método</th>
+                        <th className="px-4 py-2 text-right hidden md:table-cell text-white">Subtotal</th>
+                        <th className="px-4 py-2 text-right hidden md:table-cell text-white">Desc.</th>
+                        <th className="px-4 py-2 text-right hidden md:table-cell text-white">Imp.</th>
+                        <th className="px-4 py-2 text-right font-bold text-white">Total</th>
                         <th className="px-4 py-2 text-center w-24"></th>
                       </tr>
                     </thead>
@@ -317,9 +418,9 @@ export default function TransactionsPage() {
                             <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
                           </td>
                           <td className="px-4 py-2.5 text-center hidden sm:table-cell">
-                            <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${PAYMENT_BADGE[tx.paymentMethod] ?? "bg-slate-100 text-slate-600"}`}>
+                            <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
                               {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
-                            </span>
+                            </Badge>
                           </td>
                           <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
                             {fmt(tx.subtotal)}
@@ -339,18 +440,20 @@ export default function TransactionsPage() {
                           </td>
                           <td className="px-4 py-2.5 text-center">
                             <div className="flex gap-1.5 justify-center">
-                              <button
+                              <Button
+                                variant="primary"
+                                size="sm"
                                 onClick={() => handleOpenDetails(tx)}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
                               >
                                 Ver
-                              </button>
-                              <button
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
                                 onClick={() => handleDeleteTransaction(tx.id)}
-                                className="px-3 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-bold rounded-lg transition-colors"
                               >
                                 ✕
-                              </button>
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -362,12 +465,14 @@ export default function TransactionsPage() {
             })}
             <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {totals.count} transacción{totals.count !== 1 ? "es" : ""}
-              {(filters.search || filters.fromDate || filters.toDate || filters.paymentMethod !== "ALL") &&
+              {(filters.search || filters.paymentMethod !== "ALL") &&
                 ` · filtrado de ${transactions.length}`}
             </div>
           </div>
-        )}
-      </div>
+          )}
+        </Card>
+
+      </Section>
 
       {/* Detail / Edit Modal */}
       {selectedTransaction && (
@@ -375,13 +480,13 @@ export default function TransactionsPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => e.target === e.currentTarget && setSelectedTransaction(null)}
         >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+          <Card className="w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-900 text-white flex-shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex-shrink-0">
               <h2 className="font-semibold text-sm">Detalles de la Transacción</h2>
               <button
                 onClick={() => setSelectedTransaction(null)}
-                className="p-1 rounded hover:bg-slate-700 transition-colors"
+                className="p-1 rounded hover:bg-white/10 transition-colors"
                 aria-label="Cerrar"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -390,7 +495,7 @@ export default function TransactionsPage() {
               </button>
             </div>
 
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               {/* ID */}
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
@@ -508,26 +613,28 @@ export default function TransactionsPage() {
             </div>
 
             {/* Modal footer */}
-            <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
-              <button
+            <div className="flex gap-2 px-6 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+              <Button
+                variant="secondary"
                 onClick={() => setSelectedTransaction(null)}
                 disabled={isSaving}
-                className="flex-1 px-4 py-2 border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleSaveChanges}
                 disabled={isSaving}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1"
               >
                 {isSaving ? "Guardando..." : "Guardar"}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </Container>
   );
 }
 

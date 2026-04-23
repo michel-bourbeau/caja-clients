@@ -69,8 +69,7 @@ export async function PUT(
     const { tenantId } = await params;
     const body = await request.json();
 
-    console.log('Updating loyalty settings for tenant:', tenantId);
-    console.log('Request body:', body);
+
 
     const loyaltyData = {
       tenant_id: tenantId,
@@ -95,10 +94,10 @@ export async function PUT(
       throw error;
     }
 
-    console.log('Update successful:', data);
+
     return NextResponse.json(data || loyaltyData);
   } catch (error: any) {
-    console.error('Error updating loyalty settings:', error);
+
     // If columns don't exist, provide helpful message
     if (error?.code === 'PGRST204' || error?.message?.includes('column')) {
       return NextResponse.json(

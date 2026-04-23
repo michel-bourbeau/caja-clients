@@ -54,13 +54,13 @@ export function getTranslation(
   for (const k of keys) {
     value = value?.[k];
     if (value === undefined) {
-      console.warn(`Translation key not found: ${key}`);
+
       return key; // Return the key itself as fallback
     }
   }
 
   if (typeof value !== 'string') {
-    console.warn(`Translation value is not a string for key: ${key}`);
+
     return key;
   }
 

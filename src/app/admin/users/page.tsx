@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
         }
       }
     } catch (error) {
-      console.error("Erreur lors du chargement des tenants:", error);
+
       setMessage("❌ Erreur lors du chargement des tenants");
     }
   };
@@ -69,7 +69,7 @@ export default function AdminUsersPage() {
         }
       }
     } catch (error) {
-      console.error("Erreur lors du chargement des rôles:", error);
+
     }
   };
 

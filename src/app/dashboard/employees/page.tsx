@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
+import { Button, Container, Section, Alert, Card } from "@/components/StripeUIComponents";
 
 interface Employee {
   id: string;
@@ -478,31 +479,26 @@ export default function EmployeesPage() {
   const fmtDate = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <Container>
+      <Section>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Empleados</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Empleados</h1>
           <p className="text-sm text-slate-600 mt-1">Gestiona el personal, roles y accesos.</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow transition-colors"
-        >
+        <Button variant="primary" onClick={openAdd}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Nuevo Empleado
-        </button>
+        </Button>
       </div>
 
-      {(success || error) && (
-        <div className={`mb-6 rounded border p-4 text-sm ${success ? "border-green-300 bg-green-50 text-green-900" : "border-red-300 bg-red-50 text-red-900"}`}>
-          {success ?? error}
-        </div>
-      )}
+      {success && <Alert variant="success" title="Éxito">{success}</Alert>}
+      {error && <Alert variant="error" title="Error">{error}</Alert>}
 
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex flex-col sm:flex-row gap-2 px-4 py-3 border-b border-slate-200 bg-slate-50">
+      <Card>
+        <div className="flex flex-col sm:flex-row gap-2 px-6 py-3 border-b border-slate-200 bg-slate-50">
           <div className="relative flex-1">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -550,13 +546,13 @@ export default function EmployeesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="px-4 py-2.5 text-left">Empleado</th>
-                  <th className="px-4 py-2.5 text-left hidden md:table-cell">Email</th>
-                  <th className="px-4 py-2.5 text-left hidden sm:table-cell">Rol</th>
-                  <th className="px-4 py-2.5 text-right hidden lg:table-cell">Tarifa/h</th>
-                  <th className="px-4 py-2.5 text-center">Estado</th>
-                  <th className="px-4 py-2.5 text-center w-24"></th>
+                <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
+                  <th className="px-4 py-2.5 text-left text-white">Empleado</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">Email</th>
+                  <th className="px-4 py-2.5 text-left hidden sm:table-cell text-white">Rol</th>
+                  <th className="px-4 py-2.5 text-right hidden lg:table-cell text-white">Tarifa/h</th>
+                  <th className="px-4 py-2.5 text-center text-white">Estado</th>
+                  <th className="px-4 py-2.5 text-center w-24 text-white"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -614,14 +610,14 @@ export default function EmployeesPage() {
             {displayed.length} empleado{displayed.length !== 1 ? "s" : ""}
           </div>
         )}
-      </div>
+      </Card>
 
       {modalMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
           <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl">
-              <h2 className="text-base font-semibold">{modalMode === "add" ? "Nuevo Empleado" : "Editar Empleado"}</h2>
+              <h2 className="text-base font-semibold text-white">{modalMode === "add" ? "Nuevo Empleado" : "Editar Empleado"}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -705,10 +701,10 @@ export default function EmployeesPage() {
               </div>
 
               <div className="flex gap-2 justify-end pt-2">
-                <button type="button" onClick={closeModal} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">Cancelar</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-60">
+                <Button variant="secondary" onClick={closeModal}>Cancelar</Button>
+                <Button variant="primary" disabled={saving} onClick={handleSave}>
                   {saving ? "Guardando..." : modalMode === "add" ? "Crear Empleado" : "Guardar Cambios"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -731,10 +727,10 @@ export default function EmployeesPage() {
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">Cancelar</button>
-              <button onClick={() => handleDelete(deleteConfirmId)} disabled={saving} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-60">
+              <Button variant="secondary" onClick={() => setDeleteConfirmId(null)}>Cancelar</Button>
+              <Button variant="danger" disabled={saving} onClick={() => handleDelete(deleteConfirmId)}>
                 {saving ? "Eliminando..." : "Eliminar"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -748,7 +744,7 @@ export default function EmployeesPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl shrink-0">
               <div>
-                <h2 className="text-base font-semibold">{fichaEmp.first_name} {fichaEmp.last_name}</h2>
+                <h2 className="text-base font-semibold text-white">{fichaEmp.first_name} {fichaEmp.last_name}</h2>
                 <p className="text-xs text-slate-300">
                   {fichaEmp.hire_date ? `Contratado el ${fmtDate(fichaEmp.hire_date)}` : "Sin fecha de contratacion"}
                   {" · "}{fmt(fichaEmp.salary)}/h
@@ -780,7 +776,7 @@ export default function EmployeesPage() {
                   {/* Confirmation panel when paying a period */}
                   {fichaPayingPeriod && (
                     <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 space-y-3">
-                      <p className="text-sm font-bold text-blue-900">Confirmar pago — {fichaPayingPeriod.period.label}</p>
+                      <p className="text-sm font-bold text-white">Confirmar pago — {fichaPayingPeriod.period.label}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white border border-blue-200 rounded-lg p-3 text-center">
                           <p className="text-xs text-slate-500 mb-0.5">Horas trabajadas</p>
@@ -910,7 +906,7 @@ export default function EmployeesPage() {
                       )}
                       
                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-2">Ciclo actual</p>
+                        <p className="text-xs text-white font-semibold uppercase tracking-wide mb-2">Ciclo actual</p>
                         <p className="text-sm text-slate-700">
                           {fmtDate(fichaAguinaldoData?.cycleStart)} – {fmtDate(fichaAguinaldoData?.cycleEnd)}
                         </p>
@@ -1072,9 +1068,9 @@ export default function EmployeesPage() {
                     </button>
                   </div>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-600 font-semibold mb-1">Monto a pagar</p>
-                    <p className="text-2xl font-bold text-blue-900">{fmt(fichaAguinaldoData.calculatedBonus)}</p>
-                    <p className="text-xs text-blue-600 mt-1">Ciclo {fichaAguinaldoData.cycleYear}</p>
+                    <p className="text-xs text-white font-semibold mb-1">Monto a pagar</p>
+                    <p className="text-2xl font-bold text-white">{fmt(fichaAguinaldoData.calculatedBonus)}</p>
+                    <p className="text-xs text-white mt-1">Ciclo {fichaAguinaldoData.cycleYear}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Monto pagado</label>
@@ -1192,6 +1188,7 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
-    </div>
+      </Section>
+    </Container>
   );
 }

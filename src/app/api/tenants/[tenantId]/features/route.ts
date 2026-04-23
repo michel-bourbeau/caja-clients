@@ -51,7 +51,7 @@ export async function PUT(
     const body = await request.json();
     const supabase = getSupabaseAdmin();
 
-    console.log("🔧 Updating features for tenant:", tenantId, body);
+
 
     const { data, error } = await supabase
       .from("tenants")

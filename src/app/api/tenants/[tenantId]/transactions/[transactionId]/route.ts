@@ -7,7 +7,6 @@ export async function DELETE(
 ) {
   try {
     const { tenantId, transactionId } = await params;
-    console.log("[transactions DELETE] Deleting transaction:", transactionId, "for tenant:", tenantId);
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -53,7 +52,7 @@ export async function DELETE(
           const currentStock = productMap.get(itemId) || 0;
           const newStock = currentStock + item.quantity;
           
-          console.log(`[transactions DELETE] Restoring ${item.quantity} units of product ${itemId}. Stock: ${currentStock} → ${newStock}`);
+
           
           return supabaseAdmin
             .from("products")
@@ -83,7 +82,7 @@ export async function DELETE(
           const currentStock = variantMap.get(itemId) || 0;
           const newStock = currentStock + item.quantity;
           
-          console.log(`[transactions DELETE] Restoring ${item.quantity} units of variant ${itemId}. Stock: ${currentStock} → ${newStock}`);
+
           
           return supabaseAdmin
             .from("product_variants")
@@ -106,7 +105,7 @@ export async function DELETE(
       throw deleteError;
     }
 
-    console.log("[transactions DELETE] Transaction deleted successfully and inventory restored:", transactionId);
+
     return NextResponse.json({ 
       success: true, 
       message: "Transacción eliminada exitosamente e inventario restaurado",
@@ -131,8 +130,7 @@ export async function PUT(
     const body = await request.json();
     const { payment_method, created_at, amount_received, change } = body;
 
-    console.log("[transactions PUT] Updating transaction:", transactionId, "for tenant:", tenantId);
-    console.log("[transactions PUT] Updates:", { payment_method, created_at, amount_received, change });
+
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -188,7 +186,7 @@ export async function PUT(
       throw updateError;
     }
 
-    console.log("[transactions PUT] Transaction updated successfully:", transactionId);
+
     return NextResponse.json(data);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";

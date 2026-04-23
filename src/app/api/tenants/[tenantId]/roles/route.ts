@@ -42,6 +42,23 @@ export async function GET(
       return NextResponse.json(seeded ?? []);
     }
 
+    // Sync system roles with current DEFAULT_ROLES permissions
+    for (const role of data) {
+      if (role.is_system) {
+        const defaultRole = DEFAULT_ROLES.find((r) => r.id === role.slug);
+        if (defaultRole && JSON.stringify(defaultRole.permissions.sort()) !== JSON.stringify(role.permissions.sort())) {
+          // Update system role permissions
+          const { error: updateError } = await supabase
+            .from("tenant_roles")
+            .update({ permissions: defaultRole.permissions })
+            .eq("id", role.id);
+          
+          if (updateError) throw updateError;
+          role.permissions = defaultRole.permissions;
+        }
+      }
+    }
+
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json(

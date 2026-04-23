@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { FeatureGuard } from "@/components/FeatureGuard";
+import { Button, Container, Section } from "@/components/StripeUIComponents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,8 +91,6 @@ function PayrollContent() {
       setPeriods(data.periods ?? []);
       const current = (data.periods as PeriodInfo[]).find((p) => p.isCurrent) ?? data.periods[0];
       if (current) setSelectedPeriod(current);
-    } catch (e) {
-      console.error(e);
     } finally {
       setLoadingPeriods(false);
     }
@@ -115,8 +114,6 @@ function PayrollContent() {
       const paymentsData = await paymentsRes.json();
       setSummary(summaryData.summary ?? []);
       setPeriodPayments(Array.isArray(paymentsData) ? paymentsData : []);
-    } catch (e) {
-      console.error(e);
     } finally {
       setLoadingSummary(false);
     }
@@ -213,256 +210,235 @@ function PayrollContent() {
   ).length;
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Nomina</h1>
-          {config && (
-            <p className="text-sm text-slate-500 mt-1">
-              {FREQ_LABEL[config.frequency]}
-              {(config.frequency === "weekly" || config.frequency === "biweekly") &&
-                ` · inicia el ${WEEK_DAYS[config.weekStartDay]}`
-              }
-              {config.frequency === "monthly" &&
-                ` · inicia el dia ${config.monthStartDay}`
-              }
-            </p>
-          )}
+    <Container>
+      <Section>
+        {/* Header */}
+        <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Nómina</h1>
+            {config && (
+              <p className="text-sm text-slate-600 mt-1">
+                {FREQ_LABEL[config.frequency]}
+                {(config.frequency === "weekly" || config.frequency === "biweekly") &&
+                  ` · inicia el ${WEEK_DAYS[config.weekStartDay]}`
+                }
+                {config.frequency === "monthly" &&
+                  ` · inicia el día ${config.monthStartDay}`
+                }
+              </p>
+            )}
+          </div>
+          <a href="/dashboard/settings">
+            <Button variant="secondary">
+              ⚙️ Configurar frecuencia
+            </Button>
+          </a>
         </div>
-        <a
-          href="/dashboard/settings"
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 hover:border-slate-400 rounded-lg transition-colors"
-        >
-          ⚙️ Configurar frecuencia
-        </a>
-      </div>
 
-      {/* ── Period navigator ──────────────────────────────────────────────── */}
-      {!loadingPeriods && periods.length > 0 && (() => {
-        const idx = selectedPeriod ? periods.findIndex((p) => p.id === selectedPeriod.id) : 0;
-        const canPrev = idx < periods.length - 1;
-        const canNext = idx > 0;
-        return (
-          <div className="flex items-center gap-2 mb-6">
-            <button
-              onClick={() => canPrev && setSelectedPeriod(periods[idx + 1])}
-              disabled={!canPrev}
-              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="Periodo anterior"
-            >
-              <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
+        {/* ── Period navigator ──────────────────────────────────────────────── */}
+        {!loadingPeriods && periods.length > 0 && (() => {
+          const idx = selectedPeriod ? periods.findIndex((p) => p.id === selectedPeriod.id) : 0;
+          const canPrev = idx < periods.length - 1;
+          const canNext = idx > 0;
+          return (
+            <div className="flex items-center gap-2 mb-6">
+              <Button variant="ghost" onClick={() => canPrev && setSelectedPeriod(periods[idx + 1])} disabled={!canPrev} size="sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </Button>
 
-            <select
-              value={selectedPeriod?.id ?? ""}
-              onChange={(e) => {
-                const p = periods.find((p) => p.id === e.target.value);
-                if (p) setSelectedPeriod(p);
-              }}
-              className="flex-1 px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}{p.isCurrent ? " (actual)" : ""}
-                </option>
-              ))}
-            </select>
+              <select
+                value={selectedPeriod?.id ?? ""}
+                onChange={(e) => {
+                  const p = periods.find((p) => p.id === e.target.value);
+                  if (p) setSelectedPeriod(p);
+                }}
+                className="flex-1 px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              >
+                {periods.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}{p.isCurrent ? " (actual)" : ""}
+                  </option>
+                ))}
+              </select>
 
-            <button
-              onClick={() => canNext && setSelectedPeriod(periods[idx - 1])}
-              disabled={!canNext}
-              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="Periodo siguiente"
-            >
-              <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        );
-      })()}
-
-      {selectedPeriod && (
-        <div className="flex flex-col gap-4">
-          {/* Period stats + pay-all */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              {!loadingSummary && summary.length > 0 && (
-                <div className="flex flex-wrap gap-6">
-                  <div>
-                    <p className="text-xs text-slate-500">Total horas</p>
-                    <p className="text-xl font-bold text-slate-900">{fmtHours(totalHours)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Total a pagar</p>
-                    <p className="text-xl font-bold text-slate-700">{fmt(totalSalaryDue)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Pagado</p>
-                    <p className="text-xl font-bold text-emerald-600">{fmt(totalPaid)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Pendiente</p>
-                    <p className="text-xl font-bold text-amber-600">{fmt(totalUnpaid)}</p>
-                  </div>
-                </div>
-              )}
-              {!loadingSummary && unpaidCount > 0 && (
-                <button
-                  onClick={payAll}
-                  disabled={payingAll}
-                  className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
-                >
-                  {payingAll ? "Pagando..." : `✓ Pagar todos (${unpaidCount})`}
-                </button>
-              )}
+              <Button variant="ghost" onClick={() => canNext && setSelectedPeriod(periods[idx - 1])} disabled={!canNext} size="sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Button>
             </div>
-          </div>
+          );
+        })()}
 
-          {/* Employee table */}
-          {loadingSummary ? (
-            <div className="py-10 text-center text-slate-400 text-sm">Calculando horas...</div>
-          ) : summary.length === 0 ? (
-            <div className="py-10 text-center text-slate-400">
-              <p className="text-3xl mb-2">👥</p>
-              <p>No hay empleados activos</p>
+        {selectedPeriod && (
+          <div className="flex flex-col gap-4">
+            {/* Period stats + pay-all */}
+            <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                {!loadingSummary && summary.length > 0 && (
+                  <div className="flex flex-wrap gap-6">
+                    <div>
+                      <p className="text-xs text-slate-600">Total horas</p>
+                      <p className="text-xl font-bold text-slate-900">{fmtHours(totalHours)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Total a pagar</p>
+                      <p className="text-xl font-bold text-slate-900">{fmt(totalSalaryDue)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Pagado</p>
+                      <p className="text-xl font-bold text-emerald-600">{fmt(totalPaid)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Pendiente</p>
+                      <p className="text-xl font-bold text-amber-600">{fmt(totalUnpaid)}</p>
+                    </div>
+                  </div>
+                )}
+                {!loadingSummary && unpaidCount > 0 && (
+                  <Button variant="primary" onClick={payAll} disabled={payingAll} className="shrink-0">
+                    {payingAll ? "Pagando..." : `✓ Pagar todos (${unpaidCount})`}
+                  </Button>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-5 py-3 text-left">Empleado</th>
-                    <th className="px-5 py-3 text-right">Horas</th>
-                    <th className="px-5 py-3 text-right">Tarifa/h</th>
-                    <th className="px-5 py-3 text-right font-bold text-slate-700">A pagar</th>
-                    <th className="px-5 py-3 text-center">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {summary.map((emp) => {
-                    const payment = periodPayments.find((p) => p.employee_id === emp.employeeId);
-                    const unpaidInfo = getUnpaidInfo(emp);
-                    const isPayingThis = payingId === emp.employeeId;
-                    const isPaid = unpaidInfo.unpaidAmount === 0 && payment;
-                    const isPartiallyPaid = unpaidInfo.isPartial;
-                    return (
-                      <tr key={emp.employeeId}
-                        className={`transition-colors ${
-                          isPaid ? "bg-emerald-50 hover:bg-emerald-100" :
-                          isPartiallyPaid ? "bg-amber-50 hover:bg-amber-100" :
-                          emp.hoursWorked === 0 ? "opacity-40 hover:opacity-60" :
-                          "hover:bg-slate-50"
-                        }`}>
-                        <td className="px-5 py-3">
-                          <span className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</span>
-                          {emp.hasOpenShift && (
-                            <span className="ml-2 text-xs text-amber-600 font-medium">turno abierto</span>
-                          )}
-                          {payment?.notes && (
-                            <p className="text-xs text-slate-400 mt-0.5">{payment.notes}</p>
-                          )}
-                          {isPartiallyPaid && (
-                            <p className="text-xs text-amber-600 font-semibold mt-0.5">
-                              💡 +{fmtHours(unpaidInfo.unpaidHours)} nuevas horas por pagar
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-right text-slate-700 font-medium">
-                          {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="px-5 py-3 text-right text-slate-500">
-                          {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
-                        </td>
-                        <td className="px-5 py-3 text-right font-bold">
-                          <div className="text-slate-900">{emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}</div>
-                          {isPartiallyPaid && (
-                            <div className="text-amber-600 font-bold text-sm">{fmt(unpaidInfo.unpaidAmount)}</div>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          {isPaid ? (
-                            <span className="inline-flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                                ✓ Pagado
-                              </span>
-                              {deleteConfirm === payment.id ? (
-                                <span className="inline-flex gap-1">
-                                  <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
-                                  <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+
+            {/* Employee table */}
+            {loadingSummary ? (
+              <div className="py-10 text-center text-slate-400 text-sm">Calculando horas...</div>
+            ) : summary.length === 0 ? (
+              <div className="py-10 text-center text-slate-400">
+                <p className="text-3xl mb-2">👥</p>
+                <p>No hay empleados activos</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-900 text-xs uppercase tracking-wide">
+                      <th className="px-5 py-3 text-left text-white font-semibold">Empleado</th>
+                      <th className="px-5 py-3 text-right text-white font-semibold">Horas</th>
+                      <th className="px-5 py-3 text-right text-white font-semibold">Tarifa/h</th>
+                      <th className="px-5 py-3 text-right font-bold text-white">A pagar</th>
+                      <th className="px-5 py-3 text-center text-white font-semibold">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {summary.map((emp) => {
+                      const payment = periodPayments.find((p) => p.employee_id === emp.employeeId);
+                      const unpaidInfo = getUnpaidInfo(emp);
+                      const isPayingThis = payingId === emp.employeeId;
+                      const isPaid = unpaidInfo.unpaidAmount === 0 && payment;
+                      const isPartiallyPaid = unpaidInfo.isPartial;
+                      return (
+                        <tr key={emp.employeeId}
+                          className={`transition-colors ${
+                            isPaid ? "bg-emerald-50 hover:bg-emerald-100" :
+                            isPartiallyPaid ? "bg-amber-50 hover:bg-amber-100" :
+                            emp.hoursWorked === 0 ? "opacity-40 hover:opacity-60" :
+                            "hover:bg-slate-50"
+                          }`}>
+                          <td className="px-5 py-3">
+                            <span className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</span>
+                            {emp.hasOpenShift && (
+                              <span className="ml-2 text-xs text-amber-600 font-medium">turno abierto</span>
+                            )}
+                            {payment?.notes && (
+                              <p className="text-xs text-slate-400 mt-0.5">{payment.notes}</p>
+                            )}
+                            {isPartiallyPaid && (
+                              <p className="text-xs text-amber-600 font-semibold mt-0.5">
+                                💡 +{fmtHours(unpaidInfo.unpaidHours)} nuevas horas por pagar
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-right text-slate-700 font-medium">
+                            {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="px-5 py-3 text-right text-slate-600">
+                            {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold">
+                            <div className="text-slate-900">{emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}</div>
+                            {isPartiallyPaid && (
+                              <div className="text-amber-600 font-bold text-sm">{fmt(unpaidInfo.unpaidAmount)}</div>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            {isPaid ? (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
+                                  ✓ Pagado
                                 </span>
-                              ) : (
-                                <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
-                              )}
-                            </span>
-                          ) : isPartiallyPaid && payment ? (
-                            <span className="inline-flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
-                                ⚠ Pago Parcial
+                                {deleteConfirm === payment.id ? (
+                                  <span className="inline-flex gap-1">
+                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
+                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                  </span>
+                                ) : (
+                                  <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
+                                )}
                               </span>
-                              <button
-                                onClick={() => payEmployee(emp)}
-                                disabled={isPayingThis || payingAll}
-                                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-                              >
-                                {isPayingThis ? "..." : `Pagar ${fmt(unpaidInfo.unpaidAmount)}`}
-                              </button>
-                              {deleteConfirm === payment.id ? (
-                                <span className="inline-flex gap-1">
-                                  <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
-                                  <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                            ) : isPartiallyPaid && payment ? (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
+                                  ⚠ Pago Parcial
                                 </span>
-                              ) : (
-                                <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
-                              )}
-                            </span>
-                          ) : emp.salaryDue > 0 ? (
-                            <button
-                              onClick={() => payEmployee(emp)}
-                              disabled={isPayingThis || payingAll}
-                              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-                            >
-                              {isPayingThis ? "..." : "Pagar"}
-                            </button>
-                          ) : (
-                            <span className="text-xs text-slate-300">—</span>
-                          )}
+                                <Button variant="secondary" size="sm" onClick={() => payEmployee(emp)} disabled={isPayingThis || payingAll}>
+                                  {isPayingThis ? "..." : `Pagar ${fmt(unpaidInfo.unpaidAmount)}`}
+                                </Button>
+                                {deleteConfirm === payment.id ? (
+                                  <span className="inline-flex gap-1">
+                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
+                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                  </span>
+                                ) : (
+                                  <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
+                                )}
+                              </span>
+                            ) : emp.salaryDue > 0 ? (
+                              <Button variant="primary" size="sm" onClick={() => payEmployee(emp)} disabled={isPayingThis || payingAll}>
+                                {isPayingThis ? "..." : "Pagar"}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  {summary.length > 1 && (
+                    <tfoot>
+                      <tr className="bg-slate-50 border-t-2 border-slate-200">
+                        <td className="px-5 py-3 text-sm font-bold text-slate-900" colSpan={2}>Total</td>
+                        <td></td>
+                        <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">
+                          <div>{fmt(totalSalaryDue)}</div>
+                          {totalUnpaid > 0 && <div className="text-amber-600 text-sm font-bold">{fmt(totalUnpaid)} pendiente</div>}
+                        </td>
+                        <td className="px-5 py-3 text-center text-xs text-emerald-700 font-semibold">
+                          {unpaidCount > 0 && <div className="text-amber-600 font-bold">{unpaidCount} con pagos pendientes</div>}
+                          {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e => e.salaryDue > 0).length} pagados`}
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                {summary.length > 1 && (
-                  <tfoot>
-                    <tr className="bg-slate-50 border-t-2 border-slate-200">
-                      <td className="px-5 py-3 text-sm font-bold text-slate-700" colSpan={2}>Total</td>
-                      <td></td>
-                      <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">
-                        <div>{fmt(totalSalaryDue)}</div>
-                        {totalUnpaid > 0 && <div className="text-amber-600 text-sm font-bold">{fmt(totalUnpaid)} pendiente</div>}
-                      </td>
-                      <td className="px-5 py-3 text-center text-xs text-emerald-700 font-semibold">
-                        {unpaidCount > 0 && <div className="text-amber-600 font-bold">{unpaidCount} con pagos pendientes</div>}
-                        {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e => e.salaryDue > 0).length} pagados`}
-                      </td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-          )}
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            )}
 
-          <p className="text-xs text-slate-400">
-            * Calculo basado en tarifa por hora × horas registradas en asistencia.
-            Las entradas sin hora de salida no se incluyen. Los pagos quedan registrados en el historial
-            de cada empleado y se usan para calcular vacaciones y 13° mes.
-          </p>
-        </div>
-      )}
-    </div>
+            <p className="text-xs text-slate-600">
+              * Cálculo basado en tarifa por hora × horas registradas en asistencia.
+              Las entradas sin hora de salida no se incluyen. Los pagos quedan registrados en el historial
+              de cada empleado y se usan para calcular vacaciones y 13° mes.
+            </p>
+          </div>
+        )}
+      </Section>
+    </Container>
   );
 }
 

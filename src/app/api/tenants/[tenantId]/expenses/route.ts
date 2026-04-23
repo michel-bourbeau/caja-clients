@@ -25,10 +25,10 @@ export async function GET(
       userPermissions = userData.permissions || [];
       validUserId = userData.id;
       userRoleId = userData.role_id;
-      console.log(`User ${userId}: role_id=${userRoleId}, permissions=${userPermissions.length}`);
+
     } else {
       // User not found, check if there's an employee that corresponds
-      console.log(`User ${userId} not found in GET, looking for employee...`);
+
       const { data: employee } = await supabaseAdmin
         .from("employees")
         .select("id, email, role_id")
@@ -49,14 +49,14 @@ export async function GET(
           validUserId = employeeUser.id;
           userPermissions = employeeUser.permissions || [];
           userRoleId = employeeUser.role_id || employee.role_id;
-          console.log(`Using employee user ${validUserId} (role=${userRoleId}) for expenses query`);
+
         }
       }
     }
 
     // Admins always have view_all permission
     const canViewAll = userRoleId === "admin" || userPermissions.includes("expenses.view_all");
-    console.log(`Expenses access: canViewAll=${canViewAll}, role=${userRoleId}`);
+
 
     // Build query
     let query = supabaseAdmin
@@ -125,7 +125,7 @@ export async function POST(
 
       // If user doesn't exist, find any employee in this tenant and create/use their user entry
       if (!userExists) {
-        console.log(`User ${userId} not found, looking for employee in tenant...`);
+
         const { data: employee } = await supabaseAdmin
           .from("employees")
           .select("id, email, first_name, last_name")
@@ -134,7 +134,7 @@ export async function POST(
           .single();
 
         if (employee) {
-          console.log(`Found employee: ${employee.email}, attempting to use or create user...`);
+
           
           // Check if there's already a user with this email
           const { data: existingUser } = await supabaseAdmin
@@ -146,7 +146,7 @@ export async function POST(
 
           if (existingUser) {
             validUserId = existingUser.id;
-            console.log(`Using existing user ${validUserId} for employee ${employee.email}`);
+
           } else {
             // Create a user entry for this employee
             const { data: newUser, error: userError } = await supabaseAdmin
@@ -165,7 +165,7 @@ export async function POST(
 
             if (newUser) {
               validUserId = newUser.id;
-              console.log(`Created new user ${validUserId} for employee ${employee.email}`);
+
             } else if (userError) {
               console.error("Error creating user for employee:", userError);
             }
@@ -205,7 +205,7 @@ export async function POST(
       
       // If the error is about recurring_frequency column not existing, try without it
       if (error.message?.includes("recurring_frequency") || error.code === "42703") {
-        console.log("recurring_frequency column not found, retrying without it...");
+
         
         const expenseDataWithoutNewField = {
           tenant_id: tenantId,

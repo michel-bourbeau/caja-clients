@@ -59,11 +59,9 @@ export async function POST(
 ) {
   try {
     const { tenantId } = await params;
-    console.log("[transactions POST] Creating transaction for tenant:", tenantId);
     
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    console.log("[transactions POST] Request body:", body);
 
     const items: CartItem[] = body.items;
     const paymentMethod: Transaction["paymentMethod"] = body.paymentMethod;
@@ -154,7 +152,6 @@ export async function POST(
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals(items, configuredTaxes, discount);
     const change = paymentMethod === "CASH" ? amountReceived - total : 0;
-    console.log("[transactions POST] Totals calculated:", { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total, amountReceived, change, configuredTaxes });
 
     const { data, error } = await supabaseAdmin
       .from("transactions")
@@ -180,7 +177,6 @@ export async function POST(
       .single();
 
     if (error) {
-      console.error("[transactions POST] Insert error:", error);
       
       // Handle missing discount column
       if (error.message?.includes("Could not find the 'discount' column")) {
@@ -224,11 +220,9 @@ export async function POST(
       })
     );
     
-    console.log("[transactions POST] Transaction created successfully:", transactionId);
     return NextResponse.json(data);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    console.error("[transactions POST] Error:", errorMsg);
     return NextResponse.json(
       { error: errorMsg },
       { status: 500 }

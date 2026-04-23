@@ -58,7 +58,7 @@ export function saveSession(email: string, rememberMe: boolean, tenantId?: strin
       sessionStorage.setItem("defaultTenantId", tenantId);
     }
   } catch (error) {
-    console.warn("Failed to save session:", error);
+
   }
 }
 
@@ -81,7 +81,7 @@ export function getStoredSession(): StoredSession | null {
 
     return session;
   } catch (error) {
-    console.warn("Failed to read stored session:", error);
+
     return null;
   }
 }
@@ -92,7 +92,7 @@ export function clearSession(): void {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
   } catch (error) {
-    console.warn("Failed to clear session:", error);
+
   }
 }
 
