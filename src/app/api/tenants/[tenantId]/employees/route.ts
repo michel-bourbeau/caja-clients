@@ -45,11 +45,16 @@ export async function GET(
       hire_date: u.created_at?.split("T")[0] || null,
       status: u.status,
       created_at: u.created_at,
-      is_system_user: true, // Flag to distinguish system users from employees
+      is_system_user: true,
+      is_principal_admin: u.role_id === "admin", // Explicitly mark principal admins
     }));
 
+    // Deduplicate: remove employees with same email as system users
+    const systemUserEmails = new Set(usersAsEmployees.map((u) => u.email));
+    const uniqueEmployees = (employees || []).filter((e) => !systemUserEmails.has(e.email));
+
     // Combine and sort by name
-    const combined = [...(employees || []), ...usersAsEmployees].sort((a, b) =>
+    const combined = [...uniqueEmployees, ...usersAsEmployees].sort((a, b) =>
       (a.first_name || "").localeCompare(b.first_name || "")
     );
 

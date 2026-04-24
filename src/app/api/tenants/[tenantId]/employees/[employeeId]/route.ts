@@ -73,15 +73,23 @@ export async function DELETE(
     const { tenantId, employeeId } = await params;
     const supabase = getSupabaseAdmin();
 
+    console.log(`[DELETE] Attempting to delete employee: ${employeeId} from tenant: ${tenantId}`);
+
     // First, try to delete from employees table
-    const { data: employee } = await supabase
+    const { data: employee, error: empLookupError } = await supabase
       .from("employees")
       .select("email")
       .eq("id", employeeId)
       .eq("tenant_id", tenantId)
-      .single();
+      .maybeSingle();
+
+    if (empLookupError) {
+      console.error("[DELETE] Employee lookup error:", empLookupError);
+      if (empLookupError.code !== "PGRST116") throw empLookupError;
+    }
 
     if (employee) {
+      console.log(`[DELETE] Found employee in employees table: ${employee.email}`);
       // This is an employee record
       const { error: deleteError } = await supabase
         .from("employees")
@@ -89,14 +97,23 @@ export async function DELETE(
         .eq("id", employeeId)
         .eq("tenant_id", tenantId);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error("[DELETE] Error deleting from employees table:", deleteError);
+        throw deleteError;
+      }
 
       // Delete their Supabase Auth account if they have one
       if (employee.email) {
-        const { data: authUsers } = await supabase.auth.admin.listUsers();
-        const authUser = authUsers?.users?.find((u) => u.email === employee.email);
-        if (authUser) {
-          await supabase.auth.admin.deleteUser(authUser.id);
+        try {
+          const { data: authUsers } = await supabase.auth.admin.listUsers();
+          const authUser = authUsers?.users?.find((u) => u.email === employee.email);
+          if (authUser) {
+            console.log(`[DELETE] Deleting auth account for ${employee.email}`);
+            await supabase.auth.admin.deleteUser(authUser.id);
+          }
+        } catch (authError) {
+          console.error("[DELETE] Error deleting auth user:", authError);
+          // Don't fail if auth deletion fails
         }
       }
 
@@ -104,38 +121,101 @@ export async function DELETE(
     }
 
     // If not in employees table, try users table (system users created with tenant)
-    const { data: user } = await supabase
+    const { data: user, error: userLookupError } = await supabase
       .from("users")
       .select("email")
       .eq("id", employeeId)
       .eq("tenant_id", tenantId)
-      .single();
+      .maybeSingle();
+
+    if (userLookupError) {
+      console.error("[DELETE] User lookup error:", userLookupError);
+      if (userLookupError.code !== "PGRST116") throw userLookupError;
+    }
 
     if (user) {
-      // This is a system user record
+      console.log(`[DELETE] Found user in users table: ${user.email}`);
+      console.log(`[DELETE] User ID to delete: ${employeeId}`);
+      
+      // Get all users in this tenant
+      const { data: allUsers, error: allUsersError } = await supabase
+        .from("users")
+        .select("id, email")
+        .eq("tenant_id", tenantId);
+
+      if (allUsersError) {
+        console.error("[DELETE] Error fetching all users:", allUsersError);
+      } else {
+        console.log(`[DELETE] Found ${allUsers?.length || 0} users in tenant`);
+        allUsers?.forEach((u) => console.log(`  - ${u.id}: ${u.email}`));
+      }
+
+      // Find another user to transfer references to
+      const otherUsers = (allUsers || []).filter((u) => u.id !== employeeId);
+      const transferUserId = otherUsers.length > 0 ? otherUsers[0].id : null;
+      
+      if (transferUserId) {
+        console.log(`[DELETE] Will transfer references to: ${transferUserId}`);
+        
+        // Try to update expenses with created_by field
+        const { data: updateResult, error: updateError } = await supabase
+          .from("expenses")
+          .update({ created_by: transferUserId })
+          .eq("created_by", employeeId)
+          .select("id");
+        
+        if (updateError) {
+          console.error("[DELETE] Error updating expenses.created_by:", updateError.message);
+        } else {
+          console.log(`[DELETE] Updated ${updateResult?.length || 0} expenses records`);
+        }
+      } else {
+        console.warn(`[DELETE] No other user found to transfer references to`);
+      }
+
       // 1. Delete from users table
-      const { error: deleteError } = await supabase
+      console.log(`[DELETE] Attempting to delete user ${employeeId} from users table...`);
+      const { error: deleteError, count } = await supabase
         .from("users")
         .delete()
         .eq("id", employeeId)
         .eq("tenant_id", tenantId);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error("[DELETE] Error deleting from users table:", deleteError);
+        throw deleteError;
+      }
+      
+      console.log(`[DELETE] Successfully deleted from users table (${count} row)`);
 
-      // 2. Delete their Supabase Auth account
-      await supabase.auth.admin.deleteUser(employeeId);
+      // 2. Delete their Supabase Auth account by email
+      if (user.email) {
+        try {
+          const { data: authUsers } = await supabase.auth.admin.listUsers();
+          const authUser = authUsers?.users?.find((u) => u.email === user.email);
+          if (authUser) {
+            console.log(`[DELETE] Deleting auth account for ${user.email}`);
+            await supabase.auth.admin.deleteUser(authUser.id);
+          }
+        } catch (authError) {
+          console.error("[DELETE] Error deleting auth user:", authError);
+        }
+      }
 
       return NextResponse.json({ success: true });
     }
 
     // User not found in either table
+    console.warn(`[DELETE] User not found: ${employeeId} in tenant: ${tenantId}`);
     return NextResponse.json(
       { error: "Utilisateur introuvable" },
       { status: 404 }
     );
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+    console.error("[DELETE] Unexpected error:", errorMsg, error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: errorMsg },
       { status: 500 }
     );
   }

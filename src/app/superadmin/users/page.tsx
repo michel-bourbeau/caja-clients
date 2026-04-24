@@ -142,10 +142,15 @@ export default function SuperAdminUsersPage() {
       const res = await fetch(`/api/tenants/${selectedTenantId}/employees/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Erreur suppression");
-      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erreur suppression (${res.status})`);
+      }
       showFlash("success", "Utilisateur supprimé");
+      // Reload the list to ensure consistency
+      await loadEmployees(selectedTenantId);
     } catch (err) {
+      console.error("Delete error:", err);
       showFlash("error", err instanceof Error ? err.message : "Erreur");
     } finally {
       setSaving(false);
@@ -440,7 +445,8 @@ export default function SuperAdminUsersPage() {
                     {filtered.map((emp) => {
                       const role = DEFAULT_ROLES.find((r) => r.id === emp.role_id);
                       const initials = `${emp.first_name[0] ?? ""}${emp.last_name[0] ?? ""}`.toUpperCase();
-                      const isSuperUser = emp.is_system_user && emp.role_id === "admin";
+                      // Detect superuser: either via is_principal_admin flag OR (is_system_user AND role_id === "admin")
+                      const isSuperUser = emp.is_principal_admin === true || (emp.is_system_user && emp.role_id === "admin");
                       return (
                         <tr 
                           key={emp.id} 
