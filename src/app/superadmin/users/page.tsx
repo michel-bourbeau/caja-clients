@@ -20,6 +20,8 @@ interface Employee {
   role_id: string;
   status: "ACTIVE" | "INACTIVE";
   hire_date: string | null;
+  is_system_user?: boolean;
+  is_principal_admin?: boolean;
 }
 
 const EMPTY_FORM = {

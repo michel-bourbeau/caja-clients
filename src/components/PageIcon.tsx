@@ -69,7 +69,7 @@ const emojiMap: Record<PageIconType, string> = {
 };
 
 // Map icon types to Lucide components
-const lucideMap: Record<PageIconType, React.FC<{ size: number }>> = {
+const lucideMap: Record<PageIconType, React.ComponentType<any>> = {
   transactions: Clipboard,
   inventory: Package,
   pos: ShoppingCart,
