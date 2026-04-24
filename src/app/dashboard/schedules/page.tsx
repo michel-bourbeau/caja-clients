@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useState } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon } from "@/components";
+import { PageIcon, ButtonGroup } from "@/components";
 
 const TZ = "America/Managua";
 
@@ -584,19 +584,18 @@ export default function AttendancePage() {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-5 py-2 rounded-md text-sm font-semibold transition-colors ${
-              tab === t.id ? "bg-white text-slate-900 shadow" : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs - Button Group */}
+      <div className="mb-6">
+        <ButtonGroup
+          options={[
+            { id: "manual", label: "Entrada Manual", color: "amber" },
+            { id: "punch", label: "Tiempo Real", color: "green" },
+            { id: "history", label: "Historial", color: "blue" },
+          ]}
+          value={tab}
+          onChange={(newTab) => setTab(newTab as typeof tab)}
+          size="md"
+        />
       </div>
 
       {/* Toast */}
@@ -826,35 +825,59 @@ export default function AttendancePage() {
           {/* Header Section */}
           <div className="space-y-4">
             {/* Week Navigation */}
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3">
+              {/* Mobile navigation */}
+              <div className="sm:hidden w-full flex gap-1 items-center justify-between">
                 <button
                   onClick={() => goToWeek(-1)}
                   disabled={historyLoading}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-sm font-semibold rounded-lg transition-colors"
+                  className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors disabled:opacity-50"
                 >
-                  ← Anterior
+                  ←
                 </button>
-                <div className="text-center min-w-[220px]">
-                  <p className="text-sm font-semibold text-slate-900">
-                    Semana del {fmtWeekRange(historyWeekStart, weekStartDay)}
-                  </p>
-                </div>
+                <span className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 text-center">
+                  Sem. {fmtWeekRange(historyWeekStart, weekStartDay)}
+                </span>
                 <button
                   onClick={() => goToWeek(1)}
                   disabled={historyLoading}
-                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-800 text-sm font-semibold rounded-lg transition-colors"
+                  className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors disabled:opacity-50"
                 >
-                  Siguiente →
+                  →
                 </button>
               </div>
-              <button
-                onClick={goToThisWeek}
-                disabled={historyLoading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-              >
-                Esta Semana
-              </button>
+              
+              {/* Desktop navigation */}
+              <div className="hidden sm:flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => goToWeek(-1)}
+                    disabled={historyLoading}
+                    className="px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors disabled:opacity-50"
+                  >
+                    ← Anterior
+                  </button>
+                  <div className="text-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg min-w-[280px]">
+                    <p className="text-sm font-semibold text-blue-900">
+                      Semana del {fmtWeekRange(historyWeekStart, weekStartDay)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => goToWeek(1)}
+                    disabled={historyLoading}
+                    className="px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors disabled:opacity-50"
+                  >
+                    Siguiente →
+                  </button>
+                </div>
+                <button
+                  onClick={goToThisWeek}
+                  disabled={historyLoading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  Esta Semana
+                </button>
+              </div>
             </div>
 
             {/* Employee Filter (Admin Only) */}
