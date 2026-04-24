@@ -542,7 +542,9 @@ export default function EmployeesPage() {
             {employees.length === 0 ? "No hay empleados registrados." : "Sin resultados."}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="space-y-4">
+            {/* Desktop: Table view */}
+            <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
@@ -601,6 +603,94 @@ export default function EmployeesPage() {
                 })}
               </tbody>
             </table>
+            </div>
+
+            {/* Mobile: Card view */}
+            <div className="sm:hidden space-y-3 px-2">
+              {displayed.map((emp) => {
+                const role = DEFAULT_ROLES.find((r) => r.id === emp.role_id);
+                return (
+                  <div key={emp.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                    {/* Row 1: Name + Status */}
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 text-sm">{emp.first_name} {emp.last_name}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap flex-shrink-0 ${
+                        emp.status === "ACTIVE" 
+                          ? "bg-green-100 text-green-700" 
+                          : "bg-red-100 text-red-700"
+                      }`}>
+                        {emp.status === "ACTIVE" ? "Activo" : "Inactivo"}
+                      </span>
+                    </div>
+
+                    {/* Row 2: Email */}
+                    <div className="text-xs space-y-1">
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-500 flex-shrink-0 w-14">Email:</span>
+                        <span className="text-slate-700 font-mono truncate flex-1">{emp.email}</span>
+                      </div>
+                    </div>
+
+                    {/* Row 3: Role */}
+                    <div className="text-xs space-y-1">
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-500 flex-shrink-0 w-14">Rol:</span>
+                        <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">
+                          {role?.name ?? emp.role_id}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Row 4: Phone + Salary */}
+                    <div className="text-xs space-y-1 border-t border-slate-100 pt-2">
+                      {emp.phone && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-slate-500 flex-shrink-0 w-14">Tel:</span>
+                          <span className="text-slate-700">{emp.phone}</span>
+                        </div>
+                      )}
+                      <div className="flex items-start gap-2">
+                        <span className="text-slate-500 flex-shrink-0 w-14">Tarifa:</span>
+                        <span className="text-slate-900 font-semibold">{fmt(emp.salary)}</span>
+                      </div>
+                    </div>
+
+                    {/* Row 5: Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => openFicha(emp)}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded text-xs font-medium text-emerald-700 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Ficha
+                      </button>
+                      <button
+                        onClick={() => openEdit(emp)}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-50 hover:bg-blue-100 rounded text-xs font-medium text-blue-700 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmId(emp.id)}
+                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-700 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
