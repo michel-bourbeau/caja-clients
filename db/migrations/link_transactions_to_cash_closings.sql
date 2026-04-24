@@ -10,6 +10,14 @@ ADD COLUMN IF NOT EXISTS cash_closing_id UUID REFERENCES cash_closings(id) ON DE
 ALTER TABLE cash_closings
 ADD COLUMN IF NOT EXISTS closing_time TIMESTAMPTZ DEFAULT now();
 
+-- Add declared_transfer column for bank transfers
+ALTER TABLE cash_closings
+ADD COLUMN IF NOT EXISTS declared_transfer NUMERIC DEFAULT 0;
+
+-- Add diff_transfer as a generated column
+ALTER TABLE cash_closings
+ADD COLUMN IF NOT EXISTS diff_transfer NUMERIC GENERATED ALWAYS AS (declared_transfer - system_transfer) STORED;
+
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_transactions_cash_closing ON transactions(cash_closing_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_unclosed ON transactions(tenant_id, cash_closing_id) 
@@ -23,4 +31,4 @@ ALTER TABLE cash_closings DROP CONSTRAINT IF EXISTS unique_closing_per_tenant_da
 CREATE INDEX IF NOT EXISTS idx_cash_closings_latest_per_day ON cash_closings(tenant_id, closing_date DESC, closing_time DESC);
 
 COMMENT ON COLUMN transactions.cash_closing_id IS 'FK to cash_closings - indicates this transaction was included in that closing';
-COMMENT ON COLUMN cash_closings.closing_time IS 'Timestamp of when the closing was recorded - allows multiple closings per day';
+COMMENT ON COLUMN cash_closings.declared_transfer IS 'Declared bank transfer amount in this closing';

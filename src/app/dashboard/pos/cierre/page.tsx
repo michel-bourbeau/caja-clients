@@ -27,8 +27,10 @@ interface CashClosing {
   system_total: number;
   declared_cash: number;
   declared_card: number;
+  declared_transfer: number;
   diff_cash: number;
   diff_card: number;
+  diff_transfer: number;
   notes: string | null;
   closed_by: string | null;
   created_at: string;
@@ -96,6 +98,7 @@ export default function CierreCajaPage() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [declaredCash, setDeclaredCash] = useState("");
   const [declaredCard, setDeclaredCard] = useState("");
+  const [declaredTransfer, setDeclaredTransfer] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -148,10 +151,12 @@ export default function CierreCajaPage() {
         if (data) {
           setDeclaredCash(String(data.declared_cash));
           setDeclaredCard(String(data.declared_card));
+          setDeclaredTransfer(String(data.declared_transfer ?? 0));
           setNotes(data.notes ?? "");
         } else {
           setDeclaredCash("");
           setDeclaredCard("");
+          setDeclaredTransfer("");
           setNotes("");
         }
       })
@@ -164,11 +169,13 @@ export default function CierreCajaPage() {
     if (!systemTotals) return null;
     const dCash = parseFloat(declaredCash) || 0;
     const dCard = parseFloat(declaredCard) || 0;
+    const dTransfer = parseFloat(declaredTransfer) || 0;
     return {
       diff_cash: dCash - systemTotals.system_cash,
       diff_card: dCard - systemTotals.system_card,
+      diff_transfer: dTransfer - systemTotals.system_transfer,
     };
-  }, [systemTotals, declaredCash, declaredCard]);
+  }, [systemTotals, declaredCash, declaredCard, declaredTransfer]);
 
   // ── submit ──
   const handleSubmit = async () => {
@@ -183,6 +190,7 @@ export default function CierreCajaPage() {
           closing_date: selectedDate,
           declared_cash: parseFloat(declaredCash) || 0,
           declared_card: parseFloat(declaredCard) || 0,
+          declared_transfer: parseFloat(declaredTransfer) || 0,
           notes: notes.trim() || null,
           closed_by: user ? `${user.firstName} ${user.lastName}`.trim() : null,
         }),
@@ -209,8 +217,10 @@ export default function CierreCajaPage() {
     if (!systemTotals) return;
     const dCash = parseFloat(declaredCash) || (current?.declared_cash ?? 0);
     const dCard = parseFloat(declaredCard) || (current?.declared_card ?? 0);
+    const dTransfer = parseFloat(declaredTransfer) || (current?.declared_transfer ?? 0);
     const diffCash = dCash - systemTotals.system_cash;
     const diffCard = dCard - systemTotals.system_card;
+    const diffTransfer = dTransfer - systemTotals.system_transfer;
 
     const win = window.open("", "_blank", "width=420,height=700");
     if (!win) return;
@@ -252,6 +262,7 @@ export default function CierreCajaPage() {
         <p class="section-title">Declarado por cajero</p>
         <div class="row"><span>Efectivo contado</span><span>${fmt(dCash)}</span></div>
         <div class="row"><span>Reporte tarjeta</span><span>${fmt(dCard)}</span></div>
+        <div class="row"><span>Transferencias</span><span>${fmt(dTransfer)}</span></div>
 
         <div class="divider"></div>
 
@@ -268,6 +279,13 @@ export default function CierreCajaPage() {
           <span class="${Math.abs(diffCard) < 0.01 ? "diff-ok" : diffCard < 0 ? "diff-bad" : "diff-over"}">
             ${diffCard >= 0 ? "+" : ""}${fmt(diffCard)}
             ${Math.abs(diffCard) < 0.01 ? "✓" : diffCard < 0 ? "⚠ FALTANTE" : "▲ SOBRANTE"}
+          </span>
+        </div>
+        <div class="row">
+          <span>Transferencia</span>
+          <span class="${Math.abs(diffTransfer) < 0.01 ? "diff-ok" : diffTransfer < 0 ? "diff-bad" : "diff-over"}">
+            ${diffTransfer >= 0 ? "+" : ""}${fmt(diffTransfer)}
+            ${Math.abs(diffTransfer) < 0.01 ? "✓" : diffTransfer < 0 ? "⚠ FALTANTE" : "▲ SOBRANTE"}
           </span>
         </div>
 
@@ -318,7 +336,7 @@ export default function CierreCajaPage() {
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-400">
-              Selecciona una fecha para crear o actualizar un cierre
+              Selecciona una fecha para cerrar caja
             </p>
           </div>
         </div>
@@ -454,6 +472,22 @@ export default function CierreCajaPage() {
                 )}
               </div>
 
+              {/* Transfer */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  🏦 Transferencias bancarias declaradas
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={declaredTransfer}
+                  onChange={(e) => setDeclaredTransfer(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-right font-mono"
+                />
+              </div>
+
               {/* Notes */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
@@ -485,7 +519,7 @@ export default function CierreCajaPage() {
                   disabled={saving}
                   className="flex-1"
                 >
-                  {saving ? "Guardando..." : current ? "Actualizar Cierre" : "Registrar Cierre"}
+                  {saving ? "Guardando..." : "Cerrar caja"}
                 </Button>
                 {/* Print — MANAGER ONLY (report contains system totals) */}
                 {isManager && systemTotals && (
@@ -512,6 +546,7 @@ export default function CierreCajaPage() {
               {[
                 { label: "Efectivo", diff: preview.diff_cash },
                 { label: "Tarjeta", diff: preview.diff_card },
+                { label: "Transferencia", diff: preview.diff_transfer },
               ].map(({ label, diff }) => (
                 <div key={label} className="text-center">
                   <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">{label}</p>
@@ -523,7 +558,7 @@ export default function CierreCajaPage() {
                   </p>
                 </div>
               ))}
-              <div className="text-center col-span-2 sm:col-span-2">
+              <div className="text-center col-span-2 sm:col-span-1">
                 <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Total Sistema</p>
                 <p className="text-lg font-bold text-slate-900">{fmt(systemTotals.system_total)}</p>
               </div>
@@ -551,9 +586,13 @@ export default function CierreCajaPage() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
                     <th className="px-4 py-3 text-left text-white">Fecha & Hora</th>
-                    <th className="px-4 py-3 text-right hidden sm:table-cell text-white">Total Sistema</th>
-                    {isManager && <th className="px-4 py-3 text-center text-white">Efectivo</th>}
-                    {isManager && <th className="px-4 py-3 text-center text-white">Tarjeta</th>}
+                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">Efectivo</th>
+                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">Tarjeta</th>
+                    <th className="px-4 py-3 text-right hidden lg:table-cell text-white">Transfer.</th>
+                    <th className="px-4 py-3 text-right hidden sm:table-cell text-white">Total</th>
+                    {isManager && <th className="px-4 py-3 text-center hidden md:table-cell text-white">Dif.Efec</th>}
+                    {isManager && <th className="px-4 py-3 text-center hidden md:table-cell text-white">Dif.Tar</th>}
+                    {isManager && <th className="px-4 py-3 text-center hidden lg:table-cell text-white">Dif.Trf</th>}
                     <th className="px-4 py-3 text-left hidden md:table-cell text-white">Cajero</th>
                   </tr>
                 </thead>
@@ -588,17 +627,31 @@ export default function CierreCajaPage() {
                               </p>
                               {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs mt-0.5">{c.notes}</p>}
                             </td>
-                            <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-semibold text-slate-700">
+                            <td className="px-4 py-3 text-right hidden md:table-cell font-mono text-sm font-semibold text-slate-700">
+                              {fmt(c.system_cash)}
+                            </td>
+                            <td className="px-4 py-3 text-right hidden md:table-cell font-mono text-sm font-semibold text-slate-700">
+                              {fmt(c.system_card)}
+                            </td>
+                            <td className="px-4 py-3 text-right hidden lg:table-cell font-mono text-sm font-semibold text-slate-700">
+                              {fmt(c.system_transfer)}
+                            </td>
+                            <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-bold text-slate-800">
                               {fmt(c.system_total)}
                             </td>
                             {isManager && (
-                              <td className="px-4 py-3 text-center">
+                              <td className="px-4 py-3 text-center hidden md:table-cell">
                                 <DiffBadge diff={c.diff_cash} />
                               </td>
                             )}
                             {isManager && (
-                              <td className="px-4 py-3 text-center">
+                              <td className="px-4 py-3 text-center hidden md:table-cell">
                                 <DiffBadge diff={c.diff_card} />
+                              </td>
+                            )}
+                            {isManager && (
+                              <td className="px-4 py-3 text-center hidden lg:table-cell">
+                                <DiffBadge diff={c.diff_transfer} />
                               </td>
                             )}
                             <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
@@ -610,13 +663,27 @@ export default function CierreCajaPage() {
 
                       // Add subtotal row for this date
                       const dayTotal = closings.reduce((sum, c) => sum + c.system_total, 0);
+                      const dayCash = closings.reduce((sum, c) => sum + c.system_cash, 0);
+                      const dayCard = closings.reduce((sum, c) => sum + c.system_card, 0);
+                      const dayTransfer = closings.reduce((sum, c) => sum + c.system_transfer, 0);
                       rows.push(
                         <tr key={`subtotal-${date}`} className="border-t-2 border-slate-300 bg-slate-50">
-                          <td colSpan={isManager ? 5 : 4} className="px-4 py-2 text-right">
-                            <p className="text-xs font-bold text-slate-700">
-                              TOTAL {fmtLocalDate(date)}: <span className="text-sm text-slate-900">{fmt(dayTotal)}</span>
-                            </p>
+                          <td className="px-4 py-2 text-left font-bold text-slate-700">
+                            TOTAL {fmtLocalDate(date)}
                           </td>
+                          <td className="px-4 py-2 text-right hidden md:table-cell font-mono font-bold text-slate-800">
+                            {fmt(dayCash)}
+                          </td>
+                          <td className="px-4 py-2 text-right hidden md:table-cell font-mono font-bold text-slate-800">
+                            {fmt(dayCard)}
+                          </td>
+                          <td className="px-4 py-2 text-right hidden lg:table-cell font-mono font-bold text-slate-800">
+                            {fmt(dayTransfer)}
+                          </td>
+                          <td className="px-4 py-2 text-right hidden sm:table-cell font-mono font-bold text-slate-900 text-base">
+                            {fmt(dayTotal)}
+                          </td>
+                          <td colSpan={isManager ? 4 : 2}></td>
                         </tr>
                       );
                     });

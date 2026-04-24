@@ -108,7 +108,7 @@ export async function POST(
   try {
     const { tenantId } = await params;
     const body = await request.json();
-    const { closing_date, declared_cash, declared_card, notes, closed_by } = body;
+    const { closing_date, declared_cash, declared_card, declared_transfer, notes, closed_by } = body;
 
     if (!closing_date) {
       return NextResponse.json({ error: "closing_date is required" }, { status: 400 });
@@ -164,6 +164,7 @@ export async function POST(
           system_total:     Math.round(system_total    * 100) / 100,
           declared_cash:    Math.round(Number(declared_cash ?? 0) * 100) / 100,
           declared_card:    Math.round(Number(declared_card ?? 0) * 100) / 100,
+          declared_transfer: Math.round(Number(declared_transfer ?? 0) * 100) / 100,
           notes:            notes ?? null,
           closed_by:        closed_by ?? null,
           closing_time:     new Date().toISOString(),
