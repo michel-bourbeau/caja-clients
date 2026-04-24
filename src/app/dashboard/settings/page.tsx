@@ -241,7 +241,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Configuracion</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Configuración General</h1>
 
       {message && (
         <div className={`mb-6 px-4 py-3 rounded-lg text-sm font-medium ${

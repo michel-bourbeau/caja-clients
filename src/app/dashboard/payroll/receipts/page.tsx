@@ -215,7 +215,7 @@ function PayrollContent() {
         {/* Header */}
         <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Nómina</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Recibos</h1>
             {config && (
               <p className="text-sm text-slate-600 mt-1">
                 {FREQ_LABEL[config.frequency]}

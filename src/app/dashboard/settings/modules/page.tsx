@@ -194,7 +194,7 @@ export default function ModulesPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Configuración de Módulos</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Módulos</h1>
         <p className="text-sm text-slate-500 mt-2">
           Activa o desactiva los módulos disponibles para tu aplicación
         </p>
