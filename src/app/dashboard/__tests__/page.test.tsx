@@ -39,7 +39,7 @@ describe("DashboardPage - Module Cards", () => {
   });
 
   describe("Module Links - Correct URLs", () => {
-    it("should render Nueva Venta with correct href", async () => {
+    it("should render Caja with correct href", async () => {
       mockUseAuth.mockReturnValue({
         user: { id: "user-1", firstName: "John", roleId: "admin", permissions: ["pos.create"] },
         hasPermission: jest.fn(() => true),
@@ -63,9 +63,8 @@ describe("DashboardPage - Module Cards", () => {
       render(<DashboardPage />);
 
       await waitFor(() => {
-        const links = screen.getAllByRole("link", { name: /Nueva Venta/i });
-        const moduleLink = links.find(link => link.getAttribute("href") === "/dashboard/pos");
-        expect(moduleLink).toHaveAttribute("href", "/dashboard/pos");
+        const link = screen.getByRole("link", { name: /^Caja/i });
+        expect(link).toHaveAttribute("href", "/dashboard/pos");
       });
     });
 
@@ -192,7 +191,7 @@ describe("DashboardPage - Module Cards", () => {
   });
 
   describe("Module Visibility - Permissions", () => {
-    it("should not show Nueva Venta without pos.create permission", async () => {
+    it("should not show Caja without pos.create permission", async () => {
       mockUseAuth.mockReturnValue({
         user: { id: "user-1", firstName: "John", roleId: "admin", permissions: [] },
         hasPermission: jest.fn(() => false),
@@ -634,8 +633,8 @@ describe("DashboardPage - Module Cards", () => {
       render(<DashboardPage />);
 
       await waitFor(() => {
-        const nuevaVenta = screen.getByRole("link", { name: /Nueva Venta/i });
-        expect(nuevaVenta).toHaveAttribute("href", "/dashboard/pos");
+        const caja = screen.getByRole("link", { name: /^Caja/i });
+        expect(caja).toHaveAttribute("href", "/dashboard/pos");
 
         const inventario = screen.getByRole("link", { name: /Inventario/i });
         expect(inventario).toHaveAttribute("href", "/dashboard/inventory");

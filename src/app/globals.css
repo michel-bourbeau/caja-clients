@@ -647,14 +647,24 @@ html {
   /* Sidebar container */
   .sidebar {
     @apply w-72 h-screen overflow-hidden flex flex-col;
-    background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+    background: #222222;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   /* Sidebar header with logo */
   .sidebar-header {
-    @apply flex items-center gap-3 px-4 py-4 border-b;
+    @apply flex items-center justify-center px-4 py-6 border-b;
     border-color: rgba(255, 255, 255, 0.1);
+    min-height: 120px;
+  }
+
+  .sidebar-logo-container {
+    @apply w-4/5 flex items-center justify-center;
+  }
+
+  .sidebar-logo-img {
+    @apply w-full h-auto object-contain;
+    max-height: 100px;
   }
 
   .sidebar-logo {

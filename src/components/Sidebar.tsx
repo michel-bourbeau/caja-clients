@@ -40,15 +40,14 @@ export const Sidebar: React.FC = () => {
       {/* Header with Logo */}
       <div className="sidebar-header">
         {settings.logoUrl ? (
-          <div className="sidebar-logo">
-            <img src={settings.logoUrl} alt="Logo" />
+          <div className="sidebar-logo-container">
+            <img src={settings.logoUrl} alt="Logo" className="sidebar-logo-img" />
           </div>
         ) : (
-          <div className="sidebar-logo">
-            <SidebarIcon type="inventory" size="md" className="text-white" />
+          <div className="sidebar-logo-container">
+            <img src="/images/logo-chocorico-white.png" alt="Caja Logo" className="sidebar-logo-img" />
           </div>
         )}
-        <span className="sidebar-brand">Caja</span>
       </div>
 
       {/* Navigation */}

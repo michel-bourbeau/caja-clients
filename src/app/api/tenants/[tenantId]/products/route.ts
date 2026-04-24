@@ -22,7 +22,14 @@ export async function GET(
     const mappedData = (data || []).map((product: any) => ({
       ...product,
       quantity: product.stock_quantity,
-      variants: (product.product_variants ?? []).sort(
+      variants: (product.product_variants ?? []).map((v: any) => ({
+        ...v,
+        quantity: v.stock_quantity,
+        stock_quantity: v.stock_quantity,
+        min_stock: v.min_stock ?? 0,
+        sku: v.sku ?? product.sku,
+        name: v.format_name || `Variante ${v.id.slice(0, 8)}`,
+      })).sort(
         (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       ),
     }));

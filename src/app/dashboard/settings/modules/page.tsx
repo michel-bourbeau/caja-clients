@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { LoyaltyService } from "@/features/loyalty/services";
+import { Container, Section, Card, CardHeader, CardTitle, CardContent, Button, Alert } from "@/components/StripeUIComponents";
 
 type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "settings";
 
@@ -187,173 +188,180 @@ export default function ModulesPage() {
   };
 
   if (loading) {
-    return <div className="py-10 text-center text-slate-400">Cargando configuración...</div>;
+    return (
+      <Container>
+        <div className="py-10 text-center text-slate-400">Cargando configuración...</div>
+      </Container>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Módulos</h1>
-        <p className="text-sm text-slate-500 mt-2">
-          Activa o desactiva los módulos disponibles para tu aplicación
-        </p>
-      </div>
+    <Container>
+      <div className="space-y-8">
+        {/* Header */}
+        <Section
+          title="Módulos"
+          description="Activa o desactiva los módulos disponibles para tu aplicación"
+        />
 
-      {/* Messages */}
-      {message && (
-        <div
-          className={`p-4 rounded-lg border ${
-            message.type === "success"
-              ? "bg-green-50 border-green-200 text-green-800"
-              : "bg-red-50 border-red-200 text-red-800"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
+        {/* Messages */}
+        {message && (
+          <Alert
+            variant={message.type === "success" ? "success" : "error"}
+            title={message.type === "success" ? "Éxito" : "Error"}
+          >
+            {message.text}
+          </Alert>
+        )}
 
-      {/* Modules Section */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-900 mb-6">Módulos Disponibles</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {(Object.keys(MODULES) as ModuleKey[]).map((key) => (
-            <label
-              key={key}
-              className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-all"
-            >
-              <input
-                type="checkbox"
-                checked={modules[key] ?? true}
-                onChange={() => handleModuleToggle(key)}
-                className="w-5 h-5 rounded border-slate-300 cursor-pointer"
-              />
-              <div className="ml-4 flex-1">
-                <p className="font-medium text-slate-900">
-                  {MODULES[key].icon} {MODULES[key].name}
-                </p>
-                <p className="text-xs text-slate-500">{MODULES[key].description}</p>
-              </div>
-              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                modules[key] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-              }`}>
-                {modules[key] ? "Activo" : "Inactivo"}
-              </div>
-            </label>
-          ))}
-        </div>
-
-        <button
-          onClick={handleSaveModules}
-          disabled={saving}
-          className="px-6 py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
-        >
-          {saving ? "Guardando..." : "✓ Guardar Módulos"}
-        </button>
-      </div>
-
-      {/* Loyalty Configuration Section */}
-      {modules.loyalty && (
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-6">
-            💳 Configuración de Fidelización
-          </h2>
-
-          <div className="space-y-6">
-            {/* Enable/Disable Loyalty */}
-            <div>
-              <label className="flex items-center p-4 rounded-lg border border-slate-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={loyaltySettings.enabled}
-                  onChange={(e) =>
-                    setLoyaltySettings((prev) => ({ ...prev, enabled: e.target.checked }))
-                  }
-                  className="w-5 h-5 rounded border-slate-300"
-                />
-                <span className="ml-3 font-medium text-slate-900">
-                  Activar módulo de Fidelización
-                </span>
-              </label>
+        {/* Modules Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Módulos Disponibles</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(Object.keys(MODULES) as ModuleKey[]).map((key) => (
+                <label
+                  key={key}
+                  className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-all"
+                >
+                  <input
+                    type="checkbox"
+                    checked={modules[key] ?? true}
+                    onChange={() => handleModuleToggle(key)}
+                    className="w-5 h-5 rounded border-slate-300 cursor-pointer"
+                  />
+                  <div className="ml-4 flex-1">
+                    <p className="font-medium text-slate-900">
+                      {MODULES[key].icon} {MODULES[key].name}
+                    </p>
+                    <p className="text-xs text-slate-500">{MODULES[key].description}</p>
+                  </div>
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      modules[key] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {modules[key] ? "Activo" : "Inactivo"}
+                  </div>
+                </label>
+              ))}
             </div>
 
-            {loyaltySettings.enabled && (
-              <>
-                {/* Reward Threshold */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-2">
-                    Monto Mínimo para Recompensa (NIO)
-                  </label>
-                  <input
-                    type="number"
-                    value={loyaltySettings.rewardThreshold}
-                    onChange={(e) =>
-                      setLoyaltySettings((prev) => ({
-                        ...prev,
-                        rewardThreshold: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Los clientes reciben una recompensa después de gastar este monto
-                  </p>
-                </div>
-
-                {/* Reward Type */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-2">
-                    Tipo de Recompensa
-                  </label>
-                  <select
-                    value={loyaltySettings.rewardType}
-                    onChange={(e) =>
-                      setLoyaltySettings((prev) => ({ ...prev, rewardType: e.target.value }))
-                    }
-                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
-                  >
-                    <option value="DISCOUNT_PERCENT">Porcentaje de Descuento (%)</option>
-                    <option value="DISCOUNT_FIXED">Descuento Fijo (NIO)</option>
-                    <option value="FREE_ITEM">Artículo Gratis</option>
-                  </select>
-                </div>
-
-                {/* Reward Value */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-2">
-                    Valor de la Recompensa
-                  </label>
-                  <input
-                    type="number"
-                    value={loyaltySettings.rewardValue}
-                    onChange={(e) =>
-                      setLoyaltySettings((prev) => ({
-                        ...prev,
-                        rewardValue: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    {loyaltySettings.rewardType === "DISCOUNT_PERCENT"
-                      ? "Porcentaje de descuento (ej: 10 = 10%)"
-                      : "Cantidad en NIO"}
-                  </p>
-                </div>
-              </>
-            )}
-
-            <button
-              onClick={handleSaveLoyalty}
+            <Button
+              onClick={handleSaveModules}
               disabled={saving}
-              className="px-6 py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
+              variant="primary"
+              loading={saving}
             >
-              {saving ? "Guardando..." : "✓ Guardar Fidelización"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+              ✓ Guardar Módulos
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Loyalty Configuration Section */}
+        {modules.loyalty && (
+          <Card>
+            <CardHeader>
+              <CardTitle>💳 Configuração de Fidelização</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Enable/Disable Loyalty */}
+              <div>
+                <label className="flex items-center p-4 rounded-lg border border-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={loyaltySettings.enabled}
+                    onChange={(e) =>
+                      setLoyaltySettings((prev) => ({ ...prev, enabled: e.target.checked }))
+                    }
+                    className="w-5 h-5 rounded border-slate-300"
+                  />
+                  <span className="ml-3 font-medium text-slate-900">
+                    Activar módulo de Fidelización
+                  </span>
+                </label>
+              </div>
+
+              {loyaltySettings.enabled && (
+                <>
+                  {/* Reward Threshold */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-2">
+                      Monto Mínimo para Recompensa (NIO)
+                    </label>
+                    <input
+                      type="number"
+                      value={loyaltySettings.rewardThreshold}
+                      onChange={(e) =>
+                        setLoyaltySettings((prev) => ({
+                          ...prev,
+                          rewardThreshold: parseInt(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Los clientes reciben una recompensa después de gastar este monto
+                    </p>
+                  </div>
+
+                  {/* Reward Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-2">
+                      Tipo de Recompensa
+                    </label>
+                    <select
+                      value={loyaltySettings.rewardType}
+                      onChange={(e) =>
+                        setLoyaltySettings((prev) => ({ ...prev, rewardType: e.target.value }))
+                      }
+                      className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
+                    >
+                      <option value="DISCOUNT_PERCENT">Porcentaje de Descuento (%)</option>
+                      <option value="DISCOUNT_FIXED">Descuento Fijo (NIO)</option>
+                      <option value="FREE_ITEM">Artículo Gratis</option>
+                    </select>
+                  </div>
+
+                  {/* Reward Value */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-2">
+                      Valor de la Recompensa
+                    </label>
+                    <input
+                      type="number"
+                      value={loyaltySettings.rewardValue}
+                      onChange={(e) =>
+                        setLoyaltySettings((prev) => ({
+                          ...prev,
+                          rewardValue: parseFloat(e.target.value) || 0,
+                        }))
+                      }
+                      className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      {loyaltySettings.rewardType === "DISCOUNT_PERCENT"
+                        ? "Porcentaje de descuento (ej: 10 = 10%)"
+                        : "Cantidad en NIO"}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <Button
+                onClick={handleSaveLoyalty}
+                disabled={saving}
+                variant="primary"
+                loading={saving}
+              >
+                ✓ Guardar Fidelización
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </Container>
   );
 }

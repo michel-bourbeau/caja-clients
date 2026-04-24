@@ -10,12 +10,6 @@ import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
 import { TransactionService } from "@/features/transactions/services";
 
-const PAYMENT_BADGE: Record<string, string> = {
-  CASH: "bg-green-100 text-green-700",
-  CARD: "bg-blue-100 text-blue-700",
-  TRANSFER: "bg-purple-100 text-purple-700",
-};
-
 const PAYMENT_LABEL: Record<string, string> = {
   CASH: "Efectivo",
   CARD: "Tarjeta",

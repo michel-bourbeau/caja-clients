@@ -90,12 +90,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         const data = await res.json();
         setSettings({
-          themeColor: (data.theme_color || "slate") as ThemeColor,
-          fontSize: (data.font_size || "normal") as FontSize,
-          logoUrl: data.logo_url,
+          themeColor: (data.themeColor || "slate") as ThemeColor,
+          fontSize: (data.fontSize || "normal") as FontSize,
+          logoUrl: data.logoUrl,
         });
       } catch (err) {
-        console.error("Failed to load theme settings:", err);
         setError((err as Error).message);
       } finally {
         setLoading(false);
@@ -132,8 +131,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         logo_url: newSettings.logoUrl !== undefined ? newSettings.logoUrl : settings.logoUrl,
       };
 
-
-
       const res = await fetch(`/api/tenants/${tenantId}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -141,7 +138,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
 
       const responseData = await res.json();
-
 
       if (!res.ok) {
         throw new Error(responseData.error || `Error ${res.status}`);
@@ -153,12 +149,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         logoUrl: responseData.logoUrl,
       });
 
-
       // Trigger browser to reload styles
       window.dispatchEvent(new Event("themechange"));
     } catch (err) {
       const message = (err as Error).message;
-      console.error("❌ Error al actualizar tema:", message);
       setError(message);
       throw err;
     }

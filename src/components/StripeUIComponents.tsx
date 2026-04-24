@@ -288,7 +288,7 @@ Container.displayName = 'Container';
 interface SectionProps extends React.HTMLAttributes<HTMLDivElement> {
   title?: string;
   description?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const Section: React.FC<SectionProps> = ({
