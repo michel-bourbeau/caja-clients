@@ -573,7 +573,11 @@ html {
   }
 
   tbody tr {
-    @apply hover:bg-slate-50 transition-colors;
+    @apply transition-colors;
+  }
+
+  tbody tr:hover {
+    @apply bg-slate-50;
   }
 
   tbody tr:last-child td {
@@ -796,11 +800,26 @@ html {
   input::placeholder {
     @apply !text-slate-600 !opacity-100;
   }
+}
 
-  button:has(> svg):hover svg,
-  a:has(> svg):hover svg {
-    color: inherit;
-  }
+/* Interactive hover states for buttons with SVG icons */
+button:has(> svg):hover svg,
+a:has(> svg):hover svg {
+  color: inherit;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   BUTTON & LINK STATES (CSS Normal - not Tailwind)
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Close button (typically icon-only buttons) */
+.close-button {
+  color: rgb(148 163 184); /* text-slate-400 */
+  transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.close-button:hover {
+  color: rgb(100 116 139); /* text-slate-300 */
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

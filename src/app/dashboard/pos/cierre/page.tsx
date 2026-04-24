@@ -285,7 +285,7 @@ export default function CierreCajaPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <Container>
+    <Container className="pb-12">
       <Section>
         {/* Header */}
         <div className="mb-8">

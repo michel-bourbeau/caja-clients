@@ -225,7 +225,14 @@ export default function POSPage() {
 
   const handleAddProduct = (product: Product, variant?: ProductVariant) => {
     const itemId = variant ? variant.id : product.id;
-    const itemName = variant ? `${product.name} — ${variant.label}` : product.name;
+    
+    // Ensure names are never empty for proper report generation
+    const productName = product.name?.trim() || "Producto sin nombre";
+    const variantLabel = variant?.label?.trim() || "";
+    const itemName = variant 
+      ? `${productName}${variantLabel ? ` — ${variantLabel}` : ""}`
+      : productName;
+    
     const itemPrice = variant ? variant.price : product.price;
     const itemStock = variant ? variant.stock_quantity : product.quantity;
 

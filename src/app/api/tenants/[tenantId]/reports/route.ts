@@ -144,6 +144,10 @@ function generateSummarySales(
 
 /**
  * Generate top 10 products by quantity and revenue.
+ * 
+ * Fix for multi-formato: Always keep the best available name
+ * - Prefer non-empty names from items
+ * - For items without names, use productId as fallback
  */
 function generateProductReport(txns: any[]) {
   const productMap = new Map<string, {
@@ -158,16 +162,25 @@ function generateProductReport(txns: any[]) {
     const items = tx.items || [];
     items.forEach((item: any) => {
       const key = item.productId;
+      const itemName = item.name && item.name.trim() ? item.name.trim() : `Producto ${key}`;
+      
       if (!productMap.has(key)) {
         productMap.set(key, {
           productId: key,
-          name: item.name,
+          name: itemName,
           quantity: 0,
           revenue: 0,
           count: 0,
         });
       }
+      
       const prod = productMap.get(key)!;
+      
+      // Update name if current one is a fallback and new one is not
+      if (prod.name.startsWith("Producto ") && !itemName.startsWith("Producto ")) {
+        prod.name = itemName;
+      }
+      
       prod.quantity += item.quantity || 0;
       prod.revenue += item.total || 0;
       prod.count += 1;
