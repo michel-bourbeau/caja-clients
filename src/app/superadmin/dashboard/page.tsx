@@ -16,15 +16,15 @@ interface Tenant {
 }
 
 const AVAILABLE_MODULES = [
-  { id: "pos", label: "Point of Sale (Cajas)", icon: "🛒" },
-  { id: "inventory", label: "Gestión de Inventario", icon: "📦" },
-  { id: "employees", label: "Gestión de Empleados", icon: "👥" },
-  { id: "schedules", label: "Horarios y Turnos", icon: "📅" },
-  { id: "payroll", label: "Nómina", icon: "💰" },
-  { id: "reports", label: "Reportes", icon: "📊" },
-  { id: "loyalty", label: "Clientes Fieles", icon: "💳" },
-  { id: "expenses", label: "Gastos y Proveedores", icon: "💸" },
-  { id: "settings", label: "Configuración", icon: "⚙️" },
+  { id: "pos", label: "Point of Sale (Cajas)", icon: "🛒", description: "Caja, Transacciones, Cierre de Caja" },
+  { id: "inventory", label: "Gestión de Inventario", icon: "📦", description: "Gestion de productos y stock" },
+  { id: "employees", label: "Gestión de Empleados", icon: "👥", description: "Empleados, Gestionar de Roles" },
+  { id: "schedules", label: "Horarios y Turnos", icon: "📅", description: "Asistencia y horarios" },
+  { id: "payroll", label: "Nómina", icon: "💰", description: "Recibos, Períodos de Pago" },
+  { id: "reports", label: "Reportes de Ventas", icon: "📊", description: "Análisis y reportes" },
+  { id: "loyalty", label: "Clientes Fieles", icon: "💳", description: "Programa de fidelización" },
+  { id: "expenses", label: "Gastos y Proveedores", icon: "💸", description: "Registro de gastos" },
+  { id: "taxes", label: "Impuestos", icon: "📋", description: "Gestión de impuestos" },
 ];
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
@@ -44,7 +44,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     reports: false,
     loyalty: false,
     expenses: false,
-    settings: true,
+    taxes: false,
   },
   professional: {
     pos: true,
@@ -55,7 +55,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     reports: true,
     loyalty: true,
     expenses: true,
-    settings: true,
+    taxes: true,
   },
   enterprise: {
     pos: true,
@@ -66,7 +66,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     reports: true,
     loyalty: true,
     expenses: true,
-    settings: true,
+    taxes: true,
   },
 };
 
@@ -81,6 +81,23 @@ export default function SuperAdminDashboard() {
   const [message, setMessage] = useState("");
   const [deletingTenantId, setDeletingTenantId] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [showManagePlans, setShowManagePlans] = useState(false);
+  const [planConfigs, setPlanConfigs] = useState<Record<string, Record<string, boolean>>>(PLAN_PRESETS);
+
+  // Generate dynamic plan description based on enabled modules
+  const getPlanDescription = (planId: string): string => {
+    const modules = planConfigs[planId];
+    if (!modules) return "";
+    
+    const enabledCount = Object.values(modules).filter(Boolean).length;
+    const enabledModules = Object.entries(modules)
+      .filter(([_, enabled]) => enabled)
+      .map(([moduleId]) => AVAILABLE_MODULES.find(m => m.id === moduleId)?.label)
+      .filter(Boolean);
+    
+    if (enabledCount === 0) return "Aucun module";
+    return `${enabledCount} module${enabledCount > 1 ? 's' : ''} — ${enabledModules.slice(0, 2).join(', ')}${enabledCount > 2 ? '...' : ''}`;
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -101,7 +118,7 @@ export default function SuperAdminDashboard() {
     reports: false,
     loyalty: false,
     expenses: false,
-    settings: false,
+    taxes: false,
   });
 
   // Redirect if not superadmin
@@ -114,7 +131,47 @@ export default function SuperAdminDashboard() {
   // Load tenants
   useEffect(() => {
     fetchTenants();
+    loadPlanConfigs();
   }, []);
+
+  const loadPlanConfigs = async () => {
+    try {
+      const res = await fetch("/api/superadmin/plan-configs");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.configs) {
+          setPlanConfigs(data.configs);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des configs:", error);
+    }
+  };
+
+  const savePlanConfigs = async () => {
+    try {
+      const res = await fetch("/api/superadmin/plan-configs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ configs: planConfigs }),
+      });
+
+      if (res.ok) {
+        setMessage("✅ Configuration des forfaits sauvegardée avec succès");
+        // Reload from server to confirm persistence
+        await loadPlanConfigs();
+        setShowManagePlans(false);
+        return true;
+      } else {
+        const error = await res.json();
+        setMessage(`❌ Erreur: ${error.error || "Impossible de sauvegarder"}`);
+        return false;
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
+      return false;
+    }
+  };
 
   const fetchTenants = async () => {
     try {
@@ -148,7 +205,7 @@ export default function SuperAdminDashboard() {
           name: formData.name,
           slug: formData.slug,
           plan: formData.plan,
-          features: selectedModules,
+          features: { ...selectedModules, settings: true },
           adminEmail: formData.adminEmail || undefined,
           adminPassword: formData.adminPassword || undefined,
           adminFirstName: formData.adminFirstName || undefined,
@@ -183,7 +240,7 @@ export default function SuperAdminDashboard() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          features: selectedModules,
+          features: { ...selectedModules, settings: true },
           plan: editingPlan,
         }),
       });
@@ -282,6 +339,9 @@ export default function SuperAdminDashboard() {
           <Button onClick={() => setShowCreateForm(!showCreateForm)} className="bg-purple-600">
             {showCreateForm ? "❌ Annuler" : "➕ Créer un Tenant"}
           </Button>
+          <Button onClick={() => setShowManagePlans(!showManagePlans)} className="bg-orange-600">
+            {showManagePlans ? "❌ Fermer" : "🎯 Gérer les Plans"}
+          </Button>
           <Button onClick={() => router.push("/superadmin/users")} className="bg-indigo-600">
             👥 Gestion des Utilisateurs
           </Button>
@@ -314,14 +374,15 @@ export default function SuperAdminDashboard() {
                     onChange={(e) => {
                       const plan = e.target.value;
                       setFormData({ ...formData, plan });
-                      setSelectedModules(PLAN_PRESETS[plan] ?? PLAN_PRESETS.basic);
+                      setSelectedModules(planConfigs[plan] ?? planConfigs.basic);
                     }}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-white text-slate-900"
                   >
-                    <option value="basic">Básico — POS + Inventario</option>
-                    <option value="professional">Profesional — + Empleados, Horarios, Reportes</option>
-                    <option value="enterprise">Empresarial — Tout inclus</option>
-                    <option value="custom">Personnalisé</option>
+                    {Object.entries(PLAN_LABELS).map(([planId, planInfo]) => (
+                      <option key={planId} value={planId}>
+                        {planInfo.label} — {getPlanDescription(planId)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -332,7 +393,10 @@ export default function SuperAdminDashboard() {
                   Pré-sélectionnés selon le plan — vous pouvez ajuster manuellement.
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {AVAILABLE_MODULES.map((module) => (
+                  {AVAILABLE_MODULES.filter(module => {
+                    // Only show modules that are available for this plan
+                    return planConfigs[formData.plan]?.[module.id] !== undefined;
+                  }).map((module) => (
                     <label key={module.id} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -341,7 +405,7 @@ export default function SuperAdminDashboard() {
                           setSelectedModules((prev) => {
                             const updated = { ...prev, [module.id]: e.target.checked };
                             // If result no longer matches the current plan preset, switch to custom
-                            const preset = PLAN_PRESETS[formData.plan];
+                            const preset = planConfigs[formData.plan];
                             if (preset) {
                               const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
                               if (!matchesPreset) setFormData((f) => ({ ...f, plan: "custom" }));
@@ -402,6 +466,70 @@ export default function SuperAdminDashboard() {
           </Card>
         )}
 
+        {/* Manage Plans Form */}
+        {showManagePlans && (
+          <Card className="p-6 mb-8 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300">
+            <h2 className="text-2xl font-bold mb-6 text-orange-900">🎯 Gérer les Types de Forfaits</h2>
+            <p className="text-sm text-orange-800 mb-6">
+              Activez ou désactivez les modules pour chaque type de forfait. Ces paramètres seront appliqués à tous les nouveaux tenants.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.entries(PLAN_LABELS).map(([planId, planInfo]) => (
+                <Card key={planId} className="p-4 border-2 border-orange-200 bg-white">
+                  <div className="mb-4">
+                    <h3 className="font-bold text-lg text-orange-900 mb-1">{planInfo.label}</h3>
+                    <p className="text-xs text-orange-700">ID: {planId}</p>
+                  </div>
+                  
+                  <div className="space-y-2 mb-4 border-t-2 border-orange-100 pt-4">
+                    {AVAILABLE_MODULES.map((module) => (
+                      <label key={module.id} className="flex items-center gap-2 cursor-pointer hover:bg-orange-50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={planConfigs[planId]?.[module.id] ?? false}
+                          onChange={(e) => {
+                            setPlanConfigs((prev) => ({
+                              ...prev,
+                              [planId]: {
+                                ...prev[planId],
+                                [module.id]: e.target.checked,
+                              },
+                            }));
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm text-slate-700">
+                          {module.icon} {module.label}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                    ✓ {Object.values(planConfigs[planId] || {}).filter(Boolean).length} modules activés
+                  </div>
+                </Card>
+              ))}
+            </div>
+            
+            <div className="mt-6 flex gap-3">
+              <Button 
+                onClick={() => savePlanConfigs()}
+                className="bg-orange-600"
+              >
+                💾 Enregistrer les modifications
+              </Button>
+              <Button 
+                onClick={() => setPlanConfigs(PLAN_PRESETS)}
+                className="bg-slate-500"
+              >
+                ↺ Réinitialiser
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Tenants List */}
         <div>
           <h2 className="text-2xl font-bold mb-4 text-gray-900">Tenants Actifs</h2>
@@ -450,27 +578,31 @@ export default function SuperAdminDashboard() {
                           onChange={(e) => {
                             const plan = e.target.value;
                             setEditingPlan(plan);
-                            if (PLAN_PRESETS[plan]) setSelectedModules(PLAN_PRESETS[plan]);
+                          if (planConfigs[plan]) setSelectedModules(planConfigs[plan]);
                           }}
                           className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm mb-3"
                         >
-                          <option value="basic">Básico — POS + Inventario</option>
-                          <option value="professional">Profesional — + Empleados, Horarios, Reportes</option>
-                          <option value="enterprise">Empresarial — Tout inclus</option>
-                          <option value="custom">Personnalisé</option>
+                          {Object.entries(PLAN_LABELS).map(([planId, planInfo]) => (
+                            <option key={planId} value={planId}>
+                              {planInfo.label} — {getPlanDescription(planId)}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-semibold mb-3 text-slate-900">Modules</label>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {AVAILABLE_MODULES.map((module) => (
+                          {AVAILABLE_MODULES.filter(module => {
+                            // Only show modules that are available for this plan
+                            return planConfigs[editingPlan]?.[module.id] !== undefined;
+                          }).map((module) => (
                             <label key={module.id} className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={selectedModules[module.id] || false}
                                 onChange={(e) => {
                                   const updated = { ...selectedModules, [module.id]: e.target.checked };
-                                  const preset = PLAN_PRESETS[editingPlan];
+                                  const preset = planConfigs[editingPlan];
                                   if (preset) {
                                     const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
                                     if (!matchesPreset) setEditingPlan("custom");

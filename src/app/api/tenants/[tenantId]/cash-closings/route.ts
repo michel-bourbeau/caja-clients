@@ -25,12 +25,25 @@ export async function GET(
       const dateStart = new Date(`${date}T00:00:00-06:00`).toISOString();
       const dateEnd   = new Date(`${date}T23:59:59-06:00`).toISOString();
 
+      // Find the latest closing for this day (if any)
+      const { data: lastClosing } = await supabaseAdmin
+        .from("cash_closings")
+        .select("closing_time")
+        .eq("tenant_id", tenantId)
+        .eq("closing_date", date)
+        .order("closing_time", { ascending: false })
+        .limit(1)
+        .single();
+
+      // Query from AFTER the last closing (or from start of day if no closing yet)
+      const fromTime = lastClosing?.closing_time || dateStart;
+
       const { data: txs, error: txError } = await supabaseAdmin
         .from("transactions")
         .select("payment_method, total")
         .eq("tenant_id", tenantId)
         .eq("status", "COMPLETED")
-        .gte("created_at", dateStart)
+        .gte("created_at", fromTime)
         .lte("created_at", dateEnd);
 
       if (txError) throw txError;
@@ -108,13 +121,26 @@ export async function POST(
     const dateStart = new Date(`${closing_date}T00:00:00-06:00`).toISOString();
     const dateEnd   = new Date(`${closing_date}T23:59:59-06:00`).toISOString();
 
-    // Fetch all completed transactions for that local date
+    // Find the latest closing for this day (if any)
+    const { data: lastClosing } = await supabaseAdmin
+      .from("cash_closings")
+      .select("closing_time")
+      .eq("tenant_id", tenantId)
+      .eq("closing_date", closing_date)
+      .order("closing_time", { ascending: false })
+      .limit(1)
+      .single();
+
+    // Query from AFTER the last closing (or from start of day if no closing yet)
+    const fromTime = lastClosing?.closing_time || dateStart;
+
+    // Fetch all completed transactions for that local date since last closing
     const { data: txs, error: txError } = await supabaseAdmin
       .from("transactions")
-      .select("payment_method, total")
+      .select("id, payment_method, total")
       .eq("tenant_id", tenantId)
       .eq("status", "COMPLETED")
-      .gte("created_at", dateStart)
+      .gte("created_at", fromTime)
       .lte("created_at", dateEnd);
 
     if (txError) throw txError;
@@ -125,10 +151,10 @@ export async function POST(
     const system_transfer = rows.filter((t) => t.payment_method === "TRANSFER").reduce((s, t) => s + Number(t.total), 0);
     const system_total    = system_cash + system_card + system_transfer;
 
-    // Upsert — one closing per tenant per date
+    // Insert (not upsert) — allow multiple closings per day
     const { data, error } = await supabaseAdmin
       .from("cash_closings")
-      .upsert(
+      .insert([
         {
           tenant_id:        tenantId,
           closing_date,
@@ -140,13 +166,31 @@ export async function POST(
           declared_card:    Math.round(Number(declared_card ?? 0) * 100) / 100,
           notes:            notes ?? null,
           closed_by:        closed_by ?? null,
+          closing_time:     new Date().toISOString(),
         },
-        { onConflict: "tenant_id,closing_date" }
-      )
+      ])
       .select()
       .single();
 
     if (error) throw error;
+
+    // Link all transactions from this period to this closing
+    // This prevents them from being counted in the next closing
+    if (data?.id) {
+      const txIds = rows.map((t) => t.id);
+      if (txIds.length > 0) {
+        const { error: updateError } = await supabaseAdmin
+          .from("transactions")
+          .update({ cash_closing_id: data.id })
+          .in("id", txIds);
+        
+        if (updateError) {
+          console.error("Error linking transactions to closing:", updateError);
+          // Continue anyway - the closing was saved successfully
+        }
+      }
+    }
+
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
     return NextResponse.json(

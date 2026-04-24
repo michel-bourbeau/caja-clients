@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useTheme, FONT_SIZE_MAP, type FontSize } from "@/context/ThemeContext";
 import { useTenantId } from "@/lib/utils/tenant";
@@ -58,10 +59,15 @@ export default function ThemePage() {
     <Container>
       <div className="space-y-8">
         {/* Header */}
-        <Section
-          title="Personalización de Tema"
-          description="Ajusta el tamaño global de la letra en tu aplicación"
-        />
+        <div className="flex items-center justify-between">
+          <Section
+            title="Personalización de Tema"
+            description="Ajusta el tamaño global de la letra en tu aplicación"
+          />
+          <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+            ← Volver a Configuración General
+          </Link>
+        </div>
 
         {/* Messages */}
         {message && (

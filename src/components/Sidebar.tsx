@@ -99,13 +99,18 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Reports - Direct links */}
-        {hasPermission("reports.view") && (
+        {features.reports && hasPermission("reports.view") && (
           <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" />
         )}
 
         {/* Loyalty - Direct links */}
         {features.loyalty && (
           <NavLink href="/dashboard/loyalty" label="Clientes Fieles" iconType="loyalty" />
+        )}
+
+        {/* Expenses - Direct links */}
+        {features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all")) && (
+          <NavLink href="/dashboard/expenses" label="Gastos" iconType="expenses" />
         )}
 
         {/* Divider before Admin */}
@@ -121,17 +126,11 @@ export const Sidebar: React.FC = () => {
             isOpen={expandedSections.admin}
             onToggle={() => toggleSection("admin")}
           >
-            {canManageRoles && (
+            {canManageRoles && features.employees && (
               <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" iconType="roles" isNested />
             )}
-            {canManageModules && (
-              <>
-                <NavLink href="/dashboard/settings/modules" label="Módulos" iconType="modules" isNested />
-                {features.payroll && (
-                  <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
-                )}
-                <NavLink href="/dashboard/settings/taxes" label="Impuestos" iconType="taxes" isNested />
-              </>
+            {canManageModules && features.payroll && (
+              <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
             )}
             {(canManageRoles || canManageModules) && (
               <NavLink href={ROUTES.SETTINGS} label="Configuración General" iconType="settings" isNested />
@@ -145,7 +144,7 @@ export const Sidebar: React.FC = () => {
 
 interface AccordionProps {
   label: string;
-  iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings";
+  iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings";
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -177,7 +176,7 @@ const Accordion: React.FC<AccordionProps> = ({
   </div>
 );
 
-const NavLink: React.FC<{ href: string; label: string; iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings"; isNested?: boolean }> = ({
+const NavLink: React.FC<{ href: string; label: string; iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings"; isNested?: boolean }> = ({
   href,
   label,
   iconType,

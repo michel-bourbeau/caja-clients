@@ -318,13 +318,8 @@ export default function CierreCajaPage() {
           </div>
           <div className="text-right">
             <p className="text-xs text-slate-400">
-              {loadingCurrent ? "Cargando..." : current ? "Cierre ya registrado — puede actualizar" : "Sin cierre para esta fecha"}
+              Selecciona una fecha para crear o actualizar un cierre
             </p>
-            {current && (
-              <p className="text-xs text-slate-400 mt-0.5">
-                Cerrado por <strong>{current.closed_by ?? "—"}</strong>
-              </p>
-            )}
           </div>
         </div>
 
@@ -538,7 +533,7 @@ export default function CierreCajaPage() {
 
         {/* History */}
         <div>
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Historial de Cierres</h2>
+          <h2 className="text-lg font-bold text-slate-800 mb-4">Historial Completo de Cierres</h2>
           {loadingHistory ? (
             <div className="space-y-2">
               {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
@@ -555,7 +550,7 @@ export default function CierreCajaPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left text-white">Fecha</th>
+                    <th className="px-4 py-3 text-left text-white">Fecha & Hora</th>
                     <th className="px-4 py-3 text-right hidden sm:table-cell text-white">Total Sistema</th>
                     {isManager && <th className="px-4 py-3 text-center text-white">Efectivo</th>}
                     {isManager && <th className="px-4 py-3 text-center text-white">Tarjeta</th>}
@@ -563,37 +558,71 @@ export default function CierreCajaPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {history.map((c) => (
-                    <tr
-                      key={c.id}
-                      onClick={() => {
-                        setSelectedDate(c.closing_date);
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                      className="hover:bg-blue-50 cursor-pointer transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-slate-900">{fmtLocalDate(c.closing_date)}</p>
-                        {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs">{c.notes}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-semibold text-slate-700">
-                        {fmt(c.system_total)}
-                      </td>
-                      {isManager && (
-                        <td className="px-4 py-3 text-center">
-                          <DiffBadge diff={c.diff_cash} />
-                        </td>
-                      )}
-                      {isManager && (
-                        <td className="px-4 py-3 text-center">
-                          <DiffBadge diff={c.diff_card} />
-                        </td>
-                      )}
-                      <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
-                        {c.closed_by ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    // Group by date
+                    const grouped: { [date: string]: typeof history } = {};
+                    history.forEach((c) => {
+                      if (!grouped[c.closing_date]) {
+                        grouped[c.closing_date] = [];
+                      }
+                      grouped[c.closing_date].push(c);
+                    });
+
+                    const rows: React.ReactNode[] = [];
+                    Object.entries(grouped).forEach(([date, closings]) => {
+                      // Add rows for each closing on this date
+                      closings.forEach((c) => {
+                        rows.push(
+                          <tr
+                            key={c.id}
+                            onClick={() => {
+                              setSelectedDate(c.closing_date);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="hover:bg-blue-50 cursor-pointer transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-slate-900">{fmtLocalDate(c.closing_date)}</p>
+                              <p className="text-xs text-slate-500">
+                                {new Date(c.created_at).toLocaleTimeString("es-NI", { hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                              {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs mt-0.5">{c.notes}</p>}
+                            </td>
+                            <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-semibold text-slate-700">
+                              {fmt(c.system_total)}
+                            </td>
+                            {isManager && (
+                              <td className="px-4 py-3 text-center">
+                                <DiffBadge diff={c.diff_cash} />
+                              </td>
+                            )}
+                            {isManager && (
+                              <td className="px-4 py-3 text-center">
+                                <DiffBadge diff={c.diff_card} />
+                              </td>
+                            )}
+                            <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
+                              {c.closed_by ?? "—"}
+                            </td>
+                          </tr>
+                        );
+                      });
+
+                      // Add subtotal row for this date
+                      const dayTotal = closings.reduce((sum, c) => sum + c.system_total, 0);
+                      rows.push(
+                        <tr key={`subtotal-${date}`} className="border-t-2 border-slate-300 bg-slate-50">
+                          <td colSpan={isManager ? 5 : 4} className="px-4 py-2 text-right">
+                            <p className="text-xs font-bold text-slate-700">
+                              TOTAL {fmtLocalDate(date)}: <span className="text-sm text-slate-900">{fmt(dayTotal)}</span>
+                            </p>
+                          </td>
+                        </tr>
+                      );
+                    });
+
+                    return rows;
+                  })()}
                 </tbody>
               </table>
             </Card>

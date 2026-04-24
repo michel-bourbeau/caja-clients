@@ -51,7 +51,7 @@ export interface Transaction {
   tax: number;
   tax_breakdown?: Array<{ name: string; rate: number; amount: number }>;
   total: number;
-  paymentMethod: "CASH" | "CARD" | "TRANSFER" | "USD";
+  paymentMethod: "CASH" | "CARD" | "TRANSFER";
   timestamp: Date;
   cashierId: string;
   cashierName?: string;

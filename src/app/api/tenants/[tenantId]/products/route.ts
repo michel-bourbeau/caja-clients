@@ -28,7 +28,7 @@ export async function GET(
         stock_quantity: v.stock_quantity,
         min_stock: v.min_stock ?? 0,
         sku: v.sku ?? product.sku,
-        name: v.format_name || `Variante ${v.id.slice(0, 8)}`,
+        name: v.label || `Variante ${v.id.slice(0, 8)}`,
       })).sort(
         (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       ),

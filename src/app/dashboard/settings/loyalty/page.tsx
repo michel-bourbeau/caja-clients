@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Card, Button } from "@/components/ui";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 
@@ -102,7 +103,12 @@ export default function LoyaltySettingsPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Configuracion de Fidelización</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Configuracion de Fidelización</h1>
+        <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+          ← Volver a Configuración General
+        </Link>
+      </div>
 
       {message && (
         <div className={`mb-6 px-4 py-3 rounded-lg text-sm font-medium ${

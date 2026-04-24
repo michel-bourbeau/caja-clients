@@ -127,7 +127,7 @@ export async function PATCH(
       .from("tenant_settings")
       .update(row)
       .eq("tenant_id", tenantId)
-      .select()
+      .select("*")
       .single();
 
     if (error) throw error;

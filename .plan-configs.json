@@ -1,0 +1,35 @@
+{
+  "basic": {
+    "pos": true,
+    "inventory": true,
+    "employees": false,
+    "schedules": false,
+    "payroll": false,
+    "reports": false,
+    "loyalty": false,
+    "expenses": false,
+    "taxes": false
+  },
+  "professional": {
+    "pos": true,
+    "inventory": true,
+    "employees": true,
+    "schedules": true,
+    "payroll": false,
+    "reports": true,
+    "loyalty": true,
+    "expenses": true,
+    "taxes": true
+  },
+  "enterprise": {
+    "pos": true,
+    "inventory": true,
+    "employees": true,
+    "schedules": true,
+    "payroll": true,
+    "reports": true,
+    "loyalty": true,
+    "expenses": true,
+    "taxes": true
+  }
+}

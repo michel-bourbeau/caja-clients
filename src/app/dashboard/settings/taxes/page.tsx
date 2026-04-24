@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
@@ -334,17 +335,24 @@ export default function TaxesSettingsPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Impuestos</h1>
-        <Button
-          onClick={() => {
-            setShowAddTax(!showAddTax);
-            setEditingTaxId(null);
-            setFormData({ name: "", rate: "" });
-          }}
-          className="bg-green-600 text-white"
-        >
-          + Agregar Impuesto
-        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Impuestos</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+            ← Volver a Configuración General
+          </Link>
+          <Button
+            onClick={() => {
+              setShowAddTax(!showAddTax);
+              setEditingTaxId(null);
+              setFormData({ name: "", rate: "" });
+            }}
+            className="bg-green-600 text-white"
+          >
+            + Agregar Impuesto
+          </Button>
+        </div>
       </div>
 
       {message && (

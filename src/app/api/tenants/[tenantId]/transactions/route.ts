@@ -91,6 +91,9 @@ export async function POST(
     const cashierName: string = body.cashierName || "Unknown";
     const discount: number = Math.max(0, body.discount || 0);
     const amountReceived: number = body.amountReceived || 0;
+    const currencyPaid: string = body.currency_paid || "NIO";
+    const usdAmountReceived: number = body.usd_amount_received || 0;
+    const usdExchangeRate: number = body.usd_exchange_rate || 37.00;
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Aucun article dans le panier" }, { status: 400 });
@@ -192,6 +195,8 @@ export async function POST(
           payment_method: paymentMethod,
           amount_received: amountReceived,
           change: change,
+          currency_paid: currencyPaid,
+          usd_amount_received: usdAmountReceived,
           status: "COMPLETED",
           created_at: new Date().toISOString(),
         },

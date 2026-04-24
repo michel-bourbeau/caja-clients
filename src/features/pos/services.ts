@@ -42,7 +42,7 @@ export class POSService {
   static async createTransaction(
     tenantId: string,
     items: CartItem[],
-    paymentMethod: "CASH" | "CARD" | "TRANSFER" | "USD",
+    paymentMethod: "CASH" | "CARD" | "TRANSFER",
     cashierId: string,
     discount: number = 0,
     cashierName: string = "Unknown",

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
 import { PageIcon } from "@/components";
@@ -98,6 +99,15 @@ export default function ExchangeRatePage() {
     <Container>
       <div className="space-y-8">
         {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Tasa de Cambio USD</h1>
+            <p className="text-slate-600 mt-1">Configura la tasa de cambio USD a NIO para los reportes</p>
+          </div>
+          <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
+            ← Volver a Configuración General
+          </Link>
+        </div>
         <div className="flex items-center gap-3 mb-6">
           <PageIcon type="settings" size="lg" displayType="lucide" />
           <div>

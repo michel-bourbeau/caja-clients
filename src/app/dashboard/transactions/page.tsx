@@ -582,7 +582,7 @@ export default function TransactionsPage() {
           <Card className="w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex-shrink-0">
-              <h2 className="font-semibold text-sm">Detalles de la Transacción</h2>
+              <h2 className="font-semibold text-sm text-white">Detalles de la Transacción</h2>
               <IconButton
                 icon="close"
                 color="slate"

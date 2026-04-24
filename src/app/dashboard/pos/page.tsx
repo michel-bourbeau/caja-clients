@@ -11,7 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
 import { PageIcon, SearchInput } from "@/components";
 
-type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "USD";
+type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 type Currency = "NIO" | "USD";
 
 interface Category {
@@ -433,17 +433,13 @@ export default function POSPage() {
       setLoading(true);
       const cashierName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
       
-      // Determine payment method and amounts based on currency selection
+      // Determine amounts based on currency selection
       let paymentMethodToUse: PaymentMethod = paymentMethod;
       let usdAmountToPass = 0;
-      let currencyToPass: Currency = "NIO";
+      let currencyToPass: Currency = selectedCurrency;
       
-      if (paymentMethod === "CASH" && selectedCurrency === "USD") {
-        paymentMethodToUse = "USD";
+      if (selectedCurrency === "USD") {
         usdAmountToPass = amountReceived; // amountReceived is in USD
-        currencyToPass = "USD";
-      } else {
-        currencyToPass = selectedCurrency;
       }
       
       const transaction = await POSService.createTransaction(

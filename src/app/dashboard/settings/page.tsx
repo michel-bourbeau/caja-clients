@@ -4,16 +4,12 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
+import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
 
 interface PlanDetails {
   label: string;
   color: string;
   description: string;
-  users: string;
-  transactions: string;
-  storage: string;
-  support: string;
-  features: string[];
 }
 
 const PLAN_LABELS: Record<string, PlanDetails> = {
@@ -21,41 +17,21 @@ const PLAN_LABELS: Record<string, PlanDetails> = {
     label: "Basico",
     color: "bg-slate-100 text-slate-700 border-slate-300",
     description: "POS + Inventario",
-    users: "Hasta 3 usuarios",
-    transactions: "500 transacciones/mes",
-    storage: "5 GB",
-    support: "Email (48h)",
-    features: ["Punto de Venta", "Inventario básico", "Reportes simples"],
   },
   professional: {
     label: "Profesional",
     color: "bg-blue-100 text-blue-700 border-blue-300",
     description: "POS + Inventario + Empleados, Horarios, Reportes",
-    users: "Hasta 10 usuarios",
-    transactions: "5,000 transacciones/mes",
-    storage: "50 GB",
-    support: "Email y Chat (24h)",
-    features: ["Punto de Venta", "Inventario avanzado", "Gestión de empleados", "Horarios y turnos", "Reportes avanzados"],
   },
   enterprise: {
     label: "Empresarial",
     color: "bg-purple-100 text-purple-700 border-purple-300",
     description: "Todos los modulos incluidos",
-    users: "Usuarios ilimitados",
-    transactions: "Transacciones ilimitadas",
-    storage: "500 GB",
-    support: "Teléfono y Chat (24/7)",
-    features: ["Todos los módulos", "Nómina completa", "Fidelización", "Impuestos avanzados", "API y integraciones"],
   },
   custom: {
     label: "Personalizado",
     color: "bg-orange-100 text-orange-700 border-orange-300",
     description: "Configuracion personalizada",
-    users: "Según necesidades",
-    transactions: "Según necesidades",
-    storage: "Según necesidades",
-    support: "Dedicado",
-    features: ["Módulos personalizados", "SLA garantizado", "Soporte técnico dedicado"],
   },
 };
 
@@ -66,8 +42,13 @@ const AVAILABLE_MODULES = [
   { id: "schedules", label: "Horarios y Turnos",        icon: "\u{1F4C5}" },
   { id: "payroll",   label: "Nomina",                   icon: "\u{1F4B0}" },
   { id: "reports",   label: "Reportes",                 icon: "\u{1F4CA}" },
+  { id: "loyalty",   label: "Clientes Fieles",          icon: "\u{1F4B3}" },
+  { id: "expenses",  label: "Gastos",                   icon: "\u{1F4B8}" },
+  { id: "taxes",     label: "Impuestos",                icon: "\u{1F4CB}" },
   { id: "settings",  label: "Configuracion",            icon: "\u2699\uFE0F" },
 ];
+
+type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "settings";
 
 interface PayrollConfig {
   frequency: "weekly" | "biweekly" | "monthly";
@@ -101,10 +82,13 @@ export default function SettingsPage() {
   const { features, loading: featuresLoading } = useTenantFeatures();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [modules, setModules] = useState<Record<ModuleKey, boolean>>({} as Record<ModuleKey, boolean>);
+  const [authorizedModules, setAuthorizedModules] = useState<Set<ModuleKey>>(new Set());
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
   const [savingPOS, setSavingPOS] = useState(false);
   const [savingPayroll, setSavingPayroll] = useState(false);
+  const [savingModules, setSavingModules] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -118,13 +102,35 @@ export default function SettingsPage() {
   const loadSettings = useCallback(async () => {
     if (!tenantId) return;
     try {
-      const [tenantRes, settingsRes] = await Promise.all([
+      const [tenantRes, settingsRes, featuresRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}`),
         fetch(`/api/tenants/${tenantId}/settings`),
+        fetch(`/api/tenants/${tenantId}/features`),
       ]);
       if (tenantRes.ok) {
         const t = await tenantRes.json();
         if (t?.plan) setTenantPlan(t.plan);
+
+        // Load plan configs to get authorized modules
+        if (t?.plan) {
+          const planRes = await fetch("/api/superadmin/plan-configs");
+          if (planRes.ok) {
+            const planData = await planRes.json();
+            const planConfig = planData.configs?.[t.plan] || {};
+            
+            // Get authorized modules for this plan (always include settings)
+            const authorized = new Set<ModuleKey>(
+              Object.entries(planConfig)
+                .filter(([_, enabled]) => enabled)
+                .map(([key]) => key as ModuleKey)
+            );
+            
+            // Settings is ALWAYS authorized for all users
+            authorized.add("settings");
+            
+            setAuthorizedModules(authorized);
+          }
+        }
       }
       if (settingsRes.ok) {
         const s = await settingsRes.json();
@@ -140,6 +146,11 @@ export default function SettingsPage() {
           payrollConfig:  s.payrollConfig  ?? DEFAULT_SETTINGS.payrollConfig,
         });
         broadcastCurrencyChange(cur);
+      }
+      if (featuresRes.ok) {
+        const data = await featuresRes.json();
+        // Ensure settings is always enabled
+        setModules({ ...(data.features || {}), settings: true });
       }
     } catch (e) {
       console.error("Error loading settings:", e);
@@ -237,6 +248,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleModuleToggle = (moduleKey: ModuleKey) => {
+    setModules((prev) => ({
+      ...prev,
+      [moduleKey]: !prev[moduleKey],
+    }));
+  };
+
+  const handleSaveModules = async () => {
+    if (!tenantId) return;
+    setSavingModules(true);
+
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/features`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ features: { ...modules, settings: true } }),
+      });
+
+      if (!res.ok) throw new Error("Error al guardar módulos");
+
+      showMessage("success", "Módulos actualizados exitosamente");
+    } catch (err) {
+      showMessage("error", (err as Error).message);
+    } finally {
+      setSavingModules(false);
+    }
+  };
+
   const planInfo = tenantPlan ? PLAN_LABELS[tenantPlan] : null;
 
   return (
@@ -259,44 +298,37 @@ export default function SettingsPage() {
         )}
 
         {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <a href="/dashboard/settings/theme" className="block">
-            <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="flex items-start gap-3 pt-6">
-                <span className="text-2xl">🎨</span>
-                <div>
-                  <h3 className="font-bold text-slate-900">Tema</h3>
-                  <p className="text-sm text-slate-500 mt-1">Colores y personalización</p>
-                </div>
-              </CardContent>
-            </Card>
-          </a>
-          <a href="/dashboard/settings/taxes" className="block">
-            <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="flex items-start gap-3 pt-6">
-                <span className="text-2xl">💳</span>
-                <div>
-                  <h3 className="font-bold text-slate-900">Impuestos</h3>
-                  <p className="text-sm text-slate-500 mt-1">Tasas y categorías</p>
-                </div>
-              </CardContent>
-            </Card>
-          </a>
-          <a href="/dashboard/settings/loyalty" className="block">
-            <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="flex items-start gap-3 pt-6">
-                <span className="text-2xl">❤️</span>
-                <div>
-                  <h3 className="font-bold text-slate-900">Fidelización</h3>
-                  <p className="text-sm text-slate-500 mt-1">Clientes fieles</p>
-                </div>
-              </CardContent>
-            </Card>
-          </a>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {authorizedModules.has("taxes") && (
+            <a href="/dashboard/settings/taxes" className="block">
+              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="flex flex-col items-center justify-center text-center gap-3 pt-6 pb-6">
+                  <span className="text-4xl">💳</span>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Impuestos</h3>
+                    <p className="text-sm text-slate-500 mt-1">Tasas y categorías</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </a>
+          )}
+          {authorizedModules.has("loyalty") && (
+            <a href="/dashboard/settings/loyalty" className="block">
+              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="flex flex-col items-center justify-center text-center gap-3 pt-6 pb-6">
+                  <span className="text-4xl">❤️</span>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Fidelización</h3>
+                    <p className="text-sm text-slate-500 mt-1">Clientes fieles</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </a>
+          )}
           <a href="/dashboard/settings/exchange-rate" className="block">
             <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="flex items-start gap-3 pt-6">
-                <span className="text-2xl">💱</span>
+              <CardContent className="flex flex-col items-center justify-center text-center gap-3 pt-6 pb-6">
+                <span className="text-4xl">💱</span>
                 <div>
                   <h3 className="font-bold text-slate-900">Cambio USD</h3>
                   <p className="text-sm text-slate-500 mt-1">USD/NIO tasa</p>
@@ -306,177 +338,176 @@ export default function SettingsPage() {
           </a>
         </div>
 
+        {/* Company Info Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Información de la Empresa</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingSettings ? (
+              <p className="text-sm text-slate-500">Cargando...</p>
+            ) : (
+              <div className="space-y-4">
+                <Field
+                  label="Nombre de la empresa"
+                  value={settings.companyName}
+                  onChange={(v) => setSettings((s) => ({ ...s, companyName: v }))}
+                  placeholder="Mi Negocio S.A."
+                  required
+                />
+                <Field
+                  label="Numero RUC"
+                  value={settings.companyRuc}
+                  onChange={(v) => setSettings((s) => ({ ...s, companyRuc: v }))}
+                  placeholder="J0310000000001"
+                  hint="Registro Unico del Contribuyente"
+                />
+                <Field
+                  label="Correo electronico"
+                  value={settings.companyEmail}
+                  onChange={(v) => setSettings((s) => ({ ...s, companyEmail: v }))}
+                  placeholder="contacto@miempresa.com.ni"
+                  type="email"
+                />
+                <Field
+                  label="Numero de telefono"
+                  value={settings.companyPhone}
+                  onChange={(v) => setSettings((s) => ({ ...s, companyPhone: v }))}
+                  placeholder="+505 2222-0000"
+                  type="tel"
+                />
+                <Field
+                  label="Sitio web"
+                  value={settings.companyWebsite}
+                  onChange={(v) => setSettings((s) => ({ ...s, companyWebsite: v }))}
+                  placeholder="https://miempresa.com.ni"
+                  type="url"
+                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-1">
+                    Moneda
+                  </label>
+                  <p className="text-xs text-slate-500 mb-3">Moneda usada en precios, recibos y reportes</p>
+                  <div className="flex gap-3">
+                    {[
+                      { value: "NIO", label: "Cordoba (C$)", sublabel: "Nicaragua" },
+                      { value: "USD", label: "Dolar (US$)",  sublabel: "Estados Unidos" },
+                    ].map((opt) => (
+                      <label
+                        key={opt.value}
+                        className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                          settings.currency === opt.value
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="currency"
+                          value={opt.value}
+                          checked={settings.currency === opt.value}
+                          onChange={() => setSettings((s) => ({ ...s, currency: opt.value }))}
+                          className="accent-blue-600"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{opt.label}</p>
+                          <p className="text-xs text-slate-500">{opt.sublabel}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end pt-4 border-t border-slate-200">
+                  <Button 
+                    onClick={saveCompanyInfo} 
+                    disabled={savingCompany}
+                    variant="primary"
+                    loading={savingCompany}
+                  >
+                    Guardar Cambios
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Theme Font Size Settings */}
+        <ThemeFontSizeSettings />
+
         <div className="space-y-6">
-          {/* Plan and Modules Card */}
+          {/* Plan and Module Management Card */}
           <Card>
             <CardHeader>
               <CardTitle>Plan y Módulos Activos</CardTitle>
             </CardHeader>
             <CardContent>
-              {featuresLoading ? (
+              {featuresLoading || loadingSettings ? (
                 <p className="text-sm text-slate-500">Cargando...</p>
               ) : (
-                <div className="space-y-6">
-                  {planInfo && (
-                    <div className="space-y-4">
-                      {/* Plan Badge */}
-                      <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
-                        <span className="text-base font-bold">{planInfo.label}</span>
-                        <span className="text-sm opacity-75">— {planInfo.description}</span>
-                      </div>
-
-                      {/* Plan Limitations Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                          <p className="text-xs text-slate-500 font-semibold uppercase mb-1">👥 Usuarios</p>
-                          <p className="text-sm font-bold text-slate-900">{planInfo.users}</p>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                          <p className="text-xs text-slate-500 font-semibold uppercase mb-1">📊 Transacciones</p>
-                          <p className="text-sm font-bold text-slate-900">{planInfo.transactions}</p>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                          <p className="text-xs text-slate-500 font-semibold uppercase mb-1">💾 Almacenamiento</p>
-                          <p className="text-sm font-bold text-slate-900">{planInfo.storage}</p>
-                        </div>
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                          <p className="text-xs text-slate-500 font-semibold uppercase mb-1">🎧 Soporte</p>
-                          <p className="text-sm font-bold text-slate-900">{planInfo.support}</p>
+                <div className="flex flex-col h-full">
+                  <div className="space-y-6 flex-1">
+                    {/* Plan Badge Section */}
+                    {planInfo && (
+                      <div>
+                        <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
+                          <span className="text-base font-bold">{planInfo.label}</span>
+                          <span className="text-sm opacity-75">— {planInfo.description}</span>
                         </div>
                       </div>
+                    )}
 
-                      {/* Features Included */}
-                      {planInfo.features && planInfo.features.length > 0 && (
-                        <Alert variant="info" title="✨ Características incluidas">
-                          <ul className="space-y-2">
-                            {planInfo.features.map((feature, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-sm">
-                                <span className="font-bold mt-0.5">✓</span>
-                                <span>{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </Alert>
-                      )}
+                    {/* Module Management Section */}
+                    <div className="border-t border-slate-200 pt-6">
+                      <h3 className="font-semibold text-slate-900 mb-3">Módulos Disponibles</h3>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Activa o desactiva los módulos según tu necesidad. Los módulos que desactives no aparecerán en el menú de navegación.
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {(Object.keys(AVAILABLE_MODULES) as unknown[])
+                          .map(idx => AVAILABLE_MODULES[idx as number])
+                          .filter((m) => authorizedModules.has(m.id as ModuleKey) && m.id !== "settings")
+                          .map((m) => (
+                            <label
+                              key={m.id}
+                              className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-all"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={modules[m.id as ModuleKey] ?? true}
+                                onChange={() => handleModuleToggle(m.id as ModuleKey)}
+                                className="w-5 h-5 rounded border-slate-300 cursor-pointer"
+                              />
+                              <div className="ml-4 flex-1">
+                                <p className="font-medium text-slate-900">
+                                  {m.icon} {m.label}
+                                </p>
+                              </div>
+                              <div
+                                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  modules[m.id as ModuleKey] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                                }`}
+                              >
+                                {modules[m.id as ModuleKey] ? "Activo" : "Inactivo"}
+                              </div>
+                            </label>
+                          ))}
+                      </div>
                     </div>
-                  )}
 
-                  {/* Modules Status */}
-                  <div>
-                    <h4 className="text-sm font-semibold text-slate-900 mb-3">📦 Módulos del Sistema</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {AVAILABLE_MODULES.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
-                            features[m.id]
-                              ? "bg-green-50 text-green-800 border-green-200"
-                              : "bg-slate-50 text-slate-400 border-slate-200 line-through"
-                          }`}
-                        >
-                          <span>{m.icon}</span>
-                          <span>{m.label}</span>
-                          <span className={`ml-auto text-xs ${features[m.id] ? "text-green-600" : "text-slate-400"}`}>
-                            {features[m.id] ? "Activo" : "Inactivo"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <Alert variant="warning" title="📞 Información">
+                      Para cambiar de plan, aumentar límites o personalizar tu configuración, comunícate con el administrador del sistema.
+                    </Alert>
                   </div>
 
-                  <Alert variant="warning" title="📞 Información">
-                    Para cambiar de plan, aumentar límites o personalizar tu configuración, comunícate con el administrador del sistema.
-                  </Alert>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Company Info Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de la Empresa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingSettings ? (
-                <p className="text-sm text-slate-500">Cargando...</p>
-              ) : (
-                <div className="space-y-4">
-                  <Field
-                    label="Nombre de la empresa"
-                    value={settings.companyName}
-                    onChange={(v) => setSettings((s) => ({ ...s, companyName: v }))}
-                    placeholder="Mi Negocio S.A."
-                    required
-                  />
-                  <Field
-                    label="Numero RUC"
-                    value={settings.companyRuc}
-                    onChange={(v) => setSettings((s) => ({ ...s, companyRuc: v }))}
-                    placeholder="J0310000000001"
-                    hint="Registro Unico del Contribuyente"
-                  />
-                  <Field
-                    label="Correo electronico"
-                    value={settings.companyEmail}
-                    onChange={(v) => setSettings((s) => ({ ...s, companyEmail: v }))}
-                    placeholder="contacto@miempresa.com.ni"
-                    type="email"
-                  />
-                  <Field
-                    label="Numero de telefono"
-                    value={settings.companyPhone}
-                    onChange={(v) => setSettings((s) => ({ ...s, companyPhone: v }))}
-                    placeholder="+505 2222-0000"
-                    type="tel"
-                  />
-                  <Field
-                    label="Sitio web"
-                    value={settings.companyWebsite}
-                    onChange={(v) => setSettings((s) => ({ ...s, companyWebsite: v }))}
-                    placeholder="https://miempresa.com.ni"
-                    type="url"
-                  />
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Moneda
-                    </label>
-                    <p className="text-xs text-slate-500 mb-3">Moneda usada en precios, recibos y reportes</p>
-                    <div className="flex gap-3">
-                      {[
-                        { value: "NIO", label: "Cordoba (C$)", sublabel: "Nicaragua" },
-                        { value: "USD", label: "Dolar (US$)",  sublabel: "Estados Unidos" },
-                      ].map((opt) => (
-                        <label
-                          key={opt.value}
-                          className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                            settings.currency === opt.value
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-slate-200 bg-white hover:border-slate-300"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="currency"
-                            value={opt.value}
-                            checked={settings.currency === opt.value}
-                            onChange={() => setSettings((s) => ({ ...s, currency: opt.value }))}
-                            className="accent-blue-600"
-                          />
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{opt.label}</p>
-                            <p className="text-xs text-slate-500">{opt.sublabel}</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex justify-end pt-4 border-t border-slate-200">
+                  {/* Footer with Save Button */}
+                  <div className="flex justify-end pt-6 mt-6 border-t border-slate-200">
                     <Button 
-                      onClick={saveCompanyInfo} 
-                      disabled={savingCompany}
+                      onClick={handleSaveModules} 
+                      disabled={savingModules}
                       variant="primary"
-                      loading={savingCompany}
+                      loading={savingModules}
                     >
                       Guardar Cambios
                     </Button>

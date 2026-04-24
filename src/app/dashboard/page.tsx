@@ -38,6 +38,7 @@ import {
   Edit2,
   Check,
   X,
+  AlertCircle,
   RefreshCw,
 } from "lucide-react";
 
@@ -47,11 +48,14 @@ export default function DashboardPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
 
+  const canManageRoles = hasPermission("settings.manage_roles");
+  const canManageModules = hasPermission("settings.manage_modules");
+
   const firstName = user?.firstName ?? "Usuario";
 
   // Low-stock products
   const [lowStockProducts, setLowStockProducts] = useState<
-    { id: string; name: string; quantity: number; min_stock: number; sku: string; isVariant?: boolean; parentName?: string; parentId?: string }[]
+    { id: string; name: string; label?: string; quantity: number; min_stock: number; sku: string; isVariant?: boolean; parentName?: string; parentId?: string }[]
   >([]);
   
   // Edit mode for low-stock products
@@ -91,7 +95,8 @@ export default function DashboardPage() {
             if ((v.min_stock ?? 0) > 0 && v.stock_quantity <= v.min_stock) {
               low.push({
                 id: v.id,
-                name: v.name || v.format_name,
+                name: v.name || v.label,
+                label: v.label,
                 quantity: v.stock_quantity,
                 min_stock: v.min_stock,
                 sku: v.sku,
@@ -207,7 +212,7 @@ export default function DashboardPage() {
       title: "Cierre de Caja",
       icon: Lock,
       description: "Cierre de caja del día",
-      href: "/dashboard/cierre",
+      href: "/dashboard/pos/cierre",
       color: "bg-orange-50 border-orange-200 text-orange-800",
       iconBg: "bg-orange-100",
       show: features.pos && (hasPermission("pos.cierre") || hasPermission("pos.cierre_review")),
@@ -290,7 +295,17 @@ export default function DashboardPage() {
       href: "/dashboard/expenses",
       color: "bg-yellow-50 border-yellow-200 text-yellow-800",
       iconBg: "bg-yellow-100",
-      show: hasPermission("expenses.create") || hasPermission("expenses.view_all"),
+      show: features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all")),
+    },
+    {
+      id: "taxes",
+      title: "Impuestos",
+      icon: AlertCircle,
+      description: "Gestión de impuestos",
+      href: "/dashboard/settings/taxes",
+      color: "bg-red-50 border-red-200 text-red-800",
+      iconBg: "bg-red-100",
+      show: (canManageRoles || canManageModules),
     },
     {
       id: "roles",
@@ -300,7 +315,7 @@ export default function DashboardPage() {
       href: "/dashboard/admin/roles",
       color: "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-800",
       iconBg: "bg-fuchsia-100",
-      show: hasPermission("settings.manage_roles"),
+      show: features.employees && hasPermission("settings.manage_roles"),
     },
     {
       id: "settings",
@@ -310,7 +325,7 @@ export default function DashboardPage() {
       href: "/dashboard/settings",
       color: "bg-indigo-50 border-indigo-200 text-indigo-800",
       iconBg: "bg-indigo-100",
-      show: (features.settings || hasPermission("settings.manage_modules") || hasPermission("settings.manage_roles")) && hasPermission("settings.view"),
+      show: features.settings && hasPermission("settings.view"),
     },
   ];
 
@@ -425,22 +440,22 @@ export default function DashboardPage() {
       {features.inventory && hasPermission("inventory.view") && lowStockProducts.length > 0 && (
         <Section title="Productos por Reabastecer" description="Stock bajo detectado" className="mt-12">
           <Alert variant="warning" title={`${lowStockProducts.length} producto${lowStockProducts.length !== 1 ? "s" : ""} con stock bajo`}>
-            <p className="text-sm mt-2">
-              Los siguientes productos han alcanzado su stock mínimo. Considera reabastecer pronto.
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm mt-2">
+                Los siguientes productos han alcanzado su stock mínimo. Considera reabastecer pronto.
+              </p>
+              
+              {/* Refresh button - aligned right and center vertically */}
+              <button
+                onClick={() => fetchLowStockProducts()}
+                disabled={isRefreshing}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-all flex-shrink-0"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                {isRefreshing ? "Actualizando..." : "Actualizar"}
+              </button>
+            </div>
           </Alert>
-
-          {/* Refresh button */}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={() => fetchLowStockProducts()}
-              disabled={isRefreshing}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-all"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              {isRefreshing ? "Actualizando..." : "Actualizar"}
-            </button>
-          </div>
 
           {/* Low stock products grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
@@ -461,7 +476,7 @@ export default function DashboardPage() {
                           </CardTitle>
                           {p.isVariant && (
                             <Badge variant="default" className="flex-shrink-0 text-xs">
-                              {p.name}
+                              {p.label || p.name}
                             </Badge>
                           )}
                         </div>

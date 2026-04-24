@@ -168,7 +168,7 @@ describe("DashboardPage - Module Cards", () => {
       const expectedHrefs = [
         "/dashboard/pos",
         "/dashboard/transactions",
-        "/dashboard/cierre",
+        "/dashboard/pos/cierre",
         "/dashboard/inventory",
         "/dashboard/employees",
         "/dashboard/schedules",
@@ -319,7 +319,7 @@ describe("DashboardPage - Module Cards", () => {
         const links = screen.queryAllByRole("link");
         const posLinks = links.filter(l => {
           const href = l.getAttribute("href");
-          return href === "/dashboard/pos" || href === "/dashboard/transactions" || href === "/dashboard/cierre";
+          return href === "/dashboard/pos" || href === "/dashboard/transactions" || href === "/dashboard/pos/cierre";
         });
         expect(posLinks).toHaveLength(0);
       });
@@ -676,7 +676,7 @@ describe("DashboardPage - Module Cards", () => {
 
       await waitFor(() => {
         const link = screen.getByRole("link", { name: /Cierre de Caja/i });
-        expect(link).toHaveAttribute("href", "/dashboard/cierre");
+        expect(link).toHaveAttribute("href", "/dashboard/pos/cierre");
       });
     });
 
@@ -710,7 +710,7 @@ describe("DashboardPage - Module Cards", () => {
 
       await waitFor(() => {
         const link = screen.getByRole("link", { name: /Cierre de Caja/i });
-        expect(link).toHaveAttribute("href", "/dashboard/cierre");
+        expect(link).toHaveAttribute("href", "/dashboard/pos/cierre");
       });
     });
 

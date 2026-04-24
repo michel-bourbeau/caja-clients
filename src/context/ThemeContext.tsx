@@ -137,11 +137,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         body: JSON.stringify(payload),
       });
 
-      const responseData = await res.json();
-
       if (!res.ok) {
-        throw new Error(responseData.error || `Error ${res.status}`);
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData?.error || `Error ${res.status}`);
       }
+
+      const responseData = await res.json();
 
       setSettings({
         themeColor: responseData.themeColor || "slate",

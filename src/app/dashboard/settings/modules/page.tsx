@@ -5,7 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { Container, Section, Card, CardHeader, CardTitle, CardContent, Button, Alert } from "@/components/StripeUIComponents";
 
-type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "settings";
+type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "settings";
 
 interface ModuleConfig {
   enabled: boolean;
@@ -70,6 +70,12 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
     icon: "💸",
     description: "Gestión de gastos y proveedores",
   },
+  taxes: {
+    enabled: true,
+    name: "Impuestos",
+    icon: "📋",
+    description: "Gestión de impuestos",
+  },
   settings: {
     enabled: true,
     name: "Configuración",
@@ -83,6 +89,7 @@ export default function ModulesPage() {
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>(
     Object.fromEntries(Object.keys(MODULES).map((k) => [k, true])) as Record<ModuleKey, boolean>
   );
+  const [authorizedModules, setAuthorizedModules] = useState<Set<ModuleKey>>(new Set());
   const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings>({
     enabled: true,
     rewardThreshold: 2000,
@@ -98,11 +105,38 @@ export default function ModulesPage() {
     const loadSettings = async () => {
       if (!tenantId) return;
       try {
+        // Load tenant plan and authorized modules
+        const tenantRes = await fetch(`/api/tenants/${tenantId}`);
+        if (tenantRes.ok) {
+          const tenantData = await tenantRes.json();
+          const tenantPlan = tenantData.plan || "basic";
+          
+          // Load plan configs to get authorized modules
+          const planRes = await fetch("/api/superadmin/plan-configs");
+          if (planRes.ok) {
+            const planData = await planRes.json();
+            const planConfig = planData.configs?.[tenantPlan] || {};
+            
+            // Get authorized modules for this plan (always include settings)
+            const authorized = new Set<ModuleKey>(
+              Object.entries(planConfig)
+                .filter(([_, enabled]) => enabled)
+                .map(([key]) => key as ModuleKey)
+            );
+            
+            // Settings is ALWAYS authorized for all users
+            authorized.add("settings");
+            
+            setAuthorizedModules(authorized);
+          }
+        }
+
         // Load modules
         const featuresRes = await fetch(`/api/tenants/${tenantId}/features`);
         if (featuresRes.ok) {
           const data = await featuresRes.json();
-          setModules(data.features || {});
+          // Ensure settings is always enabled
+          setModules({ ...(data.features || {}), settings: true });
         }
 
         // Load loyalty settings
@@ -221,7 +255,9 @@ export default function ModulesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(Object.keys(MODULES) as ModuleKey[]).map((key) => (
+              {(Object.keys(MODULES) as ModuleKey[])
+                .filter((key) => authorizedModules.has(key) && key !== "settings")
+                .map((key) => (
                 <label
                   key={key}
                   className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-all"
@@ -247,6 +283,21 @@ export default function ModulesPage() {
                   </div>
                 </label>
               ))}
+            </div>
+
+            {/* Settings - Always active, non-modifiable */}
+            <div className="p-4 rounded-lg border border-blue-200 bg-blue-50">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium text-slate-900">
+                    {MODULES.settings.icon} {MODULES.settings.name}
+                  </p>
+                  <p className="text-xs text-slate-500">{MODULES.settings.description}</p>
+                </div>
+                <div className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                  Siempre Activo
+                </div>
+              </div>
             </div>
 
             <Button
