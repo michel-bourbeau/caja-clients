@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTheme, THEME_SCHEMES, FONT_SIZE_MAP, type ThemeColor, type FontSize } from "@/context/ThemeContext";
 import { useTenantId } from "@/lib/utils/tenant";
+import { Button, Card, CardContent, CardHeader, CardTitle, Alert, Section, Container } from "@/components/StripeUIComponents";
 
 const THEME_OPTIONS: { value: ThemeColor; label: string; description: string }[] = [
   { value: "slate", label: "Gris (Por defecto)", description: "Profesional y neutro" },
@@ -109,156 +110,165 @@ export default function ThemePage() {
   };
 
   if (themeLoading) {
-    return <div className="py-10 text-center text-slate-400">Cargando configuración de tema...</div>;
+    return (
+      <Container>
+        <div className="py-10 text-center text-slate-400">Cargando configuración de tema...</div>
+      </Container>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Personalización de Tema</h1>
-        <p className="text-sm text-slate-500 mt-2">
-          Personaliza la apariencia visual de tu aplicación
-        </p>
-      </div>
+    <Container>
+      <div className="space-y-8">
+        {/* Header */}
+        <Section
+          title="Personalización de Tema"
+          description="Personaliza la apariencia visual de tu aplicación"
+        />
 
-      {/* Messages */}
-      {message && (
-        <div
-          className={`p-4 rounded-lg border ${
-            message.type === "success"
-              ? "bg-green-50 border-green-200 text-green-800"
-              : "bg-red-50 border-red-200 text-red-800"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
+        {/* Messages */}
+        {message && (
+          <Alert
+            variant={message.type === "success" ? "success" : "error"}
+            title={message.type === "success" ? "Éxito" : "Error"}
+          >
+            {message.text}
+          </Alert>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Logo Upload */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Logo de Empresa</h2>
-
-          <div className="space-y-4">
-            {/* Logo Preview */}
-            {logoPreview && (
-              <div className="flex justify-center p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <img src={logoPreview} alt="Logo preview" className="max-h-24 max-w-xs object-contain" />
-              </div>
-            )}
-
-            {/* File Upload */}
-            <div className="relative">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoSelect}
-                className="block w-full text-sm text-slate-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-lg file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-slate-900 file:text-white
-                  hover:file:bg-slate-700
-                  cursor-pointer"
-              />
-            </div>
-
-            <p className="text-xs text-slate-500">
-              📷 PNG, JPG o WebP · Máx 5MB · Se recomienda logo cuadrado (200x200px)
-            </p>
-          </div>
-        </div>
-
-        {/* Color Theme */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Paleta de Colores</h2>
-
-          <div className="space-y-3">
-            {THEME_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                  themeColor === option.value
-                    ? "border-slate-900 bg-slate-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="theme"
-                  value={option.value}
-                  checked={themeColor === option.value}
-                  onChange={(e) => handleThemeColorChange(e.target.value as ThemeColor)}
-                  className="w-4 h-4"
-                />
-                <div className="ml-3 flex-1">
-                  <p className="font-medium text-slate-900">{option.label}</p>
-                  <p className="text-xs text-slate-500">{option.description}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Logo Upload Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Logo de Empresa</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Logo Preview */}
+              {logoPreview && (
+                <div className="flex justify-center p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <img src={logoPreview} alt="Logo preview" className="max-h-24 max-w-xs object-contain" />
                 </div>
-                <div className={`w-6 h-6 rounded ${THEME_SCHEMES[option.value].badge}`}></div>
-              </label>
-            ))}
-          </div>
-        </div>
+              )}
 
-        {/* Font Size */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm lg:col-span-2">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Tamaño de Letra Global</h2>
-
-          <div className="grid grid-cols-3 gap-4">
-            {FONT_SIZE_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                className={`flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  fontSize === option.value
-                    ? "border-slate-900 bg-slate-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
+              {/* File Upload */}
+              <div className="relative">
                 <input
-                  type="radio"
-                  name="fontSize"
-                  value={option.value}
-                  checked={fontSize === option.value}
-                  onChange={(e) => handleFontSizeChange(e.target.value as FontSize)}
-                  className="w-4 h-4"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoSelect}
+                  className="block w-full text-sm text-slate-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-slate-900 file:text-white
+                    hover:file:bg-slate-700
+                    cursor-pointer"
                 />
-                <p className={`mt-3 font-medium ${FONT_SIZE_MAP[option.value]} text-center`}>
-                  {option.label}
-                </p>
-                <p className={`text-xs text-slate-500 text-center mt-2 ${FONT_SIZE_MAP[option.value]}`}>
-                  {option.description}
-                </p>
-              </label>
-            ))}
-          </div>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                📷 PNG, JPG o WebP · Máx 5MB · Se recomienda logo cuadrado (200x200px)
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Color Theme Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Paleta de Colores</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {THEME_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    themeColor === option.value
+                      ? "border-slate-900 bg-slate-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={option.value}
+                    checked={themeColor === option.value}
+                    onChange={(e) => handleThemeColorChange(e.target.value as ThemeColor)}
+                    className="w-4 h-4"
+                  />
+                  <div className="ml-3 flex-1">
+                    <p className="font-medium text-slate-900">{option.label}</p>
+                    <p className="text-xs text-slate-500">{option.description}</p>
+                  </div>
+                  <div className={`w-6 h-6 rounded ${THEME_SCHEMES[option.value].badge}`}></div>
+                </label>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Font Size Card */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Tamaño de Letra Global</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                {FONT_SIZE_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      fontSize === option.value
+                        ? "border-slate-900 bg-slate-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="fontSize"
+                      value={option.value}
+                      checked={fontSize === option.value}
+                      onChange={(e) => handleFontSizeChange(e.target.value as FontSize)}
+                      className="w-4 h-4"
+                    />
+                    <p className={`mt-3 font-medium ${FONT_SIZE_MAP[option.value]} text-center`}>
+                      {option.label}
+                    </p>
+                    <p className={`text-xs text-slate-500 text-center mt-2 ${FONT_SIZE_MAP[option.value]}`}>
+                      {option.description}
+                    </p>
+                  </label>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Preview Card */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Vista Previa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`${THEME_SCHEMES[themeColor].bg} ${FONT_SIZE_MAP[fontSize]} rounded-lg p-6 text-white`}>
+                <div className="flex items-center gap-4 mb-4">
+                  {logoPreview && <img src={logoPreview} alt="Logo" className="w-10 h-10 rounded" />}
+                  <h3 className="font-bold">Mi Empresa</h3>
+                </div>
+                <p>Este es un ejemplo de cómo se verá tu aplicación con el tema y tamaño de letra seleccionados.</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Preview */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm lg:col-span-2">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Vista Previa</h2>
-
-          <div className={`${THEME_SCHEMES[themeColor].bg} ${FONT_SIZE_MAP[fontSize]} rounded-lg p-6 text-white`}>
-            <div className="flex items-center gap-4 mb-4">
-              {logoPreview && <img src={logoPreview} alt="Logo" className="w-10 h-10 rounded" />}
-              <h3 className="font-bold">Mi Empresa</h3>
-            </div>
-            <p>Este es un ejemplo de cómo se verá tu aplicación con el tema y tamaño de letra seleccionados.</p>
-          </div>
+        {/* Save Button */}
+        <div className="flex gap-3">
+          <Button
+            onClick={handleSaveTheme}
+            disabled={saving}
+            variant="primary"
+            loading={saving}
+          >
+            ✓ Guardar Personalización
+          </Button>
         </div>
       </div>
-
-      {/* Save Button */}
-      <div className="flex gap-3">
-        <button
-          onClick={handleSaveTheme}
-          disabled={saving}
-          className="px-6 py-2 bg-slate-900 hover:bg-slate-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
-        >
-          {saving ? "Guardando..." : "✓ Guardar Personalización"}
-        </button>
-      </div>
-    </div>
+    </Container>
   );
-}

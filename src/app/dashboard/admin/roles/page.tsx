@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { DEFAULT_PERMISSIONS, ADMIN_ONLY_PERMISSIONS, Permission } from "@/lib/types/roles";
 import { useTenantId } from "@/lib/utils/tenant";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
+import { IconButton } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,23 @@ export default function RolesPage() {
   useEffect(() => { 
     fetchRoles(); 
   }, [tenantId]); // Use tenantId instead of fetchRoles to avoid infinite loop
+
+  // ── Manage scroll overflow ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    const isModalOpen = showEditModal || showAddModal || !!confirmDelete;
+    if (isModalOpen) {
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    };
+  }, [showEditModal, showAddModal, confirmDelete]);
 
   // ── Selected role ────────────────────────────────────────────────────────────
 
@@ -306,60 +324,110 @@ export default function RolesPage() {
             Cargando...
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {roles.map((role) => (
-              <div
-                key={role.id}
-                className="text-left bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-4 group"
-              >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-900 truncate">{role.name}</p>
-                    {role.description && (
-                      <p className="text-xs text-slate-500 truncate mt-0.5">{role.description}</p>
+          <>
+            {/* Desktop Grid View */}
+            <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {roles.map((role) => (
+                <div
+                  key={role.id}
+                  className="text-left bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all p-4 group"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900 truncate">{role.name}</p>
+                      {role.description && (
+                        <p className="text-xs text-slate-500 truncate mt-0.5">{role.description}</p>
+                      )}
+                    </div>
+                    <RoleBadge role={role} />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <PermissionCount permissions={role.permissions} />
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => handleSelectRole(role)}
+                      className="flex items-center gap-2 flex-1 text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      title="Configurar rol"
+                    >
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span>Configurar</span>
+                    </button>
+                    {!role.is_system && (
+                      <IconButton
+                        icon="delete"
+                        color="red"
+                        size="sm"
+                        onClick={() => setConfirmDelete(role)}
+                        title="Eliminar rol"
+                      />
                     )}
                   </div>
-                  <RoleBadge role={role} />
                 </div>
+              ))}
+            </div>
 
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <PermissionCount permissions={role.permissions} />
-                </div>
+            {/* Mobile List View */}
+            <div className="md:hidden space-y-2">
+              {roles.map((role) => (
+                <div
+                  key={role.id}
+                  className="bg-white rounded-lg border border-slate-200 shadow-sm p-4"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-slate-900">{role.name}</p>
+                      {role.description && (
+                        <p className="text-xs text-slate-500 mt-0.5">{role.description}</p>
+                      )}
+                    </div>
+                    <RoleBadge role={role} />
+                  </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-100">
-                  <button
-                    onClick={() => handleSelectRole(role)}
-                    className="flex-1 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors py-1"
-                  >
-                    Configurar
-                  </button>
-                  {!role.is_system && (
+                  <div className="mb-3">
+                    <PermissionCount permissions={role.permissions} />
+                  </div>
+
+                  <div className="flex gap-2 pt-3 border-t border-slate-100">
                     <button
-                      onClick={() => setConfirmDelete(role)}
-                      className="text-sm font-medium text-red-600 hover:text-red-700 transition-colors py-1 px-2"
-                      title="Eliminar"
+                      onClick={() => handleSelectRole(role)}
+                      className="flex items-center gap-2 flex-1 text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
+                      <span>Configurar</span>
                     </button>
-                  )}
+                    {!role.is_system && (
+                      <IconButton
+                        icon="delete"
+                        color="red"
+                        size="sm"
+                        onClick={() => setConfirmDelete(role)}
+                        title="Eliminar rol"
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* ── Edit Role Modal ──────────────────────────────────────────────────────── */}
         {showEditModal && selectedRole && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-bold text-slate-900">{selectedRole.name}</h2>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-4 sm:my-8">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-3 min-w-0">
+                  <h2 className="text-lg font-bold text-slate-900 truncate">{selectedRole.name}</h2>
                   <RoleBadge role={selectedRole} />
                   {isDirty && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex-shrink-0">
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
                       </svg>
@@ -369,7 +437,7 @@ export default function RolesPage() {
                 </div>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  className="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -377,7 +445,7 @@ export default function RolesPage() {
                 </button>
               </div>
 
-              <div className="overflow-y-auto max-h-[60vh] p-6 space-y-6">
+              <div className="overflow-y-auto max-h-[60vh] p-4 sm:p-6 space-y-6">
                 {CATEGORIES.map((cat) => {
                   const perms = GROUPED_PERMISSIONS[cat];
                   if (!perms || perms.length === 0) return null;
@@ -447,7 +515,7 @@ export default function RolesPage() {
                 })}
               </div>
 
-              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+              <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -483,9 +551,9 @@ export default function RolesPage() {
         {showAddModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-900 rounded-t-xl">
-                <h3 className="text-base font-bold text-white">Nuevo rol</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white transition-colors">
+              <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
+                <h3 className="text-base font-bold text-slate-900">Nuevo rol</h3>
+                <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -549,8 +617,8 @@ export default function RolesPage() {
         {confirmDelete && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
-              <div className="px-6 py-4 bg-red-600 rounded-t-xl">
-                <h3 className="text-base font-bold text-white">Eliminar rol</h3>
+              <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+                <h3 className="text-base font-bold text-red-900">Eliminar rol</h3>
               </div>
               <div className="p-6">
                 <div className="flex items-start gap-3 mb-4">
