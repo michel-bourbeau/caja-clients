@@ -42,18 +42,31 @@ export class POSService {
   static async createTransaction(
     tenantId: string,
     items: CartItem[],
-    paymentMethod: "CASH" | "CARD" | "TRANSFER",
+    paymentMethod: "CASH" | "CARD" | "TRANSFER" | "USD",
     cashierId: string,
     discount: number = 0,
     cashierName: string = "Unknown",
-    amountReceived: number = 0
+    amountReceived: number = 0,
+    currencyPaid: "NIO" | "USD" = "NIO",
+    usdAmountReceived: number = 0,
+    usdExchangeRate: number = 37.00
   ): Promise<Transaction> {
     const response = await fetch(`${API_BASE}/${tenantId}/transactions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ items, paymentMethod, cashierId, discount, cashierName, amountReceived }),
+      body: JSON.stringify({ 
+        items, 
+        paymentMethod, 
+        cashierId, 
+        discount, 
+        cashierName, 
+        amountReceived,
+        currency_paid: currencyPaid,
+        usd_amount_received: usdAmountReceived,
+        usd_exchange_rate: usdExchangeRate,
+      }),
     });
 
     if (!response.ok) {

@@ -259,14 +259,14 @@ export default function SettingsPage() {
         )}
 
         {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <a href="/dashboard/settings/theme" className="block">
             <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
               <CardContent className="flex items-start gap-3 pt-6">
                 <span className="text-2xl">🎨</span>
                 <div>
-                  <h3 className="font-bold text-slate-900">Tema y Personalización</h3>
-                  <p className="text-sm text-slate-500 mt-1">Colores, logo y tamaño de letra</p>
+                  <h3 className="font-bold text-slate-900">Tema</h3>
+                  <p className="text-sm text-slate-500 mt-1">Colores y personalización</p>
                 </div>
               </CardContent>
             </Card>
@@ -277,7 +277,7 @@ export default function SettingsPage() {
                 <span className="text-2xl">💳</span>
                 <div>
                   <h3 className="font-bold text-slate-900">Impuestos</h3>
-                  <p className="text-sm text-slate-500 mt-1">Gestiona tasas y categorías</p>
+                  <p className="text-sm text-slate-500 mt-1">Tasas y categorías</p>
                 </div>
               </CardContent>
             </Card>
@@ -288,7 +288,18 @@ export default function SettingsPage() {
                 <span className="text-2xl">❤️</span>
                 <div>
                   <h3 className="font-bold text-slate-900">Fidelización</h3>
-                  <p className="text-sm text-slate-500 mt-1">Programa de clientes fieles</p>
+                  <p className="text-sm text-slate-500 mt-1">Clientes fieles</p>
+                </div>
+              </CardContent>
+            </Card>
+          </a>
+          <a href="/dashboard/settings/exchange-rate" className="block">
+            <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
+              <CardContent className="flex items-start gap-3 pt-6">
+                <span className="text-2xl">💱</span>
+                <div>
+                  <h3 className="font-bold text-slate-900">Cambio USD</h3>
+                  <p className="text-sm text-slate-500 mt-1">USD/NIO tasa</p>
                 </div>
               </CardContent>
             </Card>

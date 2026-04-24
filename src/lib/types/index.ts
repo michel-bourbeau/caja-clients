@@ -49,14 +49,18 @@ export interface Transaction {
   subtotal: number;
   discount?: number;
   tax: number;
+  tax_breakdown?: Array<{ name: string; rate: number; amount: number }>;
   total: number;
-  paymentMethod: "CASH" | "CARD" | "TRANSFER";
+  paymentMethod: "CASH" | "CARD" | "TRANSFER" | "USD";
   timestamp: Date;
   cashierId: string;
   cashierName?: string;
   status: "COMPLETED" | "CANCELLED";
   amount_received?: number;
   change?: number;
+  currency_paid?: "NIO" | "USD";
+  usd_amount_received?: number;
+  usd_exchange_rate?: number;
 }
 
 // ========== Employees ==========

@@ -8,6 +8,12 @@ interface Tax {
   is_active: boolean;
 }
 
+interface TaxBreakdown {
+  name: string;
+  rate: number;
+  amount: number;
+}
+
 function calculateTotals(items: CartItem[], taxes: Tax[] = [], discount: number = 0) {
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
   
@@ -15,18 +21,34 @@ function calculateTotals(items: CartItem[], taxes: Tax[] = [], discount: number 
   const discountAmount = Math.min(discount, subtotal);
   const subtotalAfterDiscount = subtotal - discountAmount;
   
-  // Only calculate tax if taxes are configured and active
+  // Calculate each tax separately
   const activeTaxes = taxes.filter((t) => t.is_active);
-  let tax = 0;
+  const taxBreakdown: TaxBreakdown[] = [];
+  let totalTax = 0;
   
   if (activeTaxes.length > 0) {
-    // Sum all active tax rates
-    const totalTaxRate = activeTaxes.reduce((sum, t) => sum + (t.rate || 0), 0);
-    tax = Math.round(subtotalAfterDiscount * (totalTaxRate / 100) * 100) / 100;
+    activeTaxes.forEach((tax) => {
+      const amount = Math.round(subtotalAfterDiscount * (tax.rate / 100) * 100) / 100;
+      taxBreakdown.push({
+        name: tax.name,
+        rate: tax.rate,
+        amount,
+      });
+      totalTax += amount;
+    });
   }
   
-  const total = Math.round((subtotalAfterDiscount + tax) * 100) / 100;
-  return { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total };
+  totalTax = Math.round(totalTax * 100) / 100;
+  const total = Math.round((subtotalAfterDiscount + totalTax) * 100) / 100;
+  
+  return { 
+    subtotal, 
+    discount: discountAmount, 
+    subtotalAfterDiscount, 
+    tax: totalTax,
+    taxBreakdown,
+    total 
+  };
 }
 
 export async function GET(
@@ -150,7 +172,7 @@ export async function POST(
 
     const configuredTaxes: Tax[] = taxesData || [];
     const transactionId = `TX-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, total } = calculateTotals(items, configuredTaxes, discount);
+    const { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, taxBreakdown, total } = calculateTotals(items, configuredTaxes, discount);
     const change = paymentMethod === "CASH" ? amountReceived - total : 0;
 
     const { data, error } = await supabaseAdmin
@@ -165,6 +187,7 @@ export async function POST(
           subtotal,
           discount: discountAmount,
           tax,
+          tax_breakdown: taxBreakdown,
           total,
           payment_method: paymentMethod,
           amount_received: amountReceived,

@@ -25,6 +25,7 @@ export default function TransactionsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTaxModuleEnabled, setIsTaxModuleEnabled] = useState(false);
   const [periodType, setPeriodType] = useState<PeriodType>("MONTH");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filters, setFilters] = useState({
@@ -110,7 +111,21 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     loadData();
+    loadFeatures();
   }, [tenantId]);
+
+  const loadFeatures = async () => {
+    if (!tenantId) return;
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/features`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsTaxModuleEnabled(data.features?.taxes ?? false);
+      }
+    } catch (err) {
+      console.error("Error loading features:", err);
+    }
+  };
 
   const loadData = async () => {
     if (!tenantId) {
@@ -183,6 +198,7 @@ export default function TransactionsPage() {
   const totals = useMemo(() => ({
     count: filteredTransactions.length,
     amount: filteredTransactions.reduce((s, tx) => s + tx.total, 0),
+    taxes: filteredTransactions.reduce((s, tx) => s + (tx.tax || 0), 0),
   }), [filteredTransactions]);
 
   const formatDateHeader = (dateString: string): string => {
@@ -278,11 +294,21 @@ export default function TransactionsPage() {
             {/* Period Summary - Total for selected period */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1">
-                  <span className="text-sm text-blue-700 font-medium">
-                    Total {periodType === "WEEK" ? "de la semana" : periodType === "MONTH" ? "del mes" : "del año"}:
-                  </span>
-                  <div className="text-lg font-bold text-blue-900">{fmt(totals.amount)}</div>
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-blue-700 font-medium">
+                      Total {periodType === "WEEK" ? "de la semana" : periodType === "MONTH" ? "del mes" : "del año"}:
+                    </span>
+                    <div className="text-lg font-bold text-blue-900">{fmt(totals.amount)}</div>
+                  </div>
+                  {isTaxModuleEnabled && (
+                    <div>
+                      <span className="text-sm text-blue-700 font-medium">
+                        Total Impuestos:
+                      </span>
+                      <div className="text-lg font-bold text-blue-900">{fmt(totals.taxes)}</div>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={loadData}
@@ -303,9 +329,9 @@ export default function TransactionsPage() {
             />
             {/* Line 2: Period Filters + Payment Method */}
             <div className="flex gap-2 items-center justify-between flex-wrap">
-              <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 items-center">
+              <div className="w-full lg:w-auto flex flex-col lg:flex-row gap-2 items-center">
                 {/* Mobile: Date with navigation arrows at top */}
-                <div className="sm:hidden w-full flex gap-1 items-center justify-between">
+                <div className="lg:hidden w-full flex gap-1 items-center justify-between">
                   <button
                     onClick={() => navigatePeriod(-1)}
                     className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
@@ -324,12 +350,12 @@ export default function TransactionsPage() {
                 </div>
 
                 {/* Period Buttons */}
-                <div className="w-full sm:w-auto flex gap-1 bg-slate-200 rounded-lg p-1">
+                <div className="w-full lg:w-auto flex gap-1 bg-slate-200 rounded-lg p-1">
                   {(["WEEK", "MONTH", "YEAR"] as PeriodType[]).map((period) => (
                     <button
                       key={period}
                       onClick={() => setPeriodType(period)}
-                      className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-colors flex-1 sm:flex-none ${
+                      className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-colors flex-1 lg:flex-none ${
                         periodType === period
                           ? "bg-blue-600 text-white"
                           : "bg-white text-slate-600 hover:bg-slate-100"
@@ -341,7 +367,7 @@ export default function TransactionsPage() {
                 </div>
 
                 {/* Navigation + Date - Desktop only */}
-                <div className="hidden sm:flex gap-1 items-center">
+                <div className="hidden lg:flex gap-1 items-center">
                   <button
                     onClick={() => navigatePeriod(-1)}
                     className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
@@ -364,7 +390,7 @@ export default function TransactionsPage() {
               <select
                 value={filters.paymentMethod}
                 onChange={(e) => setFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
-                className="px-3 py-1.5 pr-10 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2224%22%20height=%2224%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23475569%22%20stroke-width=%222%22%3E%3Cpolyline%20points=%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-right bg-[length:24px] pr-12"
+                className="px-3 py-1.5 pr-10 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full lg:w-auto appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2224%22%20height=%2224%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23475569%22%20stroke-width=%222%22%3E%3Cpolyline%20points=%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-right bg-[length:24px] pr-12"
               >
                 <option value="ALL">Todos los métodos</option>
                 <option value="CASH">Efectivo</option>
@@ -385,18 +411,18 @@ export default function TransactionsPage() {
               return (
                 <div key={dateKey}>
                   {/* Date group header */}
-                  <div className="flex justify-between items-center px-3 sm:px-4 py-2 bg-slate-700 text-white text-sm font-semibold sticky top-0 z-10">
+                  <div className="flex justify-between items-center px-3 lg:px-4 py-2 bg-slate-700 text-white text-sm font-semibold sticky top-0 z-10">
                     <span className="capitalize">{formatDateHeader(dateKey)}</span>
                     <div className="flex items-center gap-3">
-                      <span className="bg-slate-600 px-2 py-0.5 rounded-full text-xs sm:text-sm">
+                      <span className="bg-slate-600 px-2 py-0.5 rounded-full text-xs lg:text-sm">
                         {dayTxs.length} venta{dayTxs.length > 1 ? "s" : ""}
                       </span>
-                      <span className="text-white text-xs sm:text-sm">{fmt(dayTotal)}</span>
+                      <span className="text-white text-xs lg:text-sm">{fmt(dayTotal)}</span>
                     </div>
                   </div>
 
                   {/* Mobile: Card view | Desktop: Table view */}
-                  <div className="hidden sm:block">
+                  <div className="hidden lg:block">
                     {/* Desktop Table */}
                     <table className="w-full text-sm">
                       <thead>
@@ -404,10 +430,10 @@ export default function TransactionsPage() {
                           <th className="px-4 py-2 text-left text-white">Hora</th>
                           <th className="px-4 py-2 text-left text-white">Productos</th>
                           <th className="px-4 py-2 text-left hidden lg:table-cell text-white">Cajero</th>
-                          <th className="px-4 py-2 text-center hidden sm:table-cell text-white">Método</th>
-                          <th className="px-4 py-2 text-right hidden md:table-cell text-white">Subtotal</th>
-                          <th className="px-4 py-2 text-right hidden md:table-cell text-white">Desc.</th>
-                          <th className="px-4 py-2 text-right hidden md:table-cell text-white">Imp.</th>
+                          <th className="px-4 py-2 text-center hidden lg:table-cell text-white">Método</th>
+                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">Subtotal</th>
+                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">Desc.</th>
+                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">Imp.</th>
                           <th className="px-4 py-2 text-right font-bold text-white">Total</th>
                           <th className="px-4 py-2 text-center w-24"></th>
                         </tr>
@@ -435,22 +461,22 @@ export default function TransactionsPage() {
                             <td className="px-4 py-2.5 text-left hidden lg:table-cell">
                               <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
                             </td>
-                            <td className="px-4 py-2.5 text-center hidden sm:table-cell">
+                            <td className="px-4 py-2.5 text-center hidden lg:table-cell">
                               <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
                                 {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
                               </Badge>
                             </td>
-                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
+                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden lg:table-cell">
                               {fmt(tx.subtotal)}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-sm hidden md:table-cell">
+                            <td className="px-4 py-2.5 text-right text-sm hidden lg:table-cell">
                               {(tx.discount || 0) > 0 ? (
                                 <span className="text-amber-600">-{fmt(tx.discount || 0)}</span>
                               ) : (
                                 <span className="text-slate-300">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
+                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden lg:table-cell">
                               {(tx.tax || 0) > 0 ? fmt(tx.tax) : <span className="text-slate-300">—</span>}
                             </td>
                             <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
@@ -481,7 +507,7 @@ export default function TransactionsPage() {
                   </div>
 
                   {/* Mobile: Card view */}
-                  <div className="sm:hidden space-y-2 p-2">
+                  <div className="lg:hidden space-y-2 p-2">
                     {dayTxs.map((tx) => (
                       <div key={tx.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
                         {/* Time + Total */}
@@ -536,7 +562,7 @@ export default function TransactionsPage() {
                 </div>
               );
             })}
-            <div className="px-3 sm:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
+            <div className="px-3 lg:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {totals.count} transacción{totals.count !== 1 ? "es" : ""}
               {(filters.search || filters.paymentMethod !== "ALL") &&
                 ` · filtrado de ${transactions.length}`}

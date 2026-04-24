@@ -455,20 +455,17 @@ export default function DashboardPage() {
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        {p.isVariant && (
-                          <p className="text-xs text-slate-500 mb-1">
-                            <span className="font-medium">{p.parentName}</span>
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-base truncate">{p.name}</CardTitle>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-base">
+                            {p.isVariant ? p.parentName : p.name}
+                          </CardTitle>
                           {p.isVariant && (
                             <Badge variant="default" className="flex-shrink-0 text-xs">
-                              Variante
+                              {p.name}
                             </Badge>
                           )}
                         </div>
-                        <code className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded inline-block mt-1">{p.sku}</code>
+                        <code className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded inline-block mt-2">{p.sku}</code>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         {!isEditing && (
@@ -538,7 +535,7 @@ export default function DashboardPage() {
                         <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
                           <div
                             className={`h-2 rounded-full transition-all ${
-                              isEmpty ? "bg-red-400" : pct <= 50 ? "bg-amber-400" : "bg-orange-300"
+                              pct <= 40 ? "bg-red-600" : pct <= 60 ? "bg-orange-600" : pct <= 80 ? "bg-orange-300" : "bg-green-300"
                             }`}
                             style={{ width: `${Math.min(100, pct)}%` }}
                           />

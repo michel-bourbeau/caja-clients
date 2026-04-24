@@ -11,7 +11,8 @@ import { useAuth } from "@/context/AuthContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
 import { PageIcon, SearchInput } from "@/components";
 
-type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
+type PaymentMethod = "CASH" | "CARD" | "TRANSFER" | "USD";
+type Currency = "NIO" | "USD";
 
 interface Category {
   id: string;
@@ -54,6 +55,10 @@ export default function POSPage() {
     return "list";
   });
   
+  // Currency states
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>("NIO");
+  const [usdExchangeRate, setUsdExchangeRate] = useState<number>(37.00);
+  
   // Loyalty states
   const [loyaltyModuleEnabled, setLoyaltyModuleEnabled] = useState(false);
   const [loyalCustomers, setLoyalCustomers] = useState<LoyalCustomer[]>([]);
@@ -93,6 +98,16 @@ export default function POSPage() {
     // Load loyalty settings
     LoyaltyService.getLoyaltySettings(tenantId)
       .then((settings) => setLoyaltyModuleEnabled(settings.loyalty_module_enabled))
+      .catch(console.error);
+
+    // Load USD exchange rate from tenant settings
+    fetch(`/api/tenants/${tenantId}/settings`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.usdExchangeRate) {
+          setUsdExchangeRate(data.usdExchangeRate);
+        }
+      })
       .catch(console.error);
   }, [tenantId]);
 
@@ -149,6 +164,32 @@ export default function POSPage() {
     [cart, taxes, discount]
   );
 
+  // Helper to convert amount based on selected currency
+  const convertAmount = (amount: number): number => {
+    if (selectedCurrency === "USD" && usdExchangeRate > 0) {
+      return amount / usdExchangeRate;
+    }
+    return amount;
+  };
+
+  // Get currency symbol based on selected currency
+  const getCurrencySymbol = (): string => {
+    return selectedCurrency === "USD" ? "$" : "C$";
+  };
+
+  // Format amount with correct currency symbol
+  const fmtCurrency = (amount: number): string => {
+    const converted = convertAmount(amount);
+    const formatted = fmt(converted); // This adds the locale formatting but includes C$
+    
+    if (selectedCurrency === "USD") {
+      // Remove C$ and add $ instead
+      return formatted.replace("C$", "$");
+    }
+    // For NIO, fmt() already includes C$
+    return formatted;
+  };
+
   const cartItemCount = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
     [cart]
@@ -156,14 +197,23 @@ export default function POSPage() {
 
   // Calculate change (vuelto) for cash payments
   const changeCalculation = useMemo(() => {
-    const change = amountReceived - cartTotal.total;
+    // cartTotal.total is always in NIO (base currency)
+    const totalInNio = cartTotal.total;
+    
+    // Convert amountReceived to NIO based on selected currency
+    let amountReceivedInNio = amountReceived;
+    if (selectedCurrency === "USD" && usdExchangeRate > 0) {
+      amountReceivedInNio = amountReceived * usdExchangeRate; // USD to NIO
+    }
+    
+    const change = amountReceivedInNio - totalInNio;
     return {
       amountReceived,
       change: change < 0 ? 0 : change,
       isInsufficientAmount: amountReceived > 0 && change < 0,
       isExactAmount: amountReceived > 0 && change === 0,
     };
-  }, [amountReceived, cartTotal.total]);
+  }, [amountReceived, cartTotal.total, selectedCurrency, usdExchangeRate]);
 
   const productsByCategory = useMemo(() => {
     const grouped: Record<string, Product[]> = {};
@@ -382,7 +432,32 @@ export default function POSPage() {
     try {
       setLoading(true);
       const cashierName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
-      const transaction = await POSService.createTransaction(tenantId, cart, paymentMethod, user?.id || "cashier-001", discount, cashierName, amountReceived);
+      
+      // Determine payment method and amounts based on currency selection
+      let paymentMethodToUse: PaymentMethod = paymentMethod;
+      let usdAmountToPass = 0;
+      let currencyToPass: Currency = "NIO";
+      
+      if (paymentMethod === "CASH" && selectedCurrency === "USD") {
+        paymentMethodToUse = "USD";
+        usdAmountToPass = amountReceived; // amountReceived is in USD
+        currencyToPass = "USD";
+      } else {
+        currencyToPass = selectedCurrency;
+      }
+      
+      const transaction = await POSService.createTransaction(
+        tenantId, 
+        cart, 
+        paymentMethodToUse, 
+        user?.id || "cashier-001", 
+        discount, 
+        cashierName, 
+        amountReceived,
+        currencyToPass,
+        usdAmountToPass,
+        usdExchangeRate
+      );
       
       // Record purchase for loyal customer if selected
       if (loyaltyModuleEnabled && selectedLoyalCustomer) {
@@ -400,6 +475,7 @@ export default function POSPage() {
       setCart([]);
       setDiscount(0);
       setAmountReceived(0);
+      setSelectedCurrency("NIO");
       setSelectedLoyalCustomer(null);
       setMessage("✓ ¡Venta registrada exitosamente!");
       setMessageType("success");
@@ -789,8 +865,9 @@ export default function POSPage() {
           )}
 
           {/* Cart panel */}
-          <Card className={`fixed right-0 top-0 h-screen w-80 z-50 transform transition-transform duration-300 ease-in-out flex flex-col
-            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:rounded-lg lg:z-auto lg:flex lg:flex-col
+          <Card className={`fixed right-0 top-0 h-screen z-50 transform transition-transform duration-300 ease-in-out flex flex-col
+            w-[90vw] max-w-md
+            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:rounded-lg lg:z-auto lg:flex lg:flex-col lg:w-96
             ${
               isCartOpen ? "translate-x-0" : "translate-x-full"
             }`}
@@ -839,10 +916,10 @@ export default function POSPage() {
                     <p className="text-sm font-medium text-slate-900">
                       {item.quantity} × {item.name || product?.name || "Producto"}
                     </p>
-                    <p className="text-sm text-slate-600">{fmt(item.price)}</p>
+                    <p className="text-sm text-slate-600">{fmtCurrency(item.price)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">{fmt(item.total)}</p>
+                    <p className="text-sm font-medium text-slate-900">{fmtCurrency(item.total)}</p>
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(item.productId, item.variantId)}
@@ -855,160 +932,208 @@ export default function POSPage() {
               );
             })
           )}
-        </div>
 
-        {/* Cart summary & actions */}
-        <div className="p-4 border-t border-slate-200 space-y-3">
-          <div className="space-y-1">
-            <div className="flex justify-between text-sm text-slate-600">
-              <span>Subtotal</span>
-              <span>{fmt(cartTotal.subtotal)}</span>
-            </div>
+          {/* Cart summary & actions — now inside scrollable area */}
+          <div className="pt-4 space-y-3 border-t border-slate-200">
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Subtotal</span>
+                <span>{fmtCurrency(cartTotal.subtotal)}</span>
+              </div>
 
-            {/* Discount */}
-            <div className="border-t pt-1 mt-1">
-              <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ({symbol})</label>
-              <input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
-                min="0"
-                max={cartTotal.subtotal}
-                className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
-                placeholder="0.00"
-              />
-              {discount > 0 && (
-                <p className="text-sm text-blue-600 mt-0.5">
-                  -{fmt(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
+              {/* Discount */}
+              <div className="border-t pt-1 mt-1">
+                <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ({getCurrencySymbol()})</label>
+                <input
+                  type="number"
+                  value={discount}
+                  onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+                  min="0"
+                  max={cartTotal.subtotal}
+                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
+                  placeholder="0.00"
+                />
+                {discount > 0 && (
+                  <p className="text-sm text-blue-600 mt-0.5">
+                    -{fmtCurrency(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
+                  </p>
+                )}
+              </div>
+
+              {cartTotal.discount > 0 && (
+                <div className="flex justify-between text-sm text-slate-600 pt-0.5">
+                  <span>Después de descuento</span>
+                  <span>{fmtCurrency(cartTotal.subtotalAfterDiscount)}</span>
+                </div>
+              )}
+
+              {taxes.length > 0 ? (
+                taxes.map((tax) => (
+                  <div key={tax.id} className="flex justify-between text-sm text-slate-600">
+                    <span>{tax.name} ({tax.rate}%)</span>
+                    <span>{fmtCurrency((cartTotal.taxes as any)[tax.name] || 0)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  Sin impuestos.{" "}
+                  <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
+                    Configurar
+                  </a>
                 </p>
               )}
+
+              <div className="flex justify-between text-sm font-bold text-slate-900 border-t pt-1">
+                <span>Total</span>
+                <span>{fmtCurrency(cartTotal.total)}</span>
+              </div>
             </div>
 
-            {cartTotal.discount > 0 && (
-              <div className="flex justify-between text-sm text-slate-600 pt-0.5">
-                <span>Después de descuento</span>
-                <span>{fmt(cartTotal.subtotalAfterDiscount)}</span>
+            {/* Loyal Customer Selection — only if module is enabled */}
+            {loyaltyModuleEnabled && (
+              <div className="space-y-2">
+                {selectedLoyalCustomer ? (
+                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="text-xs font-semibold text-purple-600 uppercase">Cliente Fiel</p>
+                        <p className="text-sm font-semibold text-purple-900">{selectedLoyalCustomer.name}</p>
+                        <p className="text-xs text-purple-700">📞 {selectedLoyalCustomer.phone || "N/A"}</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedLoyalCustomer(null)}
+                        className="text-xs text-purple-600 hover:text-purple-800 hover:underline font-semibold"
+                      >
+                        Cambiar
+                      </button>
+                    </div>
+                    <div className="space-y-1 text-xs text-purple-700">
+                      <p>Tarjeta: <span className="font-semibold">{selectedLoyalCustomer.card_number}</span></p>
+                      <p>Total Gastado: <span className="font-semibold">{fmt(selectedLoyalCustomer.total_accumulated)}</span></p>
+                      <p>Visitas: <span className="font-semibold">{selectedLoyalCustomer.total_visits}</span></p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowLoyalCustomerModal(true)}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-bold rounded-lg transition-colors shadow-md text-center"
+                  >
+                    Agregar Cliente Fiel
+                  </button>
+                )}
               </div>
             )}
 
-            {taxes.length > 0 ? (
-              taxes.map((tax) => (
-                <div key={tax.id} className="flex justify-between text-sm text-slate-600">
-                  <span>{tax.name} ({tax.rate}%)</span>
-                  <span>{fmt((cartTotal.taxes as any)[tax.name] || 0)}</span>
+            <select
+              value={paymentMethod}
+              onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+              className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
+            >
+              <option value="CASH">EFECTIVO</option>
+              <option value="CARD">TARJETA</option>
+              <option value="TRANSFER">TRANSFERENCIA</option>
+            </select>
+
+            {/* Currency selector — only show for CASH payments */}
+            {paymentMethod === "CASH" && (
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 block">Moneda de Pago</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectedCurrency("NIO")}
+                    className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-colors ${
+                      selectedCurrency === "NIO"
+                        ? "bg-blue-600 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    NIO (Córdoba)
+                  </button>
+                  <button
+                    onClick={() => setSelectedCurrency("USD")}
+                    className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-colors ${
+                      selectedCurrency === "USD"
+                        ? "bg-green-600 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    USD ($)
+                  </button>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 italic">
-                Sin impuestos.{" "}
-                <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
-                  Configurar
-                </a>
-              </p>
+                
+                {/* Exchange rate info */}
+                {selectedCurrency === "USD" && (
+                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-xs font-semibold text-green-700 uppercase mb-1">Tasa de Cambio</p>
+                    <p className="text-sm text-green-900">
+                      1 USD = <span className="font-bold">{fmt(usdExchangeRate)}</span>
+                    </p>
+                    <p className="text-xs text-green-700 mt-2">
+                      Total en USD: <span className="font-semibold">${fmt(convertAmount(cartTotal.total))}</span>
+                    </p>
+                    <p className="text-xs text-green-700 mt-1">
+                      Total en NIO: <span className="font-semibold">{fmt(cartTotal.total)}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
 
-            <div className="flex justify-between text-sm font-bold text-slate-900 border-t pt-1">
-              <span>Total</span>
-              <span>{fmt(cartTotal.total)}</span>
-            </div>
+            {/* Vuelto (Change) calculation — only for CASH payments */}
+            {paymentMethod === "CASH" && (
+              <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <label htmlFor="amountReceived" className="text-sm font-semibold text-slate-700 block">
+                  Monto Recibido ({selectedCurrency === "USD" ? "$" : "C$"})
+                </label>
+                <input
+                  id="amountReceived"
+                  type="number"
+                  value={amountReceived === 0 ? "" : amountReceived}
+                  onChange={(e) => setAmountReceived(Math.max(0, Number(e.target.value) || 0))}
+                  min="0"
+                  step="0.01"
+                  placeholder="Ingrese monto"
+                  className="w-full px-3 py-2 border border-slate-300 rounded text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+
+                {/* Change display — only show when amount is entered */}
+                {amountReceived > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-blue-200">
+                    {changeCalculation.isInsufficientAmount ? (
+                      <div className="p-2 bg-red-100 rounded border border-red-300">
+                        <p className="text-xs font-semibold text-red-700 uppercase">⚠ Monto Insuficiente</p>
+                        <p className="text-sm text-red-800 font-bold">
+                          Falta: {fmt(Math.abs(changeCalculation.change))}
+                        </p>
+                      </div>
+                    ) : changeCalculation.isExactAmount ? (
+                      <div className="p-2 bg-green-100 rounded border border-green-300">
+                        <p className="text-xs font-semibold text-green-700 uppercase">✓ Monto Exacto</p>
+                        <p className="text-sm text-green-800 font-bold">Sin vuelto</p>
+                      </div>
+                    ) : (
+                      <div className="p-2 bg-green-100 rounded border border-green-300">
+                        <p className="text-xs font-semibold text-green-700 uppercase">Vuelto</p>
+                        <p className="text-lg text-green-900 font-bold">{fmt(changeCalculation.change)}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Cashier info */}
+            {user && (
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <p className="text-xs font-semibold text-slate-600 uppercase">Cajero</p>
+                <p className="text-sm text-slate-900 font-medium">{user.firstName} {user.lastName}</p>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Loyal Customer Selection — only if module is enabled */}
-          {loyaltyModuleEnabled && (
-            <div className="space-y-2">
-              {selectedLoyalCustomer ? (
-                <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className="text-xs font-semibold text-purple-600 uppercase">Cliente Fiel</p>
-                      <p className="text-sm font-semibold text-purple-900">{selectedLoyalCustomer.name}</p>
-                      <p className="text-xs text-purple-700">📞 {selectedLoyalCustomer.phone || "N/A"}</p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedLoyalCustomer(null)}
-                      className="text-xs text-purple-600 hover:text-purple-800 hover:underline font-semibold"
-                    >
-                      Cambiar
-                    </button>
-                  </div>
-                  <div className="space-y-1 text-xs text-purple-700">
-                    <p>Tarjeta: <span className="font-semibold">{selectedLoyalCustomer.card_number}</span></p>
-                    <p>Total Gastado: <span className="font-semibold">{fmt(selectedLoyalCustomer.total_accumulated)}</span></p>
-                    <p>Visitas: <span className="font-semibold">{selectedLoyalCustomer.total_visits}</span></p>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowLoyalCustomerModal(true)}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-bold rounded-lg transition-colors shadow-md text-center"
-                >
-                  Agregar Cliente Fiel
-                </button>
-              )}
-            </div>
-          )}
-
-          <select
-            value={paymentMethod}
-            onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-            className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
-          >
-            <option value="CASH">EFECTIVO</option>
-            <option value="CARD">TARJETA</option>
-            <option value="TRANSFER">TRANSFERENCIA</option>
-          </select>
-
-          {/* Vuelto (Change) calculation — only for CASH payments */}
-          {paymentMethod === "CASH" && (
-            <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <label htmlFor="amountReceived" className="text-sm font-semibold text-slate-700 block">
-                Monto Recibido ({symbol})
-              </label>
-              <input
-                id="amountReceived"
-                type="number"
-                value={amountReceived === 0 ? "" : amountReceived}
-                onChange={(e) => setAmountReceived(Math.max(0, Number(e.target.value) || 0))}
-                min="0"
-                step="0.01"
-                placeholder="Ingrese monto"
-                className="w-full px-3 py-2 border border-slate-300 rounded text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-
-              {/* Change display — only show when amount is entered */}
-              {amountReceived > 0 && (
-                <div className="space-y-2 pt-2 border-t border-blue-200">
-                  {changeCalculation.isInsufficientAmount ? (
-                    <div className="p-2 bg-red-100 rounded border border-red-300">
-                      <p className="text-xs font-semibold text-red-700 uppercase">⚠ Monto Insuficiente</p>
-                      <p className="text-sm text-red-800 font-bold">
-                        Falta: {fmt(Math.abs(changeCalculation.change))}
-                      </p>
-                    </div>
-                  ) : changeCalculation.isExactAmount ? (
-                    <div className="p-2 bg-green-100 rounded border border-green-300">
-                      <p className="text-xs font-semibold text-green-700 uppercase">✓ Monto Exacto</p>
-                      <p className="text-sm text-green-800 font-bold">Sin vuelto</p>
-                    </div>
-                  ) : (
-                    <div className="p-2 bg-green-100 rounded border border-green-300">
-                      <p className="text-xs font-semibold text-green-700 uppercase">Vuelto</p>
-                      <p className="text-lg text-green-900 font-bold">{fmt(changeCalculation.change)}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Cashier info */}
-          {user && (
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-xs font-semibold text-slate-600 uppercase">Cajero</p>
-              <p className="text-sm text-slate-900 font-medium">{user.firstName} {user.lastName}</p>
-            </div>
-          )}
-
+        {/* Action buttons — fixed at bottom */}
+        <div className="px-4 py-3 border-t border-slate-200 bg-white space-y-2 flex-shrink-0">
           <Button
             onClick={handleCompleteSale}
             className="w-full"
