@@ -18,6 +18,8 @@ interface Employee {
   salary_type?: "hourly" | "monthly";
   status: "ACTIVE" | "INACTIVE";
   hire_date: string | null;
+  is_system_user?: boolean;
+  is_principal_admin?: boolean;
 }
 
 interface SalaryPayment {
@@ -567,9 +569,15 @@ export default function EmployeesPage() {
                       </td>
                       <td className="px-4 py-3 text-slate-600 hidden md:table-cell">{emp.email}</td>
                       <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="inline-block px-2 py-0.5 text-sm rounded-full bg-blue-100 text-blue-700 font-medium">
-                          {role?.name ?? emp.role_id}
-                        </span>
+                        {emp.is_principal_admin || (emp.is_system_user && emp.role_id === "admin") ? (
+                          <span className="inline-block px-2 py-0.5 text-sm rounded-full font-medium bg-amber-100 text-amber-700">
+                            👑 Admin
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 text-sm rounded-full bg-blue-100 text-blue-700 font-medium">
+                            {role?.name ?? emp.role_id}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-700 hidden lg:table-cell">
                         {fmt(emp.salary)}

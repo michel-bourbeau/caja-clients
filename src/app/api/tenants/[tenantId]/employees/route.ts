@@ -39,14 +39,14 @@ export async function GET(
       last_name: u.last_name,
       email: u.email,
       phone: null,
-      role_id: u.role_id,
+      role_id: u.role_id || "admin", // Default to "admin" if null (system users are admins)
       salary: null,
       salary_type: null,
       hire_date: u.created_at?.split("T")[0] || null,
       status: u.status,
       created_at: u.created_at,
       is_system_user: true,
-      is_principal_admin: u.role_id === "admin", // Explicitly mark principal admins
+      is_principal_admin: u.role_id === "admin" || u.role_id === null, // Treat null as admin too
     }));
 
     // Deduplicate: remove employees with same email as system users
