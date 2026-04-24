@@ -62,7 +62,8 @@ export async function PUT(
 
 /**
  * DELETE /api/tenants/[tenantId]/employees/[employeeId]
- * Delete an employee and optionally their auth account
+ * Delete an employee (from employees table) or a system user (from users table)
+ * Also deletes their Supabase Auth account if they have one
  */
 export async function DELETE(
   _request: NextRequest,
@@ -72,7 +73,7 @@ export async function DELETE(
     const { tenantId, employeeId } = await params;
     const supabase = getSupabaseAdmin();
 
-    // Get employee email before deleting
+    // First, try to delete from employees table
     const { data: employee } = await supabase
       .from("employees")
       .select("email")
@@ -80,24 +81,58 @@ export async function DELETE(
       .eq("tenant_id", tenantId)
       .single();
 
-    const { error } = await supabase
-      .from("employees")
-      .delete()
-      .eq("id", employeeId)
-      .eq("tenant_id", tenantId);
+    if (employee) {
+      // This is an employee record
+      const { error: deleteError } = await supabase
+        .from("employees")
+        .delete()
+        .eq("id", employeeId)
+        .eq("tenant_id", tenantId);
 
-    if (error) throw error;
+      if (deleteError) throw deleteError;
 
-    // Also delete Supabase Auth user if they have one
-    if (employee?.email) {
-      const { data: authUsers } = await supabase.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find((u) => u.email === employee.email);
-      if (authUser) {
-        await supabase.auth.admin.deleteUser(authUser.id);
+      // Delete their Supabase Auth account if they have one
+      if (employee.email) {
+        const { data: authUsers } = await supabase.auth.admin.listUsers();
+        const authUser = authUsers?.users?.find((u) => u.email === employee.email);
+        if (authUser) {
+          await supabase.auth.admin.deleteUser(authUser.id);
+        }
       }
+
+      return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ success: true });
+    // If not in employees table, try users table (system users created with tenant)
+    const { data: user } = await supabase
+      .from("users")
+      .select("email")
+      .eq("id", employeeId)
+      .eq("tenant_id", tenantId)
+      .single();
+
+    if (user) {
+      // This is a system user record
+      // 1. Delete from users table
+      const { error: deleteError } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", employeeId)
+        .eq("tenant_id", tenantId);
+
+      if (deleteError) throw deleteError;
+
+      // 2. Delete their Supabase Auth account
+      await supabase.auth.admin.deleteUser(employeeId);
+
+      return NextResponse.json({ success: true });
+    }
+
+    // User not found in either table
+    return NextResponse.json(
+      { error: "Utilisateur introuvable" },
+      { status: 404 }
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

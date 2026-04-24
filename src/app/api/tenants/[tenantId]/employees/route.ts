@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
  * GET /api/tenants/[tenantId]/employees
- * List all employees for a tenant
+ * List all employees AND users (admins) for a tenant
  */
 export async function GET(
   _request: NextRequest,
@@ -13,15 +13,47 @@ export async function GET(
     const { tenantId } = await params;
     const supabase = getSupabaseAdmin();
 
-    const { data, error } = await supabase
+    // Get employees from the employees table
+    const { data: employees, error: empError } = await supabase
       .from("employees")
       .select("*")
       .eq("tenant_id", tenantId)
       .order("first_name", { ascending: true });
 
-    if (error) throw error;
+    if (empError) throw empError;
 
-    return NextResponse.json(data || []);
+    // Get users (admins) from the users table
+    const { data: users, error: usersError } = await supabase
+      .from("users")
+      .select("id, email, first_name, last_name, role_id, status, created_at")
+      .eq("tenant_id", tenantId)
+      .order("first_name", { ascending: true });
+
+    if (usersError) throw usersError;
+
+    // Convert users to employee format for compatibility
+    const usersAsEmployees = (users || []).map((u) => ({
+      id: u.id,
+      tenant_id: tenantId,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      email: u.email,
+      phone: null,
+      role_id: u.role_id,
+      salary: null,
+      salary_type: null,
+      hire_date: u.created_at?.split("T")[0] || null,
+      status: u.status,
+      created_at: u.created_at,
+      is_system_user: true, // Flag to distinguish system users from employees
+    }));
+
+    // Combine and sort by name
+    const combined = [...(employees || []), ...usersAsEmployees].sort((a, b) =>
+      (a.first_name || "").localeCompare(b.first_name || "")
+    );
+
+    return NextResponse.json(combined);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

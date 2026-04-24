@@ -13,7 +13,7 @@ interface SuperAdminContextType {
 const SuperAdminContext = createContext<SuperAdminContextType | undefined>(undefined);
 
 // Super admin password - EN PRODUCTION, utiliser une variable d'environnement
-const SUPER_ADMIN_PASSWORD = "admin123456";
+const SUPER_ADMIN_PASSWORD = "chocorico9848";
 const SUPER_ADMIN_SESSION_KEY = "superadmin_session";
 
 export const SuperAdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

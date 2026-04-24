@@ -586,13 +586,9 @@ export default function CierreCajaPage() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
                     <th className="px-4 py-3 text-left text-white">Fecha & Hora</th>
-                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">Efectivo</th>
-                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">Tarjeta</th>
-                    <th className="px-4 py-3 text-right hidden lg:table-cell text-white">Transfer.</th>
-                    <th className="px-4 py-3 text-right hidden sm:table-cell text-white">Total</th>
-                    {isManager && <th className="px-4 py-3 text-center hidden md:table-cell text-white">Dif.Efec</th>}
-                    {isManager && <th className="px-4 py-3 text-center hidden md:table-cell text-white">Dif.Tar</th>}
-                    {isManager && <th className="px-4 py-3 text-center hidden lg:table-cell text-white">Dif.Trf</th>}
+                    <th className="px-4 py-3 text-right text-white">Efectivo</th>
+                    <th className="px-4 py-3 text-right text-white">Tarjeta</th>
+                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">Transfer.</th>
                     <th className="px-4 py-3 text-left hidden md:table-cell text-white">Cajero</th>
                   </tr>
                 </thead>
@@ -627,33 +623,33 @@ export default function CierreCajaPage() {
                               </p>
                               {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs mt-0.5">{c.notes}</p>}
                             </td>
-                            <td className="px-4 py-3 text-right hidden md:table-cell font-mono text-sm font-semibold text-slate-700">
-                              {fmt(c.system_cash)}
+                            <td className="px-4 py-3 text-right">
+                              <p className="font-mono font-semibold text-slate-700">{fmt(c.system_cash)}</p>
+                              <p className={`font-mono text-xs font-semibold ${
+                                Math.abs(c.diff_cash) < 0.01 ? "text-green-700" : 
+                                c.diff_cash < 0 ? "text-red-600" : "text-blue-700"
+                              }`}>
+                                {c.diff_cash >= 0 ? "+" : ""}{fmt(c.diff_cash)}
+                              </p>
                             </td>
-                            <td className="px-4 py-3 text-right hidden md:table-cell font-mono text-sm font-semibold text-slate-700">
-                              {fmt(c.system_card)}
+                            <td className="px-4 py-3 text-right">
+                              <p className="font-mono font-semibold text-slate-700">{fmt(c.system_card)}</p>
+                              <p className={`font-mono text-xs font-semibold ${
+                                Math.abs(c.diff_card) < 0.01 ? "text-green-700" : 
+                                c.diff_card < 0 ? "text-red-600" : "text-blue-700"
+                              }`}>
+                                {c.diff_card >= 0 ? "+" : ""}{fmt(c.diff_card)}
+                              </p>
                             </td>
-                            <td className="px-4 py-3 text-right hidden lg:table-cell font-mono text-sm font-semibold text-slate-700">
-                              {fmt(c.system_transfer)}
+                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                              <p className="font-mono font-semibold text-slate-700">{fmt(c.system_transfer)}</p>
+                              <p className={`font-mono text-xs font-semibold ${
+                                Math.abs(c.diff_transfer) < 0.01 ? "text-green-700" : 
+                                c.diff_transfer < 0 ? "text-red-600" : "text-blue-700"
+                              }`}>
+                                {c.diff_transfer >= 0 ? "+" : ""}{fmt(c.diff_transfer)}
+                              </p>
                             </td>
-                            <td className="px-4 py-3 text-right hidden sm:table-cell font-mono font-bold text-slate-800">
-                              {fmt(c.system_total)}
-                            </td>
-                            {isManager && (
-                              <td className="px-4 py-3 text-center hidden md:table-cell">
-                                <DiffBadge diff={c.diff_cash} />
-                              </td>
-                            )}
-                            {isManager && (
-                              <td className="px-4 py-3 text-center hidden md:table-cell">
-                                <DiffBadge diff={c.diff_card} />
-                              </td>
-                            )}
-                            {isManager && (
-                              <td className="px-4 py-3 text-center hidden lg:table-cell">
-                                <DiffBadge diff={c.diff_transfer} />
-                              </td>
-                            )}
                             <td className="px-4 py-3 hidden md:table-cell text-sm text-slate-500">
                               {c.closed_by ?? "—"}
                             </td>
@@ -671,19 +667,16 @@ export default function CierreCajaPage() {
                           <td className="px-4 py-2 text-left font-bold text-slate-700">
                             TOTAL {fmtLocalDate(date)}
                           </td>
-                          <td className="px-4 py-2 text-right hidden md:table-cell font-mono font-bold text-slate-800">
+                          <td className="px-4 py-2 text-right font-mono font-bold text-slate-800">
                             {fmt(dayCash)}
                           </td>
-                          <td className="px-4 py-2 text-right hidden md:table-cell font-mono font-bold text-slate-800">
+                          <td className="px-4 py-2 text-right font-mono font-bold text-slate-800">
                             {fmt(dayCard)}
                           </td>
-                          <td className="px-4 py-2 text-right hidden lg:table-cell font-mono font-bold text-slate-800">
+                          <td className="px-4 py-2 text-right hidden md:table-cell font-mono font-bold text-slate-800">
                             {fmt(dayTransfer)}
                           </td>
-                          <td className="px-4 py-2 text-right hidden sm:table-cell font-mono font-bold text-slate-900 text-base">
-                            {fmt(dayTotal)}
-                          </td>
-                          <td colSpan={isManager ? 4 : 2}></td>
+                          <td className="hidden md:table-cell"></td>
                         </tr>
                       );
                     });

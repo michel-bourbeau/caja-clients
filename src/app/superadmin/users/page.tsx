@@ -93,10 +93,18 @@ export default function SuperAdminUsersPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTenantId) return;
-    if (form.password.length < 8) {
-      showFlash("error", "Le mot de passe doit faire au moins 8 caractères");
+    
+    // Validation du mot de passe
+    if (!form.password || form.password.trim().length === 0) {
+      showFlash("error", "❌ Le mot de passe est obligatoire");
       return;
     }
+    
+    if (form.password.length < 8) {
+      showFlash("error", `❌ Le mot de passe doit contenir au moins 8 caractères (actuellement: ${form.password.length})`);
+      return;
+    }
+    
     setSaving(true);
     try {
       const res = await fetch(`/api/tenants/${selectedTenantId}/employees`, {
@@ -265,6 +273,14 @@ export default function SuperAdminUsersPage() {
                     </svg>
                   </button>
                 </div>
+                
+                {/* Info box */}
+                <div className="mb-5 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700">
+                    <strong>ℹ️ Mot de passe:</strong> Un compte de connexion sera créé automatiquement avec le mot de passe fourni. L'utilisateur pourra se connecter immédiatement après la création.
+                  </p>
+                </div>
+                
                 <form onSubmit={handleCreate} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -337,16 +353,19 @@ export default function SuperAdminUsersPage() {
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Mot de passe *</label>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      🔐 Mot de passe * <span className="text-slate-400">(min. 8 caractères)</span>
+                    </label>
                     <div className="relative">
                       <input
                         required
+                        minLength={8}
                         type={showPassword ? "text" : "password"}
                         value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        className="w-full px-3 py-2 pr-10 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="Min. 8 caractères"
+                        className="w-full px-3 py-2 pr-10 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="Entrer un mot de passe sécurisé"
                       />
                       <button
                         type="button"
@@ -421,24 +440,52 @@ export default function SuperAdminUsersPage() {
                     {filtered.map((emp) => {
                       const role = DEFAULT_ROLES.find((r) => r.id === emp.role_id);
                       const initials = `${emp.first_name[0] ?? ""}${emp.last_name[0] ?? ""}`.toUpperCase();
+                      const isSuperUser = emp.is_system_user && emp.role_id === "admin";
                       return (
-                        <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                        <tr 
+                          key={emp.id} 
+                          className={`transition-colors ${
+                            isSuperUser 
+                              ? "bg-amber-50 hover:bg-amber-100 border-l-4 border-amber-400" 
+                              : "hover:bg-slate-50 border-l-4 border-transparent"
+                          }`}
+                        >
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                {initials}
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
+                                isSuperUser
+                                  ? "bg-gradient-to-br from-amber-400 to-orange-500"
+                                  : "bg-gradient-to-br from-purple-400 to-indigo-500"
+                              }`}>
+                                {isSuperUser ? "👑" : initials}
                               </div>
                               <div>
-                                <p className="font-medium text-slate-800">{emp.first_name} {emp.last_name}</p>
+                                <p className={`font-medium ${isSuperUser ? "text-amber-900" : "text-slate-800"}`}>
+                                  {emp.first_name} {emp.last_name}
+                                  {isSuperUser && <span className="ml-1.5 text-amber-600 text-xs">⭐</span>}
+                                </p>
                                 <p className="text-xs text-slate-400 sm:hidden">{emp.email}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-5 py-3.5 text-slate-500 hidden sm:table-cell">{emp.email}</td>
                           <td className="px-5 py-3.5">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                              {role?.name ?? emp.role_id}
-                            </span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {isSuperUser ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-200 text-amber-900">
+                                  👑 Admin Principal
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                  {role?.name ?? emp.role_id}
+                                </span>
+                              )}
+                              {emp.is_system_user && !isSuperUser && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                  🔐 Créé avec Tenant
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-5 py-3.5 hidden md:table-cell">
                             <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
