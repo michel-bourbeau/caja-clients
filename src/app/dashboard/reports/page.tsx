@@ -207,30 +207,49 @@ export default function ReportsPage() {
         {salesData && salesData.byDay.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Ventas Diarias</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesData.byDay}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => new Date(value).toLocaleDateString("es-NI", { month: "short", day: "numeric" })}
-              />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip
-                formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, "Ventas"]}
-                labelFormatter={(label) => new Date(label).toLocaleDateString("es-NI")}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                dot={false}
-                name="Ventas"
-              />
-            </LineChart>
-            </ResponsiveContainer>
+            
+            {/* Desktop Chart */}
+            <div className="hidden sm:block">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={salesData.byDay}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => new Date(value).toLocaleDateString("es-NI", { month: "short", day: "numeric" })}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, "Ventas"]}
+                    labelFormatter={(label) => new Date(label).toLocaleDateString("es-NI")}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Ventas"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Mobile List */}
+            <div className="sm:hidden space-y-2">
+              {salesData.byDay.map((day: any) => (
+                <div key={day.date} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div>
+                    <p className="font-medium text-slate-900">{new Date(day.date).toLocaleDateString("es-NI", { month: "short", day: "numeric" })}</p>
+                    <p className="text-xs text-slate-600">{day.transactions} transacciones</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-blue-900">C$ {day.sales.toFixed(2)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -239,42 +258,47 @@ export default function ReportsPage() {
           {paymentData && (
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Métodos de Pago</h2>
-            {paymentData.breakdown.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={paymentData.breakdown}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ method, percent }: any) => `${method} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="amount"
-                    >
-                      {paymentData.breakdown.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `C$ ${Number(value).toFixed(2)}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2 mt-4">
-                  {paymentData.breakdown.map((item, i) => (
-                    <div key={i} className="flex justify-between items-center text-sm">
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                        ></span>
-                        {item.method}
-                      </span>
-                      <span className="font-semibold">C$ {item.amount.toFixed(2)} ({item.count})</span>
-                    </div>
-                  ))}
-                </div>
-              </>
+              {paymentData.breakdown.length > 0 ? (
+                <>
+                  {/* Desktop Pie Chart */}
+                  <div className="hidden sm:block">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={paymentData.breakdown}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ method, percent }: any) => `${method} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="amount"
+                        >
+                          {paymentData.breakdown.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => `C$ ${Number(value).toFixed(2)}`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* Mobile and Desktop List */}
+                  <div className="space-y-2">
+                    {paymentData.breakdown.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                          ></span>
+                          <span className="text-sm font-medium text-slate-700">{item.method}</span>
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900">C$ {item.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p className="text-slate-500 text-center py-8">No hay datos</p>
               )}
@@ -285,22 +309,40 @@ export default function ReportsPage() {
           {productData && (
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Top 10 Productos (Ingresos)</h2>
-            {productData.topByRevenue.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={productData.topByRevenue}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 10 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => `C$ ${Number(value).toFixed(2)}`} />
-                  <Bar dataKey="revenue" fill="#10B981" name="Ingresos" />
-                </BarChart>
-              </ResponsiveContainer>
+              {productData.topByRevenue.length > 0 ? (
+                <>
+                  {/* Desktop Bar Chart */}
+                  <div className="hidden sm:block">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={productData.topByRevenue}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fontSize: 10 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip formatter={(value) => `C$ ${Number(value).toFixed(2)}`} />
+                        <Bar dataKey="revenue" fill="#10B981" name="Ingresos" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  {/* Mobile and Desktop List */}
+                  <div className="sm:hidden space-y-2">
+                    {productData.topByRevenue.slice(0, 5).map((prod, i) => (
+                      <div key={prod.productId} className="flex justify-between items-start p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-900 text-sm">#{i + 1} {prod.name}</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{prod.quantity} unidades</p>
+                        </div>
+                        <p className="font-bold text-green-900 text-sm">C$ {prod.revenue.toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p className="text-slate-500 text-center py-8">No hay datos</p>
               )}
@@ -313,34 +355,56 @@ export default function ReportsPage() {
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Top 10 Productos (Cantidad)</h2>
             {productData.topByQuantity.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-900 text-white uppercase text-xs font-semibold">
-                      <th className="px-4 py-3 text-left text-white">Producto</th>
-                      <th className="px-4 py-3 text-right text-white">Cantidad</th>
-                      <th className="px-4 py-3 text-right text-white">Ingresos</th>
-                      <th className="px-4 py-3 text-right text-white">Precio Promedio</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {productData.topByQuantity.map((prod, i) => (
-                      <tr key={prod.productId} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">
-                          #{i + 1} {prod.name}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-700">{prod.quantity}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                          C$ {prod.revenue.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-700">
-                          C$ {(prod.revenue / prod.quantity).toFixed(2)}
-                        </td>
+              <>
+                {/* Desktop Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-900 text-white uppercase text-xs font-semibold">
+                        <th className="px-4 py-3 text-left text-white">Producto</th>
+                        <th className="px-4 py-3 text-right text-white">Cantidad</th>
+                        <th className="px-4 py-3 text-right text-white">Ingresos</th>
+                        <th className="px-4 py-3 text-right text-white">Precio Promedio</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {productData.topByQuantity.map((prod, i) => (
+                        <tr key={prod.productId} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-900">
+                            #{i + 1} {prod.name}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-700">{prod.quantity}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                            C$ {prod.revenue.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-700">
+                            C$ {(prod.revenue / prod.quantity).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Mobile Cards */}
+                <div className="sm:hidden space-y-2">
+                  {productData.topByQuantity.map((prod, i) => (
+                    <div key={prod.productId} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-slate-900 text-sm">#{i + 1}</p>
+                          <p className="font-semibold text-slate-900 mt-0.5">{prod.name}</p>
+                        </div>
+                        <p className="text-right font-bold text-slate-900">C$ {prod.revenue.toFixed(2)}</p>
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-slate-600 pt-2 border-t border-slate-200">
+                        <span>{prod.quantity} unidades</span>
+                        <span>Precio promedio: C$ {(prod.revenue / prod.quantity).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <p className="text-slate-500 text-center py-8">No hay datos</p>
             )}

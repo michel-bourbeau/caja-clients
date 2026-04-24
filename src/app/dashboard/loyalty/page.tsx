@@ -192,41 +192,78 @@ export default function LoyaltyPage() {
                 {search ? "No hay clientes que coincidan" : "No hay clientes fideles todavía"}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-900">
-                    <th className="px-4 py-3 text-left font-semibold text-white">Nombre</th>
-                    <th className="px-4 py-3 text-left font-semibold text-white">Tarjeta</th>
-                    <th className="px-4 py-3 text-left font-semibold text-white hidden md:table-cell">Teléfono</th>
-                    <th className="px-4 py-3 text-right font-semibold text-white">Total Gastado</th>
-                    <th className="px-4 py-3 text-center font-semibold text-white">Visitas</th>
-                    <th className="px-4 py-3 text-center font-semibold text-white">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+              <>
+                {/* Desktop Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-900">
+                        <th className="px-4 py-3 text-left font-semibold text-white">Nombre</th>
+                        <th className="px-4 py-3 text-left font-semibold text-white">Tarjeta</th>
+                        <th className="px-4 py-3 text-left font-semibold text-white hidden md:table-cell">Teléfono</th>
+                        <th className="px-4 py-3 text-right font-semibold text-white">Total Gastado</th>
+                        <th className="px-4 py-3 text-center font-semibold text-white">Visitas</th>
+                        <th className="px-4 py-3 text-center font-semibold text-white">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {customers.map((customer) => (
+                        <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <Link href={`/dashboard/loyalty/${customer.id}`} className="text-blue-600 hover:underline font-medium">
+                              {customer.name}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">{customer.card_number}</td>
+                          <td className="px-4 py-3 text-slate-700 hidden md:table-cell">{customer.phone || "—"}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-slate-900">{fmt(customer.total_accumulated)}</td>
+                          <td className="px-4 py-3 text-center text-slate-700">{customer.total_visits}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => setShowDeleteConfirm(customer.id)}
+                              className="text-red-600 hover:text-red-800 text-xs font-semibold hover:underline"
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Mobile Cards */}
+                <div className="sm:hidden divide-y divide-slate-100">
                   {customers.map((customer) => (
-                    <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <Link href={`/dashboard/loyalty/${customer.id}`} className="text-blue-600 hover:underline font-medium">
-                          {customer.name}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-slate-700">{customer.card_number}</td>
-                      <td className="px-4 py-3 text-slate-700 hidden md:table-cell">{customer.phone || "—"}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{fmt(customer.total_accumulated)}</td>
-                      <td className="px-4 py-3 text-center text-slate-700">{customer.total_visits}</td>
-                      <td className="px-4 py-3 text-center">
+                    <Link
+                      key={customer.id}
+                      href={`/dashboard/loyalty/${customer.id}`}
+                      className="flex items-start justify-between p-4 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900">{customer.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Tarjeta: {customer.card_number}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">{customer.phone || "Sin teléfono"}</p>
+                      </div>
+                      <div className="text-right ml-2">
+                        <p className="font-bold text-slate-900">{fmt(customer.total_accumulated)}</p>
+                        <p className="text-xs text-slate-600">{customer.total_visits} visitas</p>
                         <button
-                          onClick={() => setShowDeleteConfirm(customer.id)}
-                          className="text-red-600 hover:text-red-800 text-xs font-semibold hover:underline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setShowDeleteConfirm(customer.id);
+                          }}
+                          className="text-red-600 hover:text-red-800 text-xs font-semibold mt-1"
                         >
                           Eliminar
                         </button>
-                      </td>
-                    </tr>
+                      </div>
+                    </Link>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </>
             )}
           </div>
 

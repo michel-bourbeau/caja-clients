@@ -23,6 +23,9 @@ export default function CustomerDetailsPage() {
   const [expandedPurchase, setExpandedPurchase] = useState<string | null>(null);
   const [rewardThreshold, setRewardThreshold] = useState(2000);
   const [loyaltySettings, setLoyaltySettings] = useState<any>(null);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editFormData, setEditFormData] = useState({ name: "", phone: "", email: "" });
+  const [savingEdits, setSavingEdits] = useState(false);
 
   useEffect(() => {
     if (!tenantId || !customerId) return;
@@ -83,6 +86,42 @@ export default function CustomerDetailsPage() {
     }
   };
 
+  const handleEditClick = () => {
+    if (customer) {
+      setEditFormData({
+        name: customer.name || "",
+        phone: customer.phone || "",
+        email: customer.email || "",
+      });
+      setIsEditingClient(true);
+    }
+  };
+
+  const handleSaveEdits = async () => {
+    if (!tenantId || !customerId) return;
+
+    setSavingEdits(true);
+    try {
+      const response = await fetch(`/api/tenants/${tenantId}/loyalty/customers/${customerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setCustomer(updated);
+        setIsEditingClient(false);
+      } else {
+        console.error("Error updating customer");
+      }
+    } catch (error) {
+      console.error("Error saving edits:", error);
+    } finally {
+      setSavingEdits(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-8 text-gray-500">Cargando...</div>;
   }
@@ -103,44 +142,107 @@ export default function CustomerDetailsPage() {
 
       {/* Customer header */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{customer.name}</h1>
-            <p className="text-gray-600">Tarjeta: {customer.card_number}</p>
-          </div>
-          <button 
-            onClick={() => setShowRewardModal(true)} 
-            disabled={currentCounter < rewardThreshold}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentCounter >= rewardThreshold
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            title={currentCounter < rewardThreshold ? `Falta ${fmt(rewardThreshold - currentCounter)} para recompensa` : 'Dar Recompensa'}
-          >
-            🎁 Dar Recompensa
-          </button>
-        </div>
+        {!isEditingClient ? (
+          <>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{customer.name}</h1>
+                <p className="text-gray-600 text-sm">Tarjeta: {customer.card_number}</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={handleEditClick}
+                  className="px-3 py-2 rounded-lg font-medium transition-colors bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm"
+                  title="Editar información del cliente"
+                >
+                  ✏️ Editar
+                </button>
+                <button 
+                  onClick={() => setShowRewardModal(true)} 
+                  disabled={currentCounter < rewardThreshold}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
+                    currentCounter >= rewardThreshold
+                      ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  title={currentCounter < rewardThreshold ? `Falta ${fmt(rewardThreshold - currentCounter)} para recompensa` : 'Dar Recompensa'}
+                >
+                  🎁 Dar Recompensa
+                </button>
+              </div>
+            </div>
 
-        {/* Info grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-600 uppercase font-semibold">Total Gastado</p>
-            <p className="text-xl font-bold text-slate-900 mt-1">{fmt(customer.total_accumulated)}</p>
+            {/* Info grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-600 uppercase font-semibold">Total Gastado</p>
+                <p className="text-xl font-bold text-slate-900 mt-1">{fmt(customer.total_accumulated)}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-600 uppercase font-semibold">Visitas</p>
+                <p className="text-xl font-bold text-slate-900 mt-1">{customer.total_visits}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-600 uppercase font-semibold">Teléfono</p>
+                <p className="text-sm font-medium text-slate-900 mt-1">{customer.phone || "—"}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <p className="text-xs text-slate-600 uppercase font-semibold">Email</p>
+                <p className="text-sm font-medium text-slate-900 mt-1">{customer.email || "—"}</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">Editar Información del Cliente</h2>
+            
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Nombre</label>
+              <input
+                type="text"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Teléfono</label>
+              <input
+                type="tel"
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Email</label>
+              <input
+                type="email"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setIsEditingClient(false)}
+                className="flex-1 px-4 py-2 rounded-lg font-medium bg-gray-200 hover:bg-gray-300 text-gray-900 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdits}
+                disabled={savingEdits}
+                className="flex-1 px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:bg-blue-400"
+              >
+                {savingEdits ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
           </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-600 uppercase font-semibold">Visitas</p>
-            <p className="text-xl font-bold text-slate-900 mt-1">{customer.total_visits}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-600 uppercase font-semibold">Teléfono</p>
-            <p className="text-sm font-medium text-slate-900 mt-1">{customer.phone || "—"}</p>
-          </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <p className="text-xs text-slate-600 uppercase font-semibold">Email</p>
-            <p className="text-sm font-medium text-slate-900 mt-1">{customer.email || "—"}</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Reward progress */}
@@ -187,45 +289,69 @@ export default function CustomerDetailsPage() {
 
       {/* Rewards history */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
           <h2 className="font-semibold text-gray-900">Historial de Recompensas</h2>
         </div>
 
         {rewards.length === 0 ? (
           <div className="p-6 text-center text-gray-500">No hay recompensas registradas</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Tipo</th>
-                <th className="px-6 py-3 text-right font-semibold text-gray-700">Total Acumulado</th>
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Notas</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Fecha</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Tipo</th>
+                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Total Acumulado</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Notas</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {rewards.map((reward) => (
+                    <tr key={reward.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-gray-900 font-medium">
+                        {new Date(reward.reward_date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">
+                          {reward.reward_type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-right font-bold text-gray-900">{fmt(reward.amount_at_reward)}</td>
+                      <td className="px-6 py-3 text-gray-900 text-xs">{reward.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Mobile Cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
               {rewards.map((reward) => (
-                <tr key={reward.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-3 text-gray-900 font-medium">
-                    {new Date(reward.reward_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-3">
+                <div key={reward.id} className="p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm text-gray-600">{new Date(reward.reward_date).toLocaleDateString()}</p>
                     <span className="inline-block px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">
                       {reward.reward_type}
                     </span>
-                  </td>
-                  <td className="px-6 py-3 text-right font-bold text-gray-900">{fmt(reward.amount_at_reward)}</td>
-                  <td className="px-6 py-3 text-gray-900 text-xs">{reward.notes || "—"}</td>
-                </tr>
+                  </div>
+                  <div className="flex justify-between items-center pt-1 border-t border-gray-100">
+                    <span className="text-xs text-gray-600">Total Acumulado</span>
+                    <p className="font-bold text-gray-900">{fmt(reward.amount_at_reward)}</p>
+                  </div>
+                  {reward.notes && <p className="text-xs text-gray-600 italic">{reward.notes}</p>}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </div>
 
       {/* Purchases history */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
           <h2 className="font-semibold text-gray-900">Historial de Compras Completo</h2>
         </div>
 
@@ -240,12 +366,12 @@ export default function CustomerDetailsPage() {
                   onClick={() =>
                     setExpandedPurchase(expandedPurchase === purchase.id ? null : purchase.id)
                   }
-                  className="w-full px-6 py-4 flex items-center justify-between text-left"
+                  className="w-full px-4 sm:px-6 py-4 flex items-center justify-between text-left"
                 >
                   <div className="flex-1">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <p className="font-medium text-gray-900">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">
                           {new Date(purchase.purchase_date).toLocaleDateString("es-ES", {
                             weekday: "short",
                             year: "numeric",
@@ -255,15 +381,15 @@ export default function CustomerDetailsPage() {
                             minute: "2-digit",
                           })}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-xs sm:text-sm text-gray-600 mt-1">
                           {purchase.description || "Compra"}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-4 ml-2">
                     <div className="text-right">
-                      <p className="font-bold text-gray-900">{fmt(purchase.amount)}</p>
+                      <p className="font-bold text-gray-900 text-sm sm:text-base">{fmt(purchase.amount)}</p>
                       {purchase.transactionDetails && (
                         <p className="text-xs text-gray-500">
                           {purchase.transactionDetails.payment_method === "CASH"
@@ -275,7 +401,7 @@ export default function CustomerDetailsPage() {
                       )}
                     </div>
                     <span
-                      className={`ml-4 transform transition-transform ${
+                      className={`ml-2 transform transition-transform flex-shrink-0 ${
                         expandedPurchase === purchase.id ? "rotate-180" : ""
                       }`}
                     >
@@ -286,7 +412,7 @@ export default function CustomerDetailsPage() {
 
                 {/* Expanded details */}
                 {expandedPurchase === purchase.id && purchase.transactionDetails && (
-                  <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                  <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-100">
                     <div className="space-y-4">
                       {/* Items list */}
                       {Array.isArray(purchase.transactionDetails.items) && (
@@ -298,10 +424,10 @@ export default function CustomerDetailsPage() {
                             {purchase.transactionDetails.items.map((item: any, idx: number) => (
                               <div
                                 key={idx}
-                                className="flex justify-between items-start p-2 bg-white rounded border border-gray-100"
+                                className="flex justify-between items-start p-2 bg-white rounded border border-gray-100 text-sm"
                               >
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                                  <p className="font-medium text-gray-900">{item.name}</p>
                                   <p className="text-xs text-gray-500">
                                     Qty: {item.quantity} × {fmt(item.price)}
                                   </p>
