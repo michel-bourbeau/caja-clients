@@ -174,6 +174,8 @@ describe('TaxService', () => {
     });
 
     it('should return empty array on fetch error', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         statusText: 'Not Found',
@@ -182,6 +184,7 @@ describe('TaxService', () => {
       const result = await TaxService.fetchTaxes('tenant-1');
 
       expect(result).toEqual([]);
+      consoleSpy.mockRestore();
     });
 
     it('should call correct endpoint', async () => {

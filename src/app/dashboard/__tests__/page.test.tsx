@@ -30,6 +30,7 @@ describe("DashboardPage - Module Cards", () => {
     mockUseCurrency.mockReturnValue({
       fmt: (value: number) => `$${value}`,
       currency: "USD",
+      symbol: "$",
     });
     global.fetch = jest.fn(() =>
       Promise.resolve({
@@ -237,7 +238,7 @@ describe("DashboardPage - Module Cards", () => {
         features: {
           pos: false,
           inventory: false,
-          employees: false,
+          employees: true,
           schedules: false,
           payroll: false,
           reports: false,
