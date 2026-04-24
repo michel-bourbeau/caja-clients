@@ -157,6 +157,17 @@ export async function DELETE(
       if (transferUserId) {
         console.log(`[DELETE] Will transfer references to: ${transferUserId}`);
         
+        // Get the transfer target user's name
+        const { data: transferUser } = await supabase
+          .from("users")
+          .select("first_name, last_name")
+          .eq("id", transferUserId)
+          .maybeSingle();
+
+        const transferUserName = transferUser
+          ? `${transferUser.first_name} ${transferUser.last_name}`.trim()
+          : "Admin";
+        
         // Try to update expenses with created_by field
         const { data: updateResult, error: updateError } = await supabase
           .from("expenses")
@@ -168,6 +179,19 @@ export async function DELETE(
           console.error("[DELETE] Error updating expenses.created_by:", updateError.message);
         } else {
           console.log(`[DELETE] Updated ${updateResult?.length || 0} expenses records`);
+        }
+
+        // Update transactions cashier_name
+        const { data: transactionResult, error: transactionError } = await supabase
+          .from("transactions")
+          .update({ cashier_name: transferUserName })
+          .eq("cashier_id", employeeId)
+          .select("id");
+
+        if (transactionError) {
+          console.error("[DELETE] Error updating transactions.cashier_name:", transactionError.message);
+        } else {
+          console.log(`[DELETE] Updated ${transactionResult?.length || 0} transaction records`);
         }
       } else {
         console.warn(`[DELETE] No other user found to transfer references to`);

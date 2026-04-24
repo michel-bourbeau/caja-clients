@@ -68,6 +68,7 @@ export async function GET(
     if (error) throw error;
     return NextResponse.json(data || []);
   } catch (error) {
+    console.error("[GET /transactions] Error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

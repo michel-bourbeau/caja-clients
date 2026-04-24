@@ -8,6 +8,20 @@ export const TransactionService = {
     }
     const data = await response.json();
     
+    // Get admin name for Unknown transactions
+    let adminName = "Admin";
+    try {
+      const adminResponse = await fetch(`/api/tenants/${tenantId}/admin`);
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json();
+        if (adminData.first_name && adminData.last_name) {
+          adminName = `${adminData.first_name} ${adminData.last_name}`.trim();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin name:", error);
+    }
+    
     // Map API response to Transaction type
     return Array.isArray(data)
       ? data.map((tx: any) => ({
@@ -20,7 +34,7 @@ export const TransactionService = {
           paymentMethod: tx.payment_method || "CASH",
           timestamp: tx.created_at ? new Date(tx.created_at) : new Date(),
           cashierId: tx.cashier_id || "unknown",
-          cashierName: tx.cashier_name || "Unknown",
+          cashierName: tx.cashier_name && tx.cashier_name !== "Unknown" ? tx.cashier_name : adminName,
           status: tx.status || "COMPLETED",
           amount_received: tx.amount_received || 0,
           change: tx.change || 0,
