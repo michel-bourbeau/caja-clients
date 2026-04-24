@@ -58,7 +58,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -87,7 +87,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -116,7 +116,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -161,7 +161,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: true,
           settings: true,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -210,7 +210,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -245,7 +245,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -274,7 +274,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -311,7 +311,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -349,7 +349,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -383,7 +383,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -418,7 +418,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -455,7 +455,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -488,7 +488,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: true,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -524,7 +524,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -553,7 +553,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -588,7 +588,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -628,7 +628,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -670,7 +670,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -704,7 +704,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -738,7 +738,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -772,7 +772,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
@@ -803,7 +803,7 @@ describe("DashboardPage - Module Cards", () => {
           loyalty: false,
           settings: false,
         },
-        loading: false,
+        loading: false, error: null,
       });
 
       render(<DashboardPage />);
