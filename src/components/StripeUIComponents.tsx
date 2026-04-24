@@ -34,7 +34,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const sizeClass = {
       sm: 'btn-sm',
-      md: '',
+      md: 'btn-md',
       lg: 'btn-lg',
     }[size];
 
@@ -274,7 +274,7 @@ interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Container = React.forwardRef<HTMLDivElement, ContainerProps>(
   ({ className, children, ...props }, ref) => (
-    <div ref={ref} className={`container-app h-full ${className || ''}`} {...props}>
+    <div ref={ref} className={`container-app ${className || ''}`} {...props}>
       {children}
     </div>
   )

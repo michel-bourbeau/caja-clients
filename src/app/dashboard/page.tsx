@@ -20,6 +20,7 @@ import {
   Button,
 } from "@/components/StripeUIComponents";
 import Link from "next/link";
+import { PageIcon } from "@/components";
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuth();
@@ -210,11 +211,16 @@ export default function DashboardPage() {
 
   return (
     <Container>
-      {/* Welcome Section */}
-      <Section
-        title={`Bienvenido, ${firstName} 👋`}
-        description={`${roleLabel[user?.roleId ?? ""] ?? user?.roleId ?? "Usuario"} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
-      >
+      {/* Welcome Section with Icon */}
+      <div className="flex items-center gap-3 mb-6">
+        <PageIcon type="dashboard" size="lg" displayType="lucide" />
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-600 mt-1">{roleLabel[user?.roleId ?? ""] ?? user?.roleId ?? "Usuario"} — acceso a {visibleCards.length} módulo{visibleCards.length !== 1 ? "s" : ""}</p>
+        </div>
+      </div>
+
+      {/* Modules Grid */}
         {/* Module cards grid */}
         {visibleCards.length === 0 ? (
           <Card>
@@ -243,7 +249,6 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </Section>
       {/* Low Stock Alert Section */}
       {features.inventory && hasPermission("inventory.view") && lowStockProducts.length > 0 && (
         <Section title="Productos por Reabastecer" description="Stock bajo detectado">

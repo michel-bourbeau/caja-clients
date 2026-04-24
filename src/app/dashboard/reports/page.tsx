@@ -5,6 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
+import { PageIcon } from "@/components";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -130,9 +131,12 @@ export default function ReportsPage() {
       <Section>
         {/* Header */}
         <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Reportes de Ventas</h1>
-            <p className="text-sm text-slate-600 mt-1">Análisis de desempeño y tendencias</p>
+          <div className="flex items-center gap-3">
+            <PageIcon type="reports" size="lg" displayType="lucide" />
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Reportes de Ventas</h1>
+              <p className="text-sm text-slate-600 mt-1">Análisis de desempeño y tendencias</p>
+            </div>
           </div>
         </div>
 

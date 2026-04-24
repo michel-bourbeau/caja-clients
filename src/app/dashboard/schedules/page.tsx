@@ -5,6 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
+import { PageIcon } from "@/components";
 
 const TZ = "America/Managua";
 
@@ -564,13 +565,16 @@ export default function AttendancePage() {
 
       {/* Header */}
       <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Asistencia</h1>
-          <p className="text-sm text-slate-600 mt-1">
+        <div className="flex items-center gap-3">
+          <PageIcon type="schedules" size="lg" displayType="lucide" />
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Asistencia</h1>
+            <p className="text-sm text-slate-600 mt-1">
             {fmtDateLong(toNicaraguaDateString(new Date()))} —{" "}
             {visibleEmployees.length} empleado{visibleEmployees.length !== 1 ? "s" : ""} {!isAdmin && "a tu cargo"}
             {!isAdmin ? "" : "activo" + (visibleEmployees.length !== 1 ? "s" : "")}
           </p>
+          </div>
         </div>
         <Button variant="secondary" onClick={loadToday} disabled={loading}>
           <svg className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

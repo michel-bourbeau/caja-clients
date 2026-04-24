@@ -5,6 +5,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 import { Button, Container, Section, Alert, Card } from "@/components/StripeUIComponents";
+import { PageIcon, SearchInput } from "@/components";
 
 interface Employee {
   id: string;
@@ -482,9 +483,12 @@ export default function EmployeesPage() {
     <Container>
       <Section>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Empleados</h1>
-          <p className="text-sm text-slate-600 mt-1">Gestiona el personal, roles y accesos.</p>
+        <div className="flex items-center gap-3">
+          <PageIcon type="employees" size="lg" displayType="lucide" />
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Empleados</h1>
+            <p className="text-sm text-slate-600 mt-1">Gestiona el personal, roles y accesos.</p>
+          </div>
         </div>
         <Button variant="primary" onClick={openAdd}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -499,16 +503,11 @@ export default function EmployeesPage() {
 
       <Card>
         <div className="flex flex-col sm:flex-row gap-2 px-6 py-3 border-b border-slate-200 bg-slate-50">
-          <div className="relative flex-1">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Buscar empleado..."
+          <div className="flex-1">
+            <SearchInput
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(value) => setSearch(value)}
+              placeholder="Buscar empleado..."
             />
           </div>
           <select

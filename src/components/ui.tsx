@@ -1,6 +1,21 @@
 "use client";
 
 import React from "react";
+import { 
+  Pencil, 
+  Package, 
+  Trash2, 
+  X, 
+  Search, 
+  Plus, 
+  Eye, 
+  FileText, 
+  CheckCircle, 
+  ChevronDown, 
+  ChevronUp,
+  AlertCircle,
+  Loader
+} from "lucide-react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger" | "ghost";
@@ -34,6 +49,82 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`} {...props}>
       {children}
+    </button>
+  );
+};
+
+interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  icon: "edit" | "stock" | "delete" | "close" | "search" | "plus" | "eye" | "print" | "check" | "chevron-down" | "chevron-up" | "alert" | "loader";
+  size?: "sm" | "md" | "lg";
+  color?: "slate" | "blue" | "red" | "green" | "amber";
+}
+
+export const IconButton: React.FC<IconButtonProps> = ({
+  icon,
+  size = "md",
+  color = "slate",
+  className,
+  ...props
+}) => {
+  const sizeStyles = {
+    sm: "p-1 w-8 h-8",
+    md: "p-2 w-10 h-10",
+    lg: "p-3 w-12 h-12",
+  };
+
+  const iconSizes = {
+    sm: 14,
+    md: 20,
+    lg: 28,
+  };
+
+  const colorStyles = {
+    slate: "hover:bg-slate-100 text-slate-600 hover:text-slate-700 transition-colors",
+    blue: "hover:bg-slate-100 text-slate-600 hover:text-slate-700 transition-colors",
+    red: "text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors",
+    green: "text-green-600 hover:bg-green-100 hover:text-green-700 transition-colors",
+    amber: "text-amber-600 hover:bg-amber-100 hover:text-amber-700 transition-colors",
+  };
+
+  const renderIcon = (iconType: string, iconSize: number) => {
+    switch (iconType) {
+      case "edit":
+        return <Pencil size={iconSize} />;
+      case "stock":
+        return <Package size={iconSize} />;
+      case "delete":
+        return <Trash2 size={iconSize} />;
+      case "close":
+        return <X size={iconSize} />;
+      case "search":
+        return <Search size={iconSize} />;
+      case "plus":
+        return <Plus size={iconSize} />;
+      case "eye":
+        return <Eye size={iconSize} />;
+      case "print":
+        return <FileText size={iconSize} />;
+      case "check":
+        return <CheckCircle size={iconSize} />;
+      case "chevron-down":
+        return <ChevronDown size={iconSize} />;
+      case "chevron-up":
+        return <ChevronUp size={iconSize} />;
+      case "alert":
+        return <AlertCircle size={iconSize} />;
+      case "loader":
+        return <Loader size={iconSize} className="animate-spin" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <button
+      className={`inline-flex items-center justify-center ${sizeStyles[size]} ${colorStyles[color]} rounded-lg transition-colors ${className}`}
+      {...props}
+    >
+      {renderIcon(icon, iconSizes[size])}
     </button>
   );
 };

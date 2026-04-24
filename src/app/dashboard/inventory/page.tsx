@@ -5,6 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
+import { IconButton, PageIcon, SearchInput } from "@/components";
+import { Pencil, Package, Trash2 } from "lucide-react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
 interface ProductVariant {
@@ -82,6 +84,10 @@ export default function InventoryPage() {
   const [editingMinStock, setEditingMinStock] = useState<string>("");
   const [editingVariantMinStockId, setEditingVariantMinStockId] = useState<string | null>(null);
   const [editingVariantMinStock, setEditingVariantMinStock] = useState<string>("");
+  const [editingModalVariantMinStockId, setEditingModalVariantMinStockId] = useState<string | null>(null);
+  const [editingModalVariantMinStock, setEditingModalVariantMinStock] = useState<string>("");
+  const [editingModalVariantQtyId, setEditingModalVariantQtyId] = useState<string | null>(null);
+  const [editingModalVariantQty, setEditingModalVariantQty] = useState<string>("");
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [reorderingVariantMode, setReorderingVariantMode] = useState<string | null>(null);
@@ -684,15 +690,13 @@ export default function InventoryPage() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <h2 className="text-lg font-bold text-slate-900">Editar Producto</h2>
-              <button
-                onClick={() => setEditProductModal(null)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
+              <IconButton
+                icon="close"
+                color="slate"
+                size="sm"
+                onClick={() => { setEditProductModal(null); setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
                 aria-label="Cerrar"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              />
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -785,30 +789,63 @@ export default function InventoryPage() {
                         <div className="flex-1">
                           <p className="text-sm font-medium text-slate-900">{variant.label}</p>
                           <p className="text-xs text-slate-500">SKU: {variant.sku} · ${variant.price}</p>
+                          <p className="text-xs text-slate-600 mt-1">
+                            Stock: <span className={`font-semibold ${variant.stock_quantity <= 0 ? 'text-red-600' : 'text-green-600'}`}>{variant.stock_quantity}</span>
+                          </p>
                         </div>
-                        <div className="flex items-center gap-1">
-                          {/* Stock mínimo */}
-                          {editingVariantMinStockId === variant.id ? (
+                        <div className="flex items-center gap-1 flex-wrap justify-end">
+                          {/* Stock actual */}
+                          {editingModalVariantQtyId === variant.id ? (
                             <div className="flex gap-1">
                               <input
                                 type="number"
-                                value={editingVariantMinStock}
-                                onChange={(e) => setEditingVariantMinStock(e.target.value)}
-                                className="w-14 px-2 py-1 border border-slate-300 rounded text-sm"
-                                placeholder="Mín"
+                                value={editingModalVariantQty}
+                                onChange={(e) => setEditingModalVariantQty(e.target.value)}
+                                className="w-14 px-2 py-1 border border-purple-300 rounded text-sm text-slate-900"
+                                placeholder="Stk"
+                                min="0"
                               />
                               <button
-                                onClick={() => handleUpdateVariantMinStock((editProductModal as any).id, variant.id, editingVariantMinStock)}
+                                onClick={() => handleUpdateVariantQty((editProductModal as any).id, variant.id, editingModalVariantQty)}
                                 className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded"
                               >✓</button>
                               <button
-                                onClick={() => { setEditingVariantMinStockId(null); setEditingVariantMinStock(""); }}
+                                onClick={() => { setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); }}
                                 className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-semibold rounded"
                               >✕</button>
                             </div>
                           ) : (
                             <button
-                              onClick={() => { setEditingVariantMinStockId(variant.id); setEditingVariantMinStock(String(variant.min_stock ?? 0)); }}
+                              onClick={() => { setEditingModalVariantQtyId(variant.id); setEditingModalVariantQty(String(variant.stock_quantity ?? 0)); }}
+                              title="Editar stock"
+                              className="px-2 py-1 bg-purple-100 hover:bg-purple-600 hover:text-white text-purple-600 text-xs font-semibold rounded"
+                            >
+                              Editar
+                            </button>
+                          )}
+                          
+                          {/* Stock mínimo */}
+                          {editingModalVariantMinStockId === variant.id ? (
+                            <div className="flex gap-1">
+                              <input
+                                type="number"
+                                value={editingModalVariantMinStock}
+                                onChange={(e) => setEditingModalVariantMinStock(e.target.value)}
+                                className="w-14 px-2 py-1 border border-slate-300 rounded text-sm"
+                                placeholder="Mín"
+                              />
+                              <button
+                                onClick={() => handleUpdateVariantMinStock((editProductModal as any).id, variant.id, editingModalVariantMinStock)}
+                                className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded"
+                              >✓</button>
+                              <button
+                                onClick={() => { setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
+                                className="px-2 py-1 bg-slate-200 text-slate-700 text-xs font-semibold rounded"
+                              >✕</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingModalVariantMinStockId(variant.id); setEditingModalVariantMinStock(String(variant.min_stock ?? 0)); }}
                               title="Editar stock mínimo"
                               className="px-2 py-1 bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-semibold rounded"
                             >
@@ -897,7 +934,7 @@ export default function InventoryPage() {
                 {editSaving || uploadingEditImage ? "Guardando..." : "Guardar cambios"}
               </Button>
               <Button
-                onClick={() => setEditProductModal(null)}
+                onClick={() => { setEditProductModal(null); setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
                 className="bg-slate-200 text-slate-700 hover:bg-slate-300"
               >
                 Cancelar
@@ -909,24 +946,27 @@ export default function InventoryPage() {
 
       {/* Header */}
       <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Gestión de Productos</h1>
-          <p className="text-sm text-slate-600 mt-1">{products.length} producto{products.length !== 1 ? "s" : ""} en inventario</p>
+        <div className="flex items-center gap-3">
+          <PageIcon type="inventory" size="lg" displayType="lucide" />
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Gestión de Productos</h1>
+            <p className="text-sm text-slate-600 mt-1">{products.length} producto{products.length !== 1 ? "s" : ""} en inventario</p>
+          </div>
         </div>
         <div className="flex gap-2">
-        <Button
-            variant={reorderMode ? "danger" : "secondary"}
-            onClick={() => setReorderMode((v) => !v)}
-          >
-            {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
-          </Button>
-          <Button variant="primary" onClick={() => setShowAddCategory(!showAddCategory)}>
-            + Categoría
-          </Button>
-          <Button variant="primary" onClick={() => setShowAddProduct(!showAddProduct)}>
-            + Producto
-          </Button>
-        </div>
+          <Button
+              variant={reorderMode ? "danger" : "secondary"}
+              onClick={() => setReorderMode((v) => !v)}
+            >
+              {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
+            </Button>
+            <Button variant="primary" onClick={() => setShowAddCategory(!showAddCategory)}>
+              + Categoría
+            </Button>
+            <Button variant="primary" onClick={() => setShowAddProduct(!showAddProduct)}>
+              + Producto
+            </Button>
+          </div>
       </div>
 
       {message && (
@@ -1293,18 +1333,12 @@ export default function InventoryPage() {
       <Card>
 
         <div className="flex flex-col sm:flex-row gap-2 px-6 py-3 border-b border-slate-200 bg-slate-50">
-          <div className="relative flex-1">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre, SKU o descripción..."
-              className="w-full pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          <SearchInput
+            value={search}
+            onChange={(value) => setSearch(value)}
+            placeholder="Buscar por nombre, SKU..."
+            className="flex-1"
+          />
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
@@ -1327,7 +1361,9 @@ export default function InventoryPage() {
               : "Sin resultados para esta búsqueda."}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="space-y-4">
+            {/* Desktop: Table view */}
+            <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
@@ -1468,36 +1504,30 @@ export default function InventoryPage() {
                             >✕</button>
                           </div>
                         ) : (
-                          <div className="flex gap-1 justify-center">
-                            <button
+                          <div className="flex gap-2 justify-center">
+                            <IconButton
+                              icon="edit"
+                              color="slate"
+                              size="sm"
                               onClick={() => openEditModal(product)}
-                              className="inline-flex items-center px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors"
                               title="Editar producto"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
+                            />
                             {!hasVariants && (
-                              <button
+                              <IconButton
+                                icon="stock"
+                                color="blue"
+                                size="sm"
                                 onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
-                                className="inline-flex items-center px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
                                 title="Editar stock"
-                              >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
-                                </svg>
-                              </button>
+                              />
                             )}
-                            <button
+                            <IconButton
+                              icon="delete"
+                              color="red"
+                              size="sm"
                               onClick={() => handleDeleteProduct(product.id)}
-                              className="inline-flex items-center px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-semibold rounded-lg transition-colors"
                               title="Eliminar"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-                              </svg>
-                            </button>
+                            />
                           </div>
                         )}
                       </td>
@@ -1600,24 +1630,20 @@ export default function InventoryPage() {
                                 >
                                   ↓
                                 </button>
-                                <button
+                                <IconButton
+                                  icon="stock"
+                                  color="blue"
+                                  size="sm"
                                   onClick={() => { setEditingVariantId(variant.id); setEditingVariantQty(variant.stock_quantity.toString()); }}
-                                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg"
                                   title="Editar stock"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z" />
-                                  </svg>
-                                </button>
-                                <button
+                                />
+                                <IconButton
+                                  icon="delete"
+                                  color="red"
+                                  size="sm"
                                   onClick={() => handleDeleteVariant(product.id, variant.id)}
-                                  className="px-2.5 py-1 bg-red-100 hover:bg-red-600 hover:text-white text-red-600 text-sm font-semibold rounded-lg"
                                   title="Eliminar formato"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-                                  </svg>
-                                </button>
+                                />
                               </div>
                             )}
                           </td>
@@ -1632,6 +1658,121 @@ export default function InventoryPage() {
             <div className="px-4 py-2 border-t border-slate-200 text-sm text-slate-400 bg-slate-50">
               {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
               {(search || filterCategory) && ` · filtrado de ${products.length}`}
+            </div>
+            </div>
+
+            {/* Mobile: Card view */}
+            <div className="sm:hidden space-y-3 px-2">
+              {filteredProducts.map((product) => {
+                const category = categories.find((c) => c.id === product.category_id);
+                const hasVariants = product.has_variants && (product.variants?.length ?? 0) > 0;
+                return (
+                  <div key={product.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                    {/* Row 1: Name + Price */}
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 text-sm">{product.name}</p>
+                        {product.description && (
+                          <p className="text-xs text-slate-500 truncate">{product.description}</p>
+                        )}
+                      </div>
+                      <span className="text-sm font-bold whitespace-nowrap">
+                        {hasVariants ? (
+                          <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">Múltiples</span>
+                        ) : (
+                          <span className="text-blue-700">{fmt(product.price)}</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Row 2: Category + SKU */}
+                    <div className="flex justify-between items-center text-xs gap-2">
+                      {category ? (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                          {category.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                      <span className="font-mono text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded">
+                        {product.sku}
+                      </span>
+                    </div>
+
+                    {/* Row 3: Stock */}
+                    {!hasVariants && (
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-600">Stock:</span>
+                        <span className={`inline-block px-2 py-0.5 rounded-full font-semibold ${
+                          product.quantity <= 0
+                            ? "bg-red-100 text-red-700"
+                            : ((product as any).min_stock ?? 0) > 0 && product.quantity <= ((product as any).min_stock ?? 0)
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-green-100 text-green-700"
+                        }`}>
+                          {product.quantity}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Row 4: Variants list */}
+                    {hasVariants && (
+                      <div className="space-y-1.5 p-2 bg-purple-50 border border-purple-100 rounded-lg">
+                        <p className="text-xs font-semibold text-purple-700 mb-2">📦 Formatos ({product.variants!.length})</p>
+                        {(product.variants ?? [])
+                          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+                          .map((variant) => (
+                          <div key={variant.id} className="bg-white rounded p-2 text-xs border border-purple-100">
+                            <div className="flex justify-between items-start gap-1 mb-1">
+                              <span className="font-semibold text-slate-900">{variant.label}</span>
+                              <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                variant.stock_quantity <= 0
+                                  ? "bg-red-100 text-red-700"
+                                  : variant.stock_quantity <= 5
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}>
+                                {variant.stock_quantity}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-slate-600 text-xs mb-1">
+                              <span className="font-mono">{variant.sku}</span>
+                              <span className="font-semibold text-purple-700">{fmt(variant.price)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Row 5: Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => openEditModal(product)}
+                        className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium text-slate-700 transition-colors"
+                      >
+                        <Pencil size={14} />
+                        Editar
+                      </button>
+                      {!hasVariants && (
+                        <button
+                          onClick={() => { setEditingProductId(product.id); setEditingQuantity(product.quantity.toString()); }}
+                          className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-blue-50 hover:bg-blue-100 rounded text-xs font-medium text-blue-600 transition-colors"
+                        >
+                          <Package size={14} />
+                          Stock
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteProduct(product.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-600 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

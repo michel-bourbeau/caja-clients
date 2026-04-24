@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
+import { PageIcon } from "@/components";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
@@ -289,8 +290,11 @@ export default function CierreCajaPage() {
       <Section>
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Cierre de Caja</h1>
-          <p className="text-slate-600 mt-2 text-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <PageIcon type="cierre" size="lg" displayType="lucide" />
+            <h1 className="text-3xl font-bold text-slate-900">Cierre de Caja</h1>
+          </div>
+          <p className="text-slate-600 text-sm">
             {isManager
               ? "Reconciliación diaria — compara las ventas registradas con el efectivo contado y el reporte de la terminal de pago."
               : "Cuenta el efectivo de la caja e ingresa el total del reporte de la terminal. No se muestran los montos del sistema hasta que un administrador revise el cierre."}
@@ -494,10 +498,12 @@ export default function CierreCajaPage() {
                     variant="secondary"
                     onClick={handlePrint}
                     title="Imprimir reporte"
+                    className="flex items-center justify-center gap-2 whitespace-nowrap"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
+                    <span className="hidden sm:inline">Imprimir</span>
                   </Button>
                 )}
               </div>

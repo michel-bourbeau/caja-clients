@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Eye, Trash2, RefreshCw } from "lucide-react";
 import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
+import { IconButton, PageIcon, SearchInput } from "@/components";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { Transaction, Product } from "@/lib/types";
@@ -257,25 +259,16 @@ export default function TransactionsPage() {
     <Container>
       <Section>
         {/* Header */}
-        <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Transacciones</h1>
-            <p className="text-sm text-slate-600 mt-1">
-              {totals.count} transacción{totals.count !== 1 ? "es" : ""}
-              {totals.count > 0 && <> · Total: <span className="font-semibold text-slate-800">{fmt(totals.amount)}</span></>}
-            </p>
+        <div className="flex flex-wrap gap-3 justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            <PageIcon type="transactions" size="lg" displayType="lucide" />
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Transacciones</h1>
+              <p className="text-sm text-slate-600 mt-1">
+                {totals.count} transacción{totals.count !== 1 ? "es" : ""}
+              </p>
+            </div>
           </div>
-          <Button
-            variant="secondary"
-            onClick={loadData}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2"
-          >
-            <svg className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
-            </svg>
-            {isLoading ? "Cargando..." : "Actualizar"}
-          </Button>
         </div>
 
         {error && (
@@ -288,30 +281,61 @@ export default function TransactionsPage() {
         <Card>
           {/* Toolbar */}
           <div className="flex flex-col gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
-            {/* Line 1: Search */}
-            <div className="relative flex-1">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                placeholder="Buscar por ID o producto..."
-                className="w-full pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ paddingLeft: '32px' }}
-              />
+            {/* Period Summary - Total for selected period */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <span className="text-sm text-blue-700 font-medium">
+                    Total {periodType === "WEEK" ? "de la semana" : periodType === "MONTH" ? "del mes" : "del año"}:
+                  </span>
+                  <div className="text-lg font-bold text-blue-900">{fmt(totals.amount)}</div>
+                </div>
+                <button
+                  onClick={loadData}
+                  disabled={isLoading}
+                  className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+                  title="Actualizar datos"
+                >
+                  <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+                </button>
+              </div>
             </div>
+            {/* Line 1: Search */}
+            <SearchInput
+              value={filters.search}
+              onChange={(value) => setFilters((f) => ({ ...f, search: value }))}
+              placeholder="Buscar por ID o producto..."
+              className="flex-1"
+            />
             {/* Line 2: Period Filters + Payment Method */}
             <div className="flex gap-2 items-center justify-between flex-wrap">
-              <div className="flex gap-2 items-center">
+              <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 items-center">
+                {/* Mobile: Date with navigation arrows at top */}
+                <div className="sm:hidden w-full flex gap-1 items-center justify-between">
+                  <button
+                    onClick={() => navigatePeriod(-1)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                  >
+                    ←
+                  </button>
+                  <span className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 text-center">
+                    {formatPeriodLabel()}
+                  </span>
+                  <button
+                    onClick={() => navigatePeriod(1)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                  >
+                    →
+                  </button>
+                </div>
+
                 {/* Period Buttons */}
-                <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
+                <div className="w-full sm:w-auto flex gap-1 bg-slate-200 rounded-lg p-1">
                   {(["WEEK", "MONTH", "YEAR"] as PeriodType[]).map((period) => (
                     <button
                       key={period}
                       onClick={() => setPeriodType(period)}
-                      className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-colors ${
+                      className={`px-2.5 py-1.5 rounded text-xs font-semibold transition-colors flex-1 sm:flex-none ${
                         periodType === period
                           ? "bg-blue-600 text-white"
                           : "bg-white text-slate-600 hover:bg-slate-100"
@@ -322,14 +346,17 @@ export default function TransactionsPage() {
                   ))}
                 </div>
 
-                {/* Navigation */}
-                <div className="flex gap-1">
+                {/* Navigation + Date - Desktop only */}
+                <div className="hidden sm:flex gap-1 items-center">
                   <button
                     onClick={() => navigatePeriod(-1)}
                     className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
                   >
                     ←
                   </button>
+                  <span className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 whitespace-nowrap">
+                    {formatPeriodLabel()}
+                  </span>
                   <button
                     onClick={() => navigatePeriod(1)}
                     className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
@@ -337,18 +364,13 @@ export default function TransactionsPage() {
                     →
                   </button>
                 </div>
-
-                {/* Period Label */}
-                <span className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 whitespace-nowrap">
-                  {formatPeriodLabel()}
-                </span>
               </div>
 
               {/* Payment Method */}
               <select
                 value={filters.paymentMethod}
                 onChange={(e) => setFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-1.5 pr-10 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2224%22%20height=%2224%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23475569%22%20stroke-width=%222%22%3E%3Cpolyline%20points=%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-right bg-[length:24px] pr-12"
               >
                 <option value="ALL">Todos los métodos</option>
                 <option value="CASH">Efectivo</option>
@@ -369,101 +391,158 @@ export default function TransactionsPage() {
               return (
                 <div key={dateKey}>
                   {/* Date group header */}
-                  <div className="flex justify-between items-center px-4 py-2 bg-slate-700 text-white text-sm font-semibold sticky top-0 z-10">
+                  <div className="flex justify-between items-center px-3 sm:px-4 py-2 bg-slate-700 text-white text-sm font-semibold sticky top-0 z-10">
                     <span className="capitalize">{formatDateHeader(dateKey)}</span>
                     <div className="flex items-center gap-3">
-                      <span className="bg-slate-600 px-2 py-0.5 rounded-full">
+                      <span className="bg-slate-600 px-2 py-0.5 rounded-full text-xs sm:text-sm">
                         {dayTxs.length} venta{dayTxs.length > 1 ? "s" : ""}
                       </span>
-                      <span className="text-white">{fmt(dayTotal)}</span>
+                      <span className="text-white text-xs sm:text-sm">{fmt(dayTotal)}</span>
                     </div>
                   </div>
 
-                  {/* Table for this day */}
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
-                        <th className="px-4 py-2 text-left text-white">Hora</th>
-                        <th className="px-4 py-2 text-left text-white">Productos</th>
-                        <th className="px-4 py-2 text-left hidden lg:table-cell text-white">Cajero</th>
-                        <th className="px-4 py-2 text-center hidden sm:table-cell text-white">Método</th>
-                        <th className="px-4 py-2 text-right hidden md:table-cell text-white">Subtotal</th>
-                        <th className="px-4 py-2 text-right hidden md:table-cell text-white">Desc.</th>
-                        <th className="px-4 py-2 text-right hidden md:table-cell text-white">Imp.</th>
-                        <th className="px-4 py-2 text-right font-bold text-white">Total</th>
-                        <th className="px-4 py-2 text-center w-24"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {dayTxs.map((tx) => (
-                        <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
-                          <td className="px-4 py-2.5 text-slate-500 text-sm whitespace-nowrap">
-                            {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                          </td>
-                          <td className="px-4 py-2.5 max-w-xs">
-                            {tx.items && tx.items.length > 0 ? (
-                              <div className="space-y-0.5">
-                                {tx.items.map((item: any, i: number) => (
-                                  <p key={i} className="text-sm text-slate-700 truncate">
-                                    <span className="font-medium">{item.quantity}×</span>{" "}
-                                    {getProductName(item.productId, item.name)}
-                                  </p>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-slate-400 italic">Sin productos</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-left hidden lg:table-cell">
-                            <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-center hidden sm:table-cell">
-                            <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
-                              {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
-                            {fmt(tx.subtotal)}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-sm hidden md:table-cell">
-                            {(tx.discount || 0) > 0 ? (
-                              <span className="text-amber-600">-{fmt(tx.discount || 0)}</span>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
-                            {(tx.tax || 0) > 0 ? fmt(tx.tax) : <span className="text-slate-300">—</span>}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                            {fmt(tx.total)}
-                          </td>
-                          <td className="px-4 py-2.5 text-center">
-                            <div className="flex gap-1.5 justify-center">
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleOpenDetails(tx)}
-                              >
-                                Ver
-                              </Button>
-                              <Button
-                                variant="danger"
+                  {/* Mobile: Card view | Desktop: Table view */}
+                  <div className="hidden sm:block">
+                    {/* Desktop Table */}
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
+                          <th className="px-4 py-2 text-left text-white">Hora</th>
+                          <th className="px-4 py-2 text-left text-white">Productos</th>
+                          <th className="px-4 py-2 text-left hidden lg:table-cell text-white">Cajero</th>
+                          <th className="px-4 py-2 text-center hidden sm:table-cell text-white">Método</th>
+                          <th className="px-4 py-2 text-right hidden md:table-cell text-white">Subtotal</th>
+                          <th className="px-4 py-2 text-right hidden md:table-cell text-white">Desc.</th>
+                          <th className="px-4 py-2 text-right hidden md:table-cell text-white">Imp.</th>
+                          <th className="px-4 py-2 text-right font-bold text-white">Total</th>
+                          <th className="px-4 py-2 text-center w-24"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {dayTxs.map((tx) => (
+                          <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
+                            <td className="px-4 py-2.5 text-slate-500 text-sm whitespace-nowrap">
+                              {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td className="px-4 py-2.5 max-w-xs">
+                              {tx.items && tx.items.length > 0 ? (
+                                <div className="space-y-0.5">
+                                  {tx.items.map((item: any, i: number) => (
+                                    <p key={i} className="text-sm text-slate-700 truncate">
+                                      <span className="font-medium">{item.quantity}×</span>{" "}
+                                      {getProductName(item.productId, item.name)}
+                                    </p>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-sm text-slate-400 italic">Sin productos</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-left hidden lg:table-cell">
+                              <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center hidden sm:table-cell">
+                              <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
+                                {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
+                              {fmt(tx.subtotal)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-sm hidden md:table-cell">
+                              {(tx.discount || 0) > 0 ? (
+                                <span className="text-amber-600">-{fmt(tx.discount || 0)}</span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden md:table-cell">
+                              {(tx.tax || 0) > 0 ? fmt(tx.tax) : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
+                              {fmt(tx.total)}
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <div className="flex gap-1.5 justify-center">
+                                <IconButton
+                                  icon="eye"
+                                  color="slate"
+                                  size="sm"
+                                  onClick={() => handleOpenDetails(tx)}
+                                  title="Ver detalles"
+                                />
+                              <IconButton
+                                icon="delete"
+                                color="red"
                                 size="sm"
                                 onClick={() => handleDeleteTransaction(tx.id)}
-                              >
-                                ✕
-                              </Button>
+                                title="Eliminar transacción"
+                              />
                             </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  </div>
+
+                  {/* Mobile: Card view */}
+                  <div className="sm:hidden space-y-2 p-2">
+                    {dayTxs.map((tx) => (
+                      <div key={tx.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                        {/* Time + Total */}
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-semibold text-slate-500">
+                            {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <span className="text-lg font-bold text-slate-900">{fmt(tx.total)}</span>
+                        </div>
+
+                        {/* Products */}
+                        {tx.items && tx.items.length > 0 ? (
+                          <div className="text-xs space-y-1">
+                            {tx.items.map((item: any, i: number) => (
+                              <p key={i} className="text-slate-700">
+                                <span className="font-medium">{item.quantity}×</span> {getProductName(item.productId, item.name)}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Sin productos</span>
+                        )}
+
+                        {/* Payment method + Cashier */}
+                        <div className="flex justify-between items-center text-xs">
+                          <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
+                            {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
+                          </Badge>
+                          {tx.cashierName && <span className="text-slate-600">{tx.cashierName}</span>}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-2 border-t border-slate-100">
+                          <button
+                            onClick={() => handleOpenDetails(tx)}
+                            className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium text-slate-700 transition-colors"
+                          >
+                            <Eye size={14} />
+                            Ver
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-600 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })}
-            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
+            <div className="px-3 sm:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {totals.count} transacción{totals.count !== 1 ? "es" : ""}
               {(filters.search || filters.paymentMethod !== "ALL") &&
                 ` · filtrado de ${transactions.length}`}
@@ -484,15 +563,13 @@ export default function TransactionsPage() {
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex-shrink-0">
               <h2 className="font-semibold text-sm">Detalles de la Transacción</h2>
-              <button
+              <IconButton
+                icon="close"
+                color="slate"
+                size="sm"
                 onClick={() => setSelectedTransaction(null)}
-                className="p-1 rounded hover:bg-white/10 transition-colors"
                 aria-label="Cerrar"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              />
             </div>
 
             <div className="p-6 space-y-4 overflow-y-auto flex-1">

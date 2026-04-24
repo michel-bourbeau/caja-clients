@@ -9,6 +9,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
+import { PageIcon, SearchInput } from "@/components";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 
@@ -433,7 +434,8 @@ export default function POSPage() {
     <div className="min-h-screen bg-slate-50">
       <Container>
         <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
+          <div className="flex items-center gap-3">
+            <PageIcon type="pos" size="lg" displayType="lucide" />
             <h1 className="h1">Caja</h1>
           </div>
 
@@ -478,19 +480,12 @@ export default function POSPage() {
               {/* Line 1: Search + View Mode */}
               <div className="flex gap-2">
                 {/* Search */}
-                <div className="relative flex-1">
-                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-                  </svg>
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar producto..."
-                    className="w-full pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    style={{ paddingLeft: '32px' }}
-                  />
-                </div>
+                <SearchInput
+                  value={search}
+                  onChange={(value) => setSearch(value)}
+                  placeholder="Buscar producto..."
+                  className="flex-1"
+                />
 
                 {/* View Mode Toggle */}
                 <div className="flex gap-1 bg-slate-200 rounded-lg p-1 flex-shrink-0">
