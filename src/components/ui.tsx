@@ -32,7 +32,7 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    "font-medium rounded transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+    "font-medium rounded transition cursor-pointer";
 
   const variantStyles = {
     primary: "bg-blue-600 hover:bg-blue-700 text-white",

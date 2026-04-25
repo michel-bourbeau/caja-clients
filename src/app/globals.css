@@ -818,6 +818,30 @@ a:has(> svg):hover svg {
   color: inherit;
 }
 
+/* Interactive disabled states for buttons with SVG icons */
+button:disabled:has(> svg) svg {
+  opacity: 0.5;
+}
+
+/* Disabled state for all buttons (CSS Normal - not Tailwind) */
+button:disabled,
+button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Disabled state for inputs and selects (CSS Normal - not Tailwind) */
+input:disabled,
+input[disabled],
+select:disabled,
+select[disabled],
+textarea:disabled,
+textarea[disabled] {
+  background-color: rgb(226, 232, 240); /* bg-slate-100 */
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    BUTTON & LINK STATES (CSS Normal - not Tailwind)
    ───────────────────────────────────────────────────────────────────────── */

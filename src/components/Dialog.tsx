@@ -106,7 +106,7 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({
     <div className="flex gap-2 pt-4 justify-end">
       <button
         onClick={onSave}
-        className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg whitespace-nowrap"
         disabled={isSaving || disableSave}
       >
         {isSaving ? "Guardando..." : saveLabel}

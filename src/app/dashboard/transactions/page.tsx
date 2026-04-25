@@ -672,7 +672,7 @@ export default function TransactionsPage() {
                     disabled={!!selectedTransaction.cash_closing_id}
                     value={editForm.paymentMethod}
                     onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as "CASH" | "CARD" | "TRANSFER" })}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-500"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="CASH">Efectivo</option>
                     <option value="CARD">Tarjeta</option>
@@ -686,7 +686,7 @@ export default function TransactionsPage() {
                     type="datetime-local"
                     value={editForm.datetime}
                     onChange={(e) => setEditForm({ ...editForm, datetime: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-500"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -701,7 +701,7 @@ export default function TransactionsPage() {
                       type="number"
                       value={editForm.amount_received}
                       onChange={(e) => setEditForm({ ...editForm, amount_received: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-1.5 border border-blue-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-500"
+                      className="w-full px-3 py-1.5 border border-blue-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
@@ -711,7 +711,7 @@ export default function TransactionsPage() {
                       type="number"
                       value={editForm.change}
                       onChange={(e) => setEditForm({ ...editForm, change: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-1.5 border border-green-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-green-100 disabled:cursor-not-allowed disabled:text-slate-500"
+                      className="w-full px-3 py-1.5 border border-green-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
                 </div>
