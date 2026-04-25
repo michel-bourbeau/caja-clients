@@ -93,6 +93,7 @@ async function fetchTenantRolePermissions(tenantId: string, slug: string): Promi
 }
 
 export const SUPERADMIN_IMPERSONATION_KEY = "superadmin_impersonation";
+export const EMPLOYEE_IMPERSONATION_KEY = "employee_impersonation";
 
 export interface ImpersonationSession {
   tenantId: string;
@@ -100,34 +101,108 @@ export interface ImpersonationSession {
   superadmin: true;
 }
 
+export interface EmployeeImpersonationSession {
+  tenantId: string;
+  employeeId: string;
+  employeeName: string;
+  superadmin: false;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Restore session from Supabase Auth on mount
+  // Extract restore logic into a reusable function
+  const checkAndRestoreImpersonation = useCallback(async () => {
+    if (typeof window === "undefined") return false;
+
+    // ── Check superadmin impersonation first ──────────────────────────────
+    const raw = sessionStorage.getItem(SUPERADMIN_IMPERSONATION_KEY);
+    if (raw) {
+      try {
+        const imp: ImpersonationSession = JSON.parse(raw);
+        sessionStorage.setItem("defaultTenantId", imp.tenantId);
+        setUser({
+          id: "superadmin",
+          email: "superadmin@caja.app",
+          firstName: "Super",
+          lastName: "Admin",
+          roleId: "admin",
+          permissions: ADMIN_PERMISSIONS,
+          tenantId: imp.tenantId,
+        } as User);
+        setIsLoading(false);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    // ── Check employee impersonation second ──────────────────────────────
+    const empRaw = sessionStorage.getItem(EMPLOYEE_IMPERSONATION_KEY);
+    if (empRaw) {
+      try {
+        console.log("[Auth] Employee impersonation detected:", empRaw);
+        const empImp: EmployeeImpersonationSession = JSON.parse(empRaw);
+        sessionStorage.setItem("defaultTenantId", empImp.tenantId);
+
+        // Fetch full employee profile to get role_id and permissions
+        try {
+          console.log("[Auth] Fetching employees from /api/tenants/" + empImp.tenantId + "/employees");
+          const empRes = await fetch(`/api/tenants/${empImp.tenantId}/employees`);
+          const employees: any[] = await empRes.json();
+          console.log("[Auth] Fetched employees count:", employees.length);
+          console.log("[Auth] Looking for employee ID:", empImp.employeeId);
+          console.log("[Auth] All employee IDs:", employees.map(e => ({ id: e.id, name: e.first_name, is_system_user: e.is_system_user })));
+          
+          const employee = employees.find((e) => e.id === empImp.employeeId);
+          console.log("[Auth] Found employee:", employee);
+
+          if (employee) {
+            let perms: string[] | null = null;
+            if (employee.tenant_id && employee.role_id) {
+              perms = await fetchTenantRolePermissions(employee.tenant_id, employee.role_id);
+            }
+            console.log("[Auth] Employee roleId:", employee.role_id, "perms from tenant_roles:", perms);
+            console.log("[Auth] Using fallback perms:", permissionsForRole(employee.role_id || "cashier"));
+
+            setUser({
+              id: employee.id,
+              email: employee.email || `emp-${employee.id}@caja.app`,
+              firstName: employee.first_name || "Employee",
+              lastName: employee.last_name || "",
+              roleId: employee.role_id || "cashier",
+              permissions: perms || permissionsForRole(employee.role_id || "cashier"),
+              tenantId: empImp.tenantId,
+            } as User);
+            console.log("[Auth] User set to impersonated employee");
+          } else {
+            console.warn("[Auth] Employee not found with ID:", empImp.employeeId);
+            console.warn("[Auth] Impersonation failed - falling back to normal auth");
+          }
+        } catch (err) {
+          console.error("[Auth] Error loading impersonated employee:", err);
+        }
+
+        setIsLoading(false);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
+  }, []);
+
+  // Restore session from Supabase Auth on mount and listen for storage changes
   useEffect(() => {
     const restoreSession = async () => {
       try {
-        // ── Check superadmin impersonation first ──────────────────────────────
-        if (typeof window !== "undefined") {
-          const raw = sessionStorage.getItem(SUPERADMIN_IMPERSONATION_KEY);
-          if (raw) {
-            const imp: ImpersonationSession = JSON.parse(raw);
-            sessionStorage.setItem("defaultTenantId", imp.tenantId);
-            setUser({
-              id: "superadmin",
-              email: "superadmin@caja.app",
-              firstName: "Super",
-              lastName: "Admin",
-              roleId: "admin",
-              permissions: ADMIN_PERMISSIONS,
-              tenantId: imp.tenantId,
-            } as User);
-            setIsLoading(false);
-            return;
-          }
-        }
+        // First try to restore impersonation
+        const hasImpersonation = await checkAndRestoreImpersonation();
+        if (hasImpersonation) return;
 
+        // If no impersonation, restore normal session
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profile = await resolveProfile(session.user.email ?? "");
@@ -171,7 +246,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     restoreSession();
-  }, []);
+
+    // Listen for storage changes (when impersonation keys are set/removed from other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === SUPERADMIN_IMPERSONATION_KEY || e.key === EMPLOYEE_IMPERSONATION_KEY) {
+        console.log("[Auth] Storage change detected, restoring impersonation...");
+        restoreSession();
+      }
+    };
+
+    // Listen for custom impersonation change event (same tab)
+    const handleImpersonationChange = (e: Event) => {
+      console.log("[Auth] Impersonation change event detected");
+      restoreSession();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("impersonationChanged", handleImpersonationChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("impersonationChanged", handleImpersonationChange);
+    };
+  }, [checkAndRestoreImpersonation]);
 
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     setIsLoading(true);

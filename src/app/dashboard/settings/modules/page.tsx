@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
+import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { Container, Section, Card, CardHeader, CardTitle, CardContent, Button, Alert } from "@/components/StripeUIComponents";
 
@@ -86,6 +87,7 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
 
 export default function ModulesPage() {
   const tenantId = useTenantId();
+  const { features, error: featuresError } = useTenantFeatures();
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>(
     Object.fromEntries(Object.keys(MODULES).map((k) => [k, true])) as Record<ModuleKey, boolean>
   );
@@ -99,6 +101,14 @@ export default function ModulesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Update modules when features load
+  useEffect(() => {
+    if (features) {
+      // Ensure settings is always enabled
+      setModules({ ...features, settings: true });
+    }
+  }, [features]);
 
   // Load modules and loyalty settings
   useEffect(() => {
@@ -129,14 +139,6 @@ export default function ModulesPage() {
             
             setAuthorizedModules(authorized);
           }
-        }
-
-        // Load modules
-        const featuresRes = await fetch(`/api/tenants/${tenantId}/features`);
-        if (featuresRes.ok) {
-          const data = await featuresRes.json();
-          // Ensure settings is always enabled
-          setModules({ ...(data.features || {}), settings: true });
         }
 
         // Load loyalty settings

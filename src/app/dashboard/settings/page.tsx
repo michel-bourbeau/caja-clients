@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
-import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
+import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
 
@@ -79,7 +79,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export default function SettingsPage() {
-  const { features, loading: featuresLoading } = useTenantFeatures();
+  const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>({} as Record<ModuleKey, boolean>);
@@ -102,10 +102,9 @@ export default function SettingsPage() {
   const loadSettings = useCallback(async () => {
     if (!tenantId) return;
     try {
-      const [tenantRes, settingsRes, featuresRes] = await Promise.all([
+      const [tenantRes, settingsRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}`),
         fetch(`/api/tenants/${tenantId}/settings`),
-        fetch(`/api/tenants/${tenantId}/features`),
       ]);
       if (tenantRes.ok) {
         const t = await tenantRes.json();
@@ -147,17 +146,19 @@ export default function SettingsPage() {
         });
         broadcastCurrencyChange(cur);
       }
-      if (featuresRes.ok) {
-        const data = await featuresRes.json();
-        // Ensure settings is always enabled
-        setModules({ ...(data.features || {}), settings: true });
-      }
     } catch (e) {
       console.error("Error loading settings:", e);
     } finally {
       setLoadingSettings(false);
     }
   }, [tenantId]);
+
+  // Update modules when features load
+  useEffect(() => {
+    if (features) {
+      setModules({ ...features, settings: true });
+    }
+  }, [features]);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
 

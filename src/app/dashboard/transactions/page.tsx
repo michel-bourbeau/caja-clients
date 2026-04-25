@@ -6,6 +6,7 @@ import { Button, Card, Container, Section, Badge, Alert } from "@/components/Str
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
+import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
 import { TransactionService } from "@/features/transactions/services";
@@ -21,6 +22,7 @@ type PeriodType = "WEEK" | "MONTH" | "YEAR";
 export default function TransactionsPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,21 +113,14 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     loadData();
-    loadFeatures();
   }, [tenantId]);
 
-  const loadFeatures = async () => {
-    if (!tenantId) return;
-    try {
-      const res = await fetch(`/api/tenants/${tenantId}/features`);
-      if (res.ok) {
-        const data = await res.json();
-        setIsTaxModuleEnabled(data.features?.taxes ?? false);
-      }
-    } catch (err) {
-      console.error("Error loading features:", err);
+  // Update tax module status when features load
+  useEffect(() => {
+    if (features) {
+      setIsTaxModuleEnabled(features.taxes ?? false);
     }
-  };
+  }, [features?.taxes]);
 
   const loadData = async () => {
     if (!tenantId) {
@@ -273,6 +268,12 @@ export default function TransactionsPage() {
           title="Transacciones"
           subtitle={`${totals.count} transacción${totals.count !== 1 ? "es" : ""}`}
         />
+
+        {featuresError && (
+          <Alert variant="error" title="Configuration Error" className="mb-6">
+            Failed to load tenant features: {featuresError}. Using default settings.
+          </Alert>
+        )}
 
         {error && (
           <Alert variant="error" title="Error" className="mb-6">

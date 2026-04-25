@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useTenantId } from "./tenant";
+import { 
+  getCachedData, 
+  setCachedData, 
+  createCacheKey,
+  getInFlightRequest,
+  setInFlightRequest 
+} from "../cache/apiCache";
 
 interface TenantFeatures {
   pos?: boolean;
@@ -45,12 +52,41 @@ export function useTenantFeatures() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/tenants/${tenantId}/features`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch tenant features");
+      const cacheKey = createCacheKey("features", tenantId);
+      
+      // Check cache first
+      const cachedData = getCachedData<any>(cacheKey);
+      if (cachedData) {
+        setFeatures({ ...ALL_FEATURES_ON, ...cachedData.features });
+        setLoading(false);
+        return;
       }
 
-      const data = await response.json();
+      // Check if request is already in flight
+      const inFlightPromise = getInFlightRequest<any>(cacheKey);
+      if (inFlightPromise) {
+        try {
+          const data = await inFlightPromise;
+          setFeatures({ ...ALL_FEATURES_ON, ...(data.features || {}) });
+        } catch (err) {
+          throw err;
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Create new request
+      const fetchPromise = fetch(`/api/tenants/${tenantId}/features`).then(res => {
+        if (!res.ok) throw new Error("Failed to fetch tenant features");
+        return res.json();
+      });
+
+      setInFlightRequest(cacheKey, fetchPromise);
+
+      const data = await fetchPromise;
+      // Cache the response
+      setCachedData(cacheKey, data);
       // Merge with defaults so missing keys default to true (only explicitly false disables a feature)
       setFeatures({ ...ALL_FEATURES_ON, ...(data.features || {}) });
     } catch (err) {

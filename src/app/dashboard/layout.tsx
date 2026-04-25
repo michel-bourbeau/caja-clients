@@ -6,7 +6,7 @@ import { ShoppingCart } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
-import { SUPERADMIN_IMPERSONATION_KEY, ImpersonationSession } from "@/context/AuthContext";
+import { SUPERADMIN_IMPERSONATION_KEY, EMPLOYEE_IMPERSONATION_KEY, ImpersonationSession, EmployeeImpersonationSession } from "@/context/AuthContext";
 import { useTenantName } from "@/lib/utils/tenantName";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 
@@ -20,7 +20,7 @@ export default function DashboardLayout({
   const { user, isLoading, logout } = useAuth();
   const { tenantName } = useTenantName();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [impersonation, setImpersonation] = useState<ImpersonationSession | null>(null);
+  const [impersonation, setImpersonation] = useState<ImpersonationSession | EmployeeImpersonationSession | null>(null);
 
   const roleName = DEFAULT_ROLES.find((r) => r.id === user?.roleId)?.name ?? user?.roleId ?? "";
 
@@ -29,9 +29,20 @@ export default function DashboardLayout({
     router.push("/login");
   };
 
-  // Detect impersonation session
+  // Detect impersonation session (tenant or employee)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    
+    // Check employee impersonation first
+    const empRaw = sessionStorage.getItem(EMPLOYEE_IMPERSONATION_KEY);
+    if (empRaw) {
+      try { 
+        setImpersonation(JSON.parse(empRaw)); 
+        return;
+      } catch { /* ignore */ }
+    }
+
+    // Then check tenant impersonation
     const raw = sessionStorage.getItem(SUPERADMIN_IMPERSONATION_KEY);
     if (raw) {
       try { setImpersonation(JSON.parse(raw)); } catch { /* ignore */ }
@@ -51,10 +62,18 @@ export default function DashboardLayout({
   }, [pathname]);
 
   const exitImpersonation = () => {
+    // Remove impersonation keys but DON'T logout the Superadmin session
     sessionStorage.removeItem(SUPERADMIN_IMPERSONATION_KEY);
+    sessionStorage.removeItem(EMPLOYEE_IMPERSONATION_KEY);
     sessionStorage.removeItem("defaultTenantId");
-    // Full reload to reset AuthContext state
-    window.location.href = "/superadmin/dashboard";
+    
+    // Dispatch custom event to notify AuthContext
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("impersonationChanged", { detail: { key: "cleared" } }));
+    }
+    
+    // Navigate without full reload - AuthContext will detect impersonation keys are gone
+    router.push("/superadmin/users");
   };
 
   // Show loading state initially
@@ -106,7 +125,19 @@ export default function DashboardLayout({
                 <span className="text-purple-200">🔐</span>
                 <span>Mode SuperAdmin</span>
                 <span className="text-purple-300">—</span>
-                <span className="font-bold">{impersonation.tenantName}</span>
+                {impersonation.superadmin ? (
+                  // Tenant impersonation
+                  <>
+                    <span>Tenant:</span>
+                    <span className="font-bold">{impersonation.tenantName}</span>
+                  </>
+                ) : (
+                  // Employee impersonation
+                  <>
+                    <span>Employé:</span>
+                    <span className="font-bold">{impersonation.employeeName}</span>
+                  </>
+                )}
               </div>
               <button
                 onClick={exitImpersonation}

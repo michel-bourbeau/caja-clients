@@ -434,8 +434,8 @@ export default function DashboardPage() {
         </Card>
       )}
       
-      {/* Low Stock Alert Section */}
-      {features.inventory && hasPermission("inventory.view") && lowStockProducts.length > 0 && (
+      {/* Low Stock Alert Section - requires inventory management permissions */}
+      {features.inventory && (hasPermission("inventory.create") || hasPermission("inventory.edit")) && lowStockProducts.length > 0 && (
         <Section title="Productos por Reabastecer" description="Stock bajo detectado" className="mt-12">
           <Alert variant="warning" title={`${lowStockProducts.length} producto${lowStockProducts.length !== 1 ? "s" : ""} con stock bajo`}>
             <div className="flex items-center justify-between gap-4">

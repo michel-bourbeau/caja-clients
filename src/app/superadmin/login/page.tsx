@@ -65,6 +65,14 @@ export default function SuperAdminLoginPage() {
             <strong>ℹ️ Accès superadmin:</strong> Vous pouvez créer des tenants, gérer les modules, et configurer les utilisateurs administrateurs.
           </p>
         </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-600">
+            <a href="/login" className="text-purple-600 hover:text-purple-700 font-medium underline">
+              ← Connexion normale
+            </a>
+          </p>
+        </div>
       </Card>
     </div>
   );

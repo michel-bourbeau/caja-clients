@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AuthProvider } from "@/context/AuthContext";
 import { SuperAdminProvider } from "@/context/SuperAdminContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { TenantFeaturesProvider } from "@/context/TenantFeaturesContext";
 import { restoreTenantIdFromStorage } from "@/lib/utils/session";
 
 export function RootProviders({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,9 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
     <AuthProvider>
       <SuperAdminProvider>
         <ThemeProvider>
-          {children}
+          <TenantFeaturesProvider>
+            {children}
+          </TenantFeaturesProvider>
         </ThemeProvider>
       </SuperAdminProvider>
     </AuthProvider>
