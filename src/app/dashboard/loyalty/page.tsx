@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button as UIButton } from "@/components/ui";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput } from "@/components";
+import { PageIcon, SearchInput, DashboardHeader } from "@/components";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { LoyalCustomer } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -156,18 +156,15 @@ export default function LoyaltyPage() {
     <FeatureGuard feature="loyalty">
       <Container>
         <Section>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <PageIcon type="loyalty" size="lg" displayType="lucide" />
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Clientes Fieles</h1>
-                <p className="text-slate-600 mt-1">Gestiona tu programa de fidelización</p>
-              </div>
-            </div>
+          <DashboardHeader
+            pageType="loyalty"
+            title="Clientes Fieles"
+            subtitle="Gestiona tu programa de fidelización"
+          >
             <Button variant="primary" onClick={handleOpenAddModal}>
               + Nuevo Cliente
             </Button>
-          </div>
+          </DashboardHeader>
 
           {message && (
             <Alert variant={messageType === "success" ? "success" : "error"} title={messageType === "success" ? "Éxito" : "Error"}>

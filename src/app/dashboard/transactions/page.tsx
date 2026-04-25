@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Trash2, RefreshCw } from "lucide-react";
 import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
-import { IconButton, PageIcon, SearchInput } from "@/components";
+import { IconButton, PageIcon, SearchInput, DashboardHeader } from "@/components";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { Transaction, Product } from "@/lib/types";
@@ -268,18 +268,11 @@ export default function TransactionsPage() {
   return (
     <Container>
       <Section>
-        {/* Header */}
-        <div className="flex flex-wrap gap-3 justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <PageIcon type="transactions" size="lg" displayType="lucide" />
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Transacciones</h1>
-              <p className="text-sm text-slate-600 mt-1">
-                {totals.count} transacción{totals.count !== 1 ? "es" : ""}
-              </p>
-            </div>
-          </div>
-        </div>
+        <DashboardHeader
+          pageType="transactions"
+          title="Transacciones"
+          subtitle={`${totals.count} transacción${totals.count !== 1 ? "es" : ""}`}
+        />
 
         {error && (
           <Alert variant="error" title="Error" className="mb-6">

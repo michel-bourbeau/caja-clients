@@ -5,6 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { Button, Container, Section } from "@/components/StripeUIComponents";
+import { DashboardHeader } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,27 +214,23 @@ function PayrollContent() {
     <Container>
       <Section>
         {/* Header */}
-        <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Recibos</h1>
-            {config && (
-              <p className="text-sm text-slate-600 mt-1">
-                {FREQ_LABEL[config.frequency]}
-                {(config.frequency === "weekly" || config.frequency === "biweekly") &&
-                  ` · inicia el ${WEEK_DAYS[config.weekStartDay]}`
-                }
-                {config.frequency === "monthly" &&
-                  ` · inicia el día ${config.monthStartDay}`
-                }
-              </p>
-            )}
-          </div>
+        <DashboardHeader
+          pageType="payroll"
+          title="Recibos"
+          subtitle={config ? `${FREQ_LABEL[config.frequency]}${
+            (config.frequency === "weekly" || config.frequency === "biweekly")
+              ? ` · inicia el ${WEEK_DAYS[config.weekStartDay]}`
+              : config.frequency === "monthly"
+              ? ` · inicia el día ${config.monthStartDay}`
+              : ""
+          }` : ""}
+        >
           <a href="/dashboard/settings">
             <Button variant="secondary">
               ⚙️ Configurar frecuencia
             </Button>
           </a>
-        </div>
+        </DashboardHeader>
 
         {/* ── Period navigator ──────────────────────────────────────────────── */}
         {!loadingPeriods && periods.length > 0 && (() => {

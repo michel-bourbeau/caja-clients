@@ -20,7 +20,7 @@ import {
   Button,
 } from "@/components/StripeUIComponents";
 import Link from "next/link";
-import { PageIcon } from "@/components";
+import { PageIcon, DashboardHeader } from "@/components";
 import {
   ShoppingCart,
   ReceiptText,
@@ -351,13 +351,11 @@ export default function DashboardPage() {
   return (
     <Container>
       {/* Welcome Section with Icon */}
-      <div className="flex items-center gap-3 mb-6">
-        <PageIcon type="dashboard" size="lg" displayType="lucide" />
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-600 mt-1">{roleLabel[user?.roleId ?? ""] ?? user?.roleId ?? "Usuario"} — acceso a {visibleCards.length} módulo{visibleCards.length !== 1 ? "s" : ""}</p>
-        </div>
-      </div>
+      <DashboardHeader
+        pageType="dashboard"
+        title="Dashboard"
+        subtitle={`${roleLabel[user?.roleId ?? ""] ?? user?.roleId ?? "Usuario"} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
+      />
 
       {/* Modules Grid */}
         {/* Module cards grid */}

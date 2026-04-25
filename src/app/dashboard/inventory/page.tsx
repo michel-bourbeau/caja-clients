@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { IconButton, PageIcon, SearchInput } from "@/components";
+import { IconButton, PageIcon, SearchInput, DashboardHeader } from "@/components";
 import { Pencil, Package, Trash2 } from "lucide-react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
@@ -1022,29 +1022,24 @@ export default function InventoryPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
-          <PageIcon type="inventory" size="lg" displayType="lucide" />
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Gestión de Productos</h1>
-            <p className="text-sm text-slate-600 mt-1">{products.length} producto{products.length !== 1 ? "s" : ""} en inventario</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-              variant={reorderMode ? "danger" : "secondary"}
-              onClick={() => setReorderMode((v) => !v)}
-            >
-              {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
-            </Button>
-            <Button variant="primary" onClick={() => setShowAddCategory(!showAddCategory)}>
-              + Categoría
-            </Button>
-            <Button variant="primary" onClick={() => setShowAddProduct(!showAddProduct)}>
-              + Producto
-            </Button>
-          </div>
-      </div>
+      <DashboardHeader 
+        pageType="inventory" 
+        title="Gestión de Productos"
+        subtitle={`${products.length} producto${products.length !== 1 ? "s" : ""} en inventario`}
+      >
+        <Button
+          variant={reorderMode ? "danger" : "secondary"}
+          onClick={() => setReorderMode((v) => !v)}
+        >
+          {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
+        </Button>
+        <Button variant="primary" onClick={() => setShowAddCategory(!showAddCategory)}>
+          + Categoría
+        </Button>
+        <Button variant="primary" onClick={() => setShowAddProduct(!showAddProduct)}>
+          + Producto
+        </Button>
+      </DashboardHeader>
 
       {message && (
         <Alert variant="success" title="Mensaje">

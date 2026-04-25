@@ -7,3 +7,4 @@ export { PageIcon } from "./PageIcon";
 export { SidebarIcon } from "./SidebarIcon";
 export { SearchInput } from "./SearchInput";
 export { ButtonGroup } from "./ButtonGroup";
+export { DashboardHeader } from "./DashboardHeader";

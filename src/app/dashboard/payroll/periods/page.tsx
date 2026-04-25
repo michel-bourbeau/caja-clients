@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { FeatureGuard } from "@/components/FeatureGuard";
+import { DashboardHeader, PageIcon } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,12 +100,11 @@ function PayrollPeriodsContent() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Períodos de Pago</h1>
-        <p className="text-sm text-slate-500 mt-2">
-          Gestiona los períodos de pago y su configuración
-        </p>
-      </div>
+      <DashboardHeader
+        pageType="periods"
+        title="Períodos de Pago"
+        subtitle="Gestiona los períodos de pago y su configuración"
+      />
 
       {/* Configuration Section */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-6">

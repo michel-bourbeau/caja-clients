@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { ShoppingCart, RefreshCw } from "lucide-react";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
@@ -9,7 +10,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput } from "@/components";
+import { PageIcon, SearchInput, DashboardHeader } from "@/components";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 type Currency = "NIO" | "USD";
@@ -40,6 +41,8 @@ export default function POSPage() {
   const [taxes, setTaxes] = useState<Tax[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [discount, setDiscount] = useState<number>(0);
+  const discountInputRef = useRef<HTMLInputElement>(null);
+  const amountReceivedInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -131,12 +134,41 @@ export default function POSPage() {
     localStorage.setItem("posViewMode", viewMode);
   }, [viewMode]);
 
+  // Prevent mouse wheel from changing discount and amount received values
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+
+    const inputs = [discountInputRef.current, amountReceivedInputRef.current].filter(Boolean);
+    
+    inputs.forEach((input) => {
+      if (input) {
+        input.addEventListener("wheel", handleWheel, { passive: false });
+      }
+    });
+
+    return () => {
+      inputs.forEach((input) => {
+        if (input) {
+          input.removeEventListener("wheel", handleWheel);
+        }
+      });
+    };
+  }, []);
+
   const cartTotal = useMemo(
     () => {
       const baseTotal = POSService.calculateCartTotal(cart);
       
+      // Convert discount from selected currency to NIO (base currency)
+      let discountInNio = discount;
+      if (selectedCurrency === "USD" && usdExchangeRate > 0) {
+        discountInNio = discount * usdExchangeRate; // Convert USD discount to NIO
+      }
+      
       // Apply discount
-      const discountAmount = Math.min(discount, baseTotal.subtotal);
+      const discountAmount = Math.min(discountInNio, baseTotal.subtotal);
       const subtotalAfterDiscount = baseTotal.subtotal - discountAmount;
       
       if (taxes.length === 0) {
@@ -161,7 +193,7 @@ export default function POSPage() {
         ),
       };
     },
-    [cart, taxes, discount]
+    [cart, taxes, discount, selectedCurrency, usdExchangeRate]
   );
 
   // Helper to convert amount based on selected currency
@@ -473,6 +505,7 @@ export default function POSPage() {
       setAmountReceived(0);
       setSelectedCurrency("NIO");
       setSelectedLoyalCustomer(null);
+      setIsCartOpen(false); // Close cart drawer on mobile after successful sale
       setMessage("✓ ¡Venta registrada exitosamente!");
       setMessageType("success");
       const refreshed = await POSService.fetchProducts(tenantId);
@@ -505,12 +538,10 @@ export default function POSPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <Container>
-        <div className="flex flex-col gap-4 md:flex-row justify-between items-start md:items-center mb-8">
-          <div className="flex items-center gap-3">
-            <PageIcon type="pos" size="lg" displayType="lucide" />
-            <h1 className="h1">Caja</h1>
-          </div>
-
+        <DashboardHeader
+          pageType="pos"
+          title="Caja"
+        >
           {/* Cart toggle button — hidden on lg (cart always visible) */}
           <button
             onClick={() => setIsCartOpen(true)}
@@ -529,23 +560,37 @@ export default function POSPage() {
               </span>
             )}
           </button>
-        </div>
+
+          {/* Refresh button to reload inventory values */}
+          <button
+            onClick={() => window.location.reload()}
+            className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center"
+            title="Recargar Caja"
+            aria-label="Recargar Caja"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+        </DashboardHeader>
 
         {message ? (
-          <Alert
-            variant={messageType === "success" ? "success" : "warning"}
-            title={messageType === "success" ? "✓ Éxito" : "⚠ Aviso"}
-            className="mb-6"
-          >
-            {message}
-          </Alert>
+          <div className="fixed top-10 left-0 right-0 flex justify-center z-50 px-4 pointer-events-none">
+            <div className="pointer-events-auto max-w-md w-full">
+              <Alert
+                variant={messageType === "success" ? "success" : "warning"}
+                title={messageType === "success" ? "✓ Éxito" : "⚠ Aviso"}
+                className="shadow-lg"
+              >
+                {message}
+              </Alert>
+            </div>
+          </div>
         ) : null}
 
         {/* Products + Cart side-by-side on lg */}
-        <div className="lg:flex lg:gap-6 lg:items-start">
+        <div className="lg:flex lg:gap-6 lg:items-start lg:overflow-hidden">
 
         {/* Products */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <Card>
             {/* Toolbar */}
             <div className="flex flex-col gap-2 p-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
@@ -850,7 +895,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart — drawer on < lg, always visible on lg */}
-        <div className="lg:w-80 lg:flex-shrink-0 lg:sticky lg:top-4">
+        <div className="lg:flex-shrink-0 lg:sticky lg:top-4 lg:w-full lg:max-w-lg">
 
           {/* Backdrop — mobile only */}
           {isCartOpen && (
@@ -863,7 +908,7 @@ export default function POSPage() {
           {/* Cart panel */}
           <Card className={`fixed right-0 top-0 h-screen z-50 transform transition-transform duration-300 ease-in-out flex flex-col
             w-[90vw] max-w-md
-            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:rounded-lg lg:z-auto lg:flex lg:flex-col lg:w-96
+            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:rounded-lg lg:z-auto lg:flex lg:flex-col lg:overflow-hidden
             ${
               isCartOpen ? "translate-x-0" : "translate-x-full"
             }`}
@@ -941,11 +986,22 @@ export default function POSPage() {
               <div className="border-t pt-1 mt-1">
                 <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ({getCurrencySymbol()})</label>
                 <input
+                  ref={discountInputRef}
                   type="number"
-                  value={discount}
-                  onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
-                  min="0"
+                  value={discount === 0 ? "" : discount}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setDiscount(0);
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num) && num >= 0) {
+                        setDiscount(num);
+                      }
+                    }
+                  }}
                   max={cartTotal.subtotal}
+                  step="0.01"
                   className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
                   placeholder="0.00"
                 />
@@ -1082,13 +1138,23 @@ export default function POSPage() {
                   Monto Recibido ({selectedCurrency === "USD" ? "$" : "C$"})
                 </label>
                 <input
+                  ref={amountReceivedInputRef}
                   id="amountReceived"
                   type="number"
                   value={amountReceived === 0 ? "" : amountReceived}
-                  onChange={(e) => setAmountReceived(Math.max(0, Number(e.target.value) || 0))}
-                  min="0"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setAmountReceived(0);
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num) && num >= 0) {
+                        setAmountReceived(num);
+                      }
+                    }
+                  }}
                   step="0.01"
-                  placeholder="Ingrese monto"
+                  placeholder="0.00"
                   className="w-full px-3 py-2 border border-slate-300 rounded text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
 

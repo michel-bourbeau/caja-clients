@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { PageIcon } from "@/components";
 import { useTenantId } from "@/lib/utils/tenant";
@@ -103,6 +103,11 @@ export default function CierreCajaPage() {
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // ── refs for number inputs (disable mouse wheel) ──
+  const declaredCashRef = useRef<HTMLInputElement>(null);
+  const declaredCardRef = useRef<HTMLInputElement>(null);
+  const declaredTransferRef = useRef<HTMLInputElement>(null);
+
   // ── state: live system totals (always loaded, independent of saved closing) ──
   const [systemTotals, setSystemTotals] = useState<SystemTotals | null>(null);
   const [loadingTotals, setLoadingTotals] = useState(false);
@@ -130,15 +135,46 @@ export default function CierreCajaPage() {
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   // ── load system totals from transactions (no saved closing required) ──
-  useEffect(() => {
+  const loadSystemTotals = useCallback(async () => {
     if (!tenantId || !selectedDate) return;
     setLoadingTotals(true);
-    fetch(`/api/tenants/${tenantId}/cash-closings?date=${selectedDate}&preview`)
-      .then((r) => r.json())
-      .then((data) => setSystemTotals(data))
-      .catch(() => setSystemTotals(null))
-      .finally(() => setLoadingTotals(false));
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/cash-closings?date=${selectedDate}&preview`);
+      const data = await res.json();
+      setSystemTotals(data);
+    } catch {
+      setSystemTotals(null);
+    } finally {
+      setLoadingTotals(false);
+    }
   }, [tenantId, selectedDate]);
+
+  useEffect(() => {
+    loadSystemTotals();
+  }, [loadSystemTotals]);
+
+  // ── Prevent mouse wheel from changing numeric inputs ──
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+
+    const inputs = [declaredCashRef.current, declaredCardRef.current, declaredTransferRef.current].filter(Boolean);
+    
+    inputs.forEach((input) => {
+      if (input) {
+        input.addEventListener("wheel", handleWheel, { passive: false });
+      }
+    });
+
+    return () => {
+      inputs.forEach((input) => {
+        if (input) {
+          input.removeEventListener("wheel", handleWheel);
+        }
+      });
+    };
+  }, []);
 
   // ── load existing saved closing for selected date ──
   useEffect(() => {
@@ -147,20 +183,20 @@ export default function CierreCajaPage() {
     fetch(`/api/tenants/${tenantId}/cash-closings?date=${selectedDate}`)
       .then((r) => r.json())
       .then((data) => {
-        setCurrent(data);
-        if (data) {
-          setDeclaredCash(String(data.declared_cash));
-          setDeclaredCard(String(data.declared_card));
-          setDeclaredTransfer(String(data.declared_transfer ?? 0));
-          setNotes(data.notes ?? "");
-        } else {
-          setDeclaredCash("");
-          setDeclaredCard("");
-          setDeclaredTransfer("");
-          setNotes("");
-        }
+        setCurrent(data || null);
+        // Always clear the input fields for a fresh entry
+        setDeclaredCash("");
+        setDeclaredCard("");
+        setDeclaredTransfer("");
+        setNotes(data?.notes ?? "");
       })
-      .catch(() => setCurrent(null))
+      .catch(() => {
+        setCurrent(null);
+        setDeclaredCash("");
+        setDeclaredCard("");
+        setDeclaredTransfer("");
+        setNotes("");
+      })
       .finally(() => setLoadingCurrent(false));
   }, [tenantId, selectedDate]);
 
@@ -200,6 +236,12 @@ export default function CierreCajaPage() {
         setCurrent(saved);
         setFormMessage({ type: "success", text: "✓ Cierre registrado exitosamente" });
         loadHistory();
+        loadSystemTotals(); // Refresh system totals after closing
+        // Clear form inputs and notes
+        setDeclaredCash("");
+        setDeclaredCard("");
+        setDeclaredTransfer("");
+        setNotes("");
         setTimeout(() => setFormMessage(null), 4000);
       } else {
         const err = await res.json();
@@ -333,9 +375,7 @@ export default function CierreCajaPage() {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-2">
               Selecciona una fecha para cerrar caja
             </p>
           </div>
@@ -408,11 +448,21 @@ export default function CierreCajaPage() {
                   💵 Efectivo contado físicamente
                 </label>
                 <input
+                  ref={declaredCashRef}
                   type="number"
-                  min="0"
                   step="0.01"
-                  value={declaredCash}
-                  onChange={(e) => setDeclaredCash(e.target.value)}
+                  value={declaredCash === "" ? "" : declaredCash}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setDeclaredCash("");
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num) && num >= 0) {
+                        setDeclaredCash(String(num));
+                      }
+                    }
+                  }}
                   placeholder="0.00"
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 text-right font-mono"
                 />
@@ -443,11 +493,21 @@ export default function CierreCajaPage() {
                   💳 Total del reporte de la terminal de tarjeta
                 </label>
                 <input
+                  ref={declaredCardRef}
                   type="number"
-                  min="0"
                   step="0.01"
-                  value={declaredCard}
-                  onChange={(e) => setDeclaredCard(e.target.value)}
+                  value={declaredCard === "" ? "" : declaredCard}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setDeclaredCard("");
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num) && num >= 0) {
+                        setDeclaredCard(String(num));
+                      }
+                    }
+                  }}
                   placeholder="0.00"
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-right font-mono"
                 />
@@ -478,11 +538,21 @@ export default function CierreCajaPage() {
                   🏦 Transferencias bancarias declaradas
                 </label>
                 <input
+                  ref={declaredTransferRef}
                   type="number"
-                  min="0"
                   step="0.01"
-                  value={declaredTransfer}
-                  onChange={(e) => setDeclaredTransfer(e.target.value)}
+                  value={declaredTransfer === "" ? "" : declaredTransfer}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setDeclaredTransfer("");
+                    } else {
+                      const num = Number(val);
+                      if (!isNaN(num) && num >= 0) {
+                        setDeclaredTransfer(String(num));
+                      }
+                    }
+                  }}
                   placeholder="0.00"
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-right font-mono"
                 />
@@ -604,9 +674,9 @@ export default function CierreCajaPage() {
                     });
 
                     const rows: React.ReactNode[] = [];
-                    Object.entries(grouped).forEach(([date, closings]) => {
-                      // Add rows for each closing on this date
-                      closings.forEach((c) => {
+                    Object.entries(grouped).reverse().forEach(([date, closings]) => {
+                      // Add rows for each closing on this date, sorted by time (newest first)
+                      closings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).forEach((c) => {
                         rows.push(
                           <tr
                             key={c.id}

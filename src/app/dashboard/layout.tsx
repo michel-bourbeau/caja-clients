@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { ShoppingCart } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
@@ -76,7 +77,7 @@ export default function DashboardLayout({
 
   return (
     <TenantProvider>
-      <div className="flex h-screen bg-slate-100 overflow-hidden">
+      <div className="flex h-screen bg-slate-50 overflow-hidden">
 
         {/* Backdrop - mobile only */}
         {isSidebarOpen && (
@@ -147,7 +148,18 @@ export default function DashboardLayout({
             </span>
 
             {/* User info - right side */}
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-4">
+              {/* Bouton Caja global - visible sauf sur la page Caja */}
+              {pathname !== '/dashboard/pos' && (
+                <button
+                  onClick={() => router.push('/dashboard/pos')}
+                  className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center"
+                  title="Ir a Caja"
+                  aria-label="Ir a Caja"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                </button>
+              )}
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-slate-800 leading-tight">
                   {user?.firstName} {user?.lastName}
