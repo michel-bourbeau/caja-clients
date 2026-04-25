@@ -25,12 +25,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
 /**
  * POST /api/tenants/[tenantId]/products/[productId]/variants
  * Create a new variant
- * Body: { label, sku, price, stock_quantity, min_stock? }
+ * Body: { label, sku, price, stock_quantity, min_stock?, sort_order? }
  */
 export async function POST(req: NextRequest, { params }: Params) {
   const { tenantId, productId } = await params;
   const body = await req.json();
-  const { label, sku, price, stock_quantity, min_stock } = body;
+  const { label, sku, price, stock_quantity, min_stock, sort_order } = body;
 
   if (!label?.trim() || !sku?.trim() || price === undefined) {
     return NextResponse.json({ error: "label, sku et price sont requis" }, { status: 400 });
@@ -38,17 +38,24 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const supabase = getSupabaseAdmin();
 
-  // Get the current max sort_order for this product
-  const { data: maxData } = await supabase
-    .from("product_variants")
-    .select("sort_order")
-    .eq("product_id", productId)
-    .eq("tenant_id", tenantId)
-    .order("sort_order", { ascending: false })
-    .limit(1)
-    .single();
+  let nextSortOrder: number;
+  
+  // If sort_order is provided (from frontend batch creation), use it
+  if (typeof sort_order === "number" && !isNaN(sort_order)) {
+    nextSortOrder = sort_order;
+  } else {
+    // Otherwise, calculate based on existing variants (fallback for single creation)
+    const { data: maxData } = await supabase
+      .from("product_variants")
+      .select("sort_order")
+      .eq("product_id", productId)
+      .eq("tenant_id", tenantId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .single();
 
-  const nextSortOrder = (maxData?.sort_order ?? -1) + 1;
+    nextSortOrder = (maxData?.sort_order ?? -1) + 1;
+  }
 
   // Ensure parent product has has_variants = true
   await supabase

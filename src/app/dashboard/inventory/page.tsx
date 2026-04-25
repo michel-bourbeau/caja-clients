@@ -90,8 +90,6 @@ export default function InventoryPage() {
   const [editingModalVariantQty, setEditingModalVariantQty] = useState<string>("");
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
-  const [reorderingVariantMode, setReorderingVariantMode] = useState<string | null>(null);
-
   // Edit product modal
   const [editProductModal, setEditProductModal] = useState<Product | null>(null);
   const [editForm, setEditForm] = useState({
@@ -155,7 +153,31 @@ export default function InventoryPage() {
       ]);
 
       if (productsRes.ok && categoriesRes.ok) {
-        setProducts(await productsRes.json());
+        let loadedProducts = await productsRes.json();
+        
+        // Ensure all variants have valid sort_order and are sorted correctly
+        loadedProducts = loadedProducts.map((product: Product) => {
+          if (product.variants && product.variants.length > 0) {
+            // First pass: ensure all variants have a valid numeric sort_order
+            let normalizedVariants = product.variants.map((v, idx) => {
+              // Keep existing sort_order if it's a valid number
+              if (typeof v.sort_order === 'number' && !isNaN(v.sort_order)) {
+                return v;
+              }
+              // Otherwise assign index-based sort_order
+              return { ...v, sort_order: idx };
+            });
+            
+            // Second pass: ALWAYS sort by sort_order to ensure correct display order
+            // This is critical because backend might return variants in any order
+            normalizedVariants = normalizedVariants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+            
+            return { ...product, variants: normalizedVariants };
+          }
+          return product;
+        });
+        
+        setProducts(loadedProducts);
         setCategories(await categoriesRes.json());
       }
     } catch (error) {
@@ -313,6 +335,7 @@ export default function InventoryPage() {
                 sku: `${newProduct.sku.trim().toUpperCase()}-V${i + 1}`,
                 price: parseFloat(v.price),
                 stock_quantity: v.quantity ? parseInt(v.quantity) : 0,
+                sort_order: i,
               }),
             })
           )
@@ -470,30 +493,68 @@ export default function InventoryPage() {
 
   const handleReorderVariant = async (productId: string, variantId: string, direction: "up" | "down") => {
     const product = products.find(p => p.id === productId);
-    if (!product?.variants) return;
+    if (!product?.variants) {
+      console.warn("handleReorderVariant: Product or variants not found", productId);
+      return;
+    }
+    
+    // Initialize sort_order for variants that don't have one, based on their original index
+    const variantsWithSortOrder = product.variants.map((v, idx) => {
+      // Keep existing sort_order if it's a valid number
+      if (typeof v.sort_order === 'number' && !isNaN(v.sort_order)) {
+        return v;
+      }
+      // Otherwise assign index-based sort_order
+      return { ...v, sort_order: idx };
+    });
     
     // Sort variants by sort_order to get correct current position
-    const sortedVariants = [...product.variants].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const sortedVariants = [...variantsWithSortOrder].sort((a, b) => a.sort_order! - b.sort_order!);
     const currentIdx = sortedVariants.findIndex(v => v.id === variantId);
-    if (currentIdx === -1) return;
+    if (currentIdx === -1) {
+      console.warn("handleReorderVariant: Variant not found in sorted list", variantId);
+      return;
+    }
     
     const newIdx = direction === "up" ? currentIdx - 1 : currentIdx + 1;
-    if (newIdx < 0 || newIdx >= sortedVariants.length) return;
+    if (newIdx < 0 || newIdx >= sortedVariants.length) {
+      console.warn("handleReorderVariant: Invalid new index", { currentIdx, newIdx, length: sortedVariants.length });
+      return;
+    }
 
     const currentVariant = sortedVariants[currentIdx];
     const neighborVariant = sortedVariants[newIdx];
     
+    const currentSortOrder = currentVariant.sort_order!;
+    const neighborSortOrder = neighborVariant.sort_order!;
+    
+    console.log("🔄 Reordering variants:", {
+      productId,
+      currentVariantId: variantId,
+      currentVariantLabel: currentVariant.label,
+      neighborVariantId: neighborVariant.id,
+      neighborVariantLabel: neighborVariant.label,
+      direction,
+      currentSortOrder,
+      neighborSortOrder,
+    });
+    
     try {
       // Swap sort_order values
-      const currentSortOrder = currentVariant.sort_order ?? currentIdx;
-      const neighborSortOrder = neighborVariant.sort_order ?? newIdx;
       
-      // Update both variants
+      // Update both variants sequentially
       const res1 = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sort_order: neighborSortOrder }),
       });
+      
+      if (!res1.ok) {
+        const error1 = await res1.text();
+        console.error("❌ Failed to update first variant:", res1.status, error1);
+        setMessage(`Erreur: ${res1.status} - ${error1}`);
+        return;
+      }
       
       const res2 = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${neighborVariant.id}`, {
         method: "PUT",
@@ -501,39 +562,47 @@ export default function InventoryPage() {
         body: JSON.stringify({ sort_order: currentSortOrder }),
       });
       
-      if (res1.ok && res2.ok) {
-        // Update local state without reloading - swap sort_order in the products array
-        setProducts((prev) =>
-          prev.map((p) => {
-            if (p.id !== productId) return p;
-            
-            // Swap sort_order in the variants array
-            const updatedVariants = p.variants?.map((v) => {
-              if (v.id === variantId) return { ...v, sort_order: neighborSortOrder };
-              if (v.id === neighborVariant.id) return { ...v, sort_order: currentSortOrder };
-              return v;
-            }) ?? [];
-            
-            return { ...p, variants: updatedVariants };
-          })
-        );
-        
-        // Also update the edit modal if it's currently open
-        if ((editProductModal as any).id === productId) {
-          setEditProductModal((prev: any) => ({
-            ...prev,
-            variants: prev.variants?.map((v: ProductVariant) => {
-              if (v.id === variantId) return { ...v, sort_order: neighborSortOrder };
-              if (v.id === neighborVariant.id) return { ...v, sort_order: currentSortOrder };
-              return v;
-            }) ?? [],
-          }));
-        }
-      } else {
-        setMessage("Erreur lors du réordonnancement");
+      if (!res2.ok) {
+        const error2 = await res2.text();
+        console.error("❌ Failed to update second variant:", res2.status, error2);
+        setMessage(`Erreur: ${res2.status} - ${error2}`);
+        return;
       }
-    } catch {
-      setMessage("Erreur réseau");
+      
+      console.log("✅ Both variants updated successfully");
+      
+      // Update local state without reloading - swap sort_order in the products array
+      setProducts((prev) =>
+        prev.map((p) => {
+          if (p.id !== productId) return p;
+          
+          // Swap sort_order in the variants array
+          const updatedVariants = p.variants?.map((v) => {
+            if (v.id === variantId) return { ...v, sort_order: neighborSortOrder };
+            if (v.id === neighborVariant.id) return { ...v, sort_order: currentSortOrder };
+            return v;
+          }) ?? [];
+          
+          return { ...p, variants: updatedVariants };
+        })
+      );
+      
+      // Also update the edit modal if it's currently open
+      if ((editProductModal as any)?.id === productId) {
+        setEditProductModal((prev: any) => ({
+          ...prev,
+          variants: prev.variants?.map((v: ProductVariant) => {
+            if (v.id === variantId) return { ...v, sort_order: neighborSortOrder };
+            if (v.id === neighborVariant.id) return { ...v, sort_order: currentSortOrder };
+            return v;
+          }) ?? [],
+        }));
+      }
+      
+      setMessage("Format réordonné");
+    } catch (error) {
+      console.error("❌ Network error:", error);
+      setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
     }
   };
 
@@ -1721,19 +1790,38 @@ export default function InventoryPage() {
                         <p className="text-xs font-semibold text-purple-700 mb-2">📦 Formatos ({product.variants!.length})</p>
                         {(product.variants ?? [])
                           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                          .map((variant) => (
+                          .map((variant, variantIdx, sortedVariants) => (
                           <div key={variant.id} className="bg-white rounded p-2 text-xs border border-purple-100">
                             <div className="flex justify-between items-start gap-1 mb-1">
                               <span className="font-semibold text-slate-900">{variant.label}</span>
-                              <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
-                                variant.stock_quantity <= 0
-                                  ? "bg-red-100 text-red-700"
-                                  : variant.stock_quantity <= 5
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-green-100 text-green-700"
-                              }`}>
-                                {variant.stock_quantity}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
+                                  variant.stock_quantity <= 0
+                                    ? "bg-red-100 text-red-700"
+                                    : variant.stock_quantity <= 5
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-green-100 text-green-700"
+                                }`}>
+                                  {variant.stock_quantity}
+                                </span>
+                                {/* Reorder buttons for mobile */}
+                                <button
+                                  onClick={() => handleReorderVariant(product.id, variant.id, "up")}
+                                  disabled={variantIdx === 0}
+                                  className="px-1 py-0.5 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs font-semibold rounded"
+                                  title="Subir"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  onClick={() => handleReorderVariant(product.id, variant.id, "down")}
+                                  disabled={variantIdx === sortedVariants.length - 1}
+                                  className="px-1 py-0.5 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs font-semibold rounded"
+                                  title="Bajar"
+                                >
+                                  ↓
+                                </button>
+                              </div>
                             </div>
                             <div className="flex justify-between text-slate-600 text-xs mb-1">
                               <span className="font-mono">{variant.sku}</span>
