@@ -81,7 +81,7 @@ export default function LoginPage() {
 
         <div className="mt-6 p-4 bg-blue-50 rounded text-sm text-gray-800">
           <p className="font-medium mb-2">Credenciales de prueba:</p>
-          <p>Email: demo@caja.com</p>
+          <p>Email:admin@caja.com</p>
           <p>Contraseña: admin123456</p>
         </div>
       </Card>

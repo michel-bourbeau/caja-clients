@@ -473,7 +473,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -740,11 +740,32 @@ export default function ExpensesPage() {
 
       {/* Expense Form Modal */}
       {showExpenseForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">
-              {editingExpense ? "Editar Gasto" : "Registrar Gasto"}
-            </h2>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowExpenseForm(false);
+              setEditingExpense(null);
+              resetExpenseForm();
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingExpense ? "Editar Gasto" : "Registrar Gasto"}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowExpenseForm(false);
+                  setEditingExpense(null);
+                  resetExpenseForm();
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -938,9 +959,28 @@ export default function ExpensesPage() {
 
       {/* Supplier Form Modal */}
       {showSupplierForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">Crear Proveedor</h2>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSupplierForm(false);
+              setSupplierForm({ name: "", description: "", contact: "" });
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-900">Crear Proveedor</h2>
+              <button
+                onClick={() => {
+                  setShowSupplierForm(false);
+                  setSupplierForm({ name: "", description: "", contact: "" });
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
@@ -1010,11 +1050,32 @@ export default function ExpensesPage() {
 
       {/* Category Management Modal */}
       {showCategoryForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCategoryForm(false);
+              setEditingCategory(null);
+              setCategoryForm({ name: "", description: "" });
+            }
+          }}
+        >
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-900">
-              {editingCategory ? "Editar Categoría" : "Crear Categoría"}
-            </h2>
+            <div className="flex items-start justify-between mb-2">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingCategory ? "Editar Categoría" : "Crear Categoría"}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCategoryForm(false);
+                  setEditingCategory(null);
+                  setCategoryForm({ name: "", description: "" });
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
