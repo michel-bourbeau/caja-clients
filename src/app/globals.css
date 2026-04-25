@@ -66,8 +66,12 @@
 }
 
 html {
-  scroll-behavior: smooth;
   font-feature-settings: 'rlig' 1, 'calt' 1;
+}
+
+/* Smooth scrolling - disabled during route transitions via Next.js */
+html[data-scroll-behavior="smooth"] {
+  scroll-behavior: smooth;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
