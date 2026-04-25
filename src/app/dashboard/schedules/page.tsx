@@ -406,7 +406,7 @@ export default function AttendancePage() {
   // Get summary by employee for the week
   const weeklyEmployeeSummary = useMemo(() => {
     const sorted = [...visibleHistoryEntries].sort(
-      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+      (a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime()
     );
     const map = new Map<string, { name: string; totalMin: number; dayCount: number }>();
     
@@ -431,7 +431,7 @@ export default function AttendancePage() {
 
   const historyByDay = useMemo(() => {
     const sorted = [...visibleHistoryEntries].sort(
-      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+      (a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime()
     );
     const weekDates = getWeekDates(historyWeekStart, weekStartDay);
     const dayMap = new Map<string, Map<string, { name: string; entries: TimeEntry[]; totalMin: number }>>();
@@ -465,7 +465,7 @@ export default function AttendancePage() {
 
   const historyByEmployee = useMemo(() => {
     const sorted = [...visibleHistoryEntries].sort(
-      (a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime()
+      (a, b) => new Date(b.check_in).getTime() - new Date(a.check_in).getTime()
     );
     const map = new Map<
       string,
@@ -936,7 +936,7 @@ export default function AttendancePage() {
 
               {/* Detailed Entries by Day */}
               <div className="space-y-6">
-                {getWeekDates(historyWeekStart, weekStartDay).map((dateStr) => {
+                {[...getWeekDates(historyWeekStart, weekStartDay)].reverse().map((dateStr) => {
                   const dayEmployees = historyByDay.get(dateStr);
                   const hasEntries = dayEmployees && dayEmployees.size > 0;
                   
