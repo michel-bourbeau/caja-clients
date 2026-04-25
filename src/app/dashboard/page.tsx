@@ -407,7 +407,7 @@ export default function DashboardPage() {
                   onClick={() => fetchLowStockProducts()}
                   className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded hover:bg-blue-50 transition-all"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
                   Actualizar
                 </button>
               </div>
@@ -449,7 +449,7 @@ export default function DashboardPage() {
                 disabled={isRefreshing}
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-all flex-shrink-0"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
                 {isRefreshing ? "Actualizando..." : "Actualizar"}
               </button>
             </div>

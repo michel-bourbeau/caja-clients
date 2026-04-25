@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Trash2, RefreshCw } from "lucide-react";
 import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
-import { IconButton, PageIcon, SearchInput, DashboardHeader } from "@/components";
+import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { Transaction, Product } from "@/lib/types";
@@ -488,8 +488,10 @@ export default function TransactionsPage() {
                                 icon="delete"
                                 color="red"
                                 size="sm"
+                                disabled={!!tx.cash_closing_id}
                                 onClick={() => handleDeleteTransaction(tx.id)}
-                                title="Eliminar transacción"
+                                title={tx.cash_closing_id ? "No se puede eliminar: esta transacción está vinculada a un cierre de caja" : "Eliminar transacción"}
+                                className={tx.cash_closing_id ? "opacity-50 cursor-not-allowed" : ""}
                               />
                             </div>
                           </td>
@@ -543,7 +545,9 @@ export default function TransactionsPage() {
                           </button>
                           <button
                             onClick={() => handleDeleteTransaction(tx.id)}
-                            className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-600 transition-colors"
+                            disabled={!!tx.cash_closing_id}
+                            title={tx.cash_closing_id ? "No se puede eliminar: esta transacción está vinculada a un cierre de caja" : "Eliminar transacción"}
+                            className={`flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-600 transition-colors ${tx.cash_closing_id ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             <Trash2 size={14} />
                             Eliminar
@@ -567,25 +571,27 @@ export default function TransactionsPage() {
       </Section>
 
       {/* Detail / Edit Modal */}
-      {selectedTransaction && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => e.target === e.currentTarget && setSelectedTransaction(null)}
-        >
-          <Card className="w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex-shrink-0">
-              <h2 className="font-semibold text-sm text-white">Detalles de la Transacción</h2>
-              <IconButton
-                icon="close"
-                color="slate"
-                size="sm"
-                onClick={() => setSelectedTransaction(null)}
-                aria-label="Cerrar"
-              />
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+      <Dialog
+        isOpen={!!selectedTransaction}
+        title="Detalles de la Transacción"
+        onClose={() => setSelectedTransaction(null)}
+        maxWidth="lg"
+        footer={
+          <div className="flex justify-end">
+            <Button
+              variant="primary"
+              onClick={handleSaveChanges}
+              disabled={isSaving || !!selectedTransaction?.cash_closing_id}
+              title={selectedTransaction?.cash_closing_id ? "No se puede guardar cambios en una transacción cerrada" : ""}
+              className="whitespace-nowrap"
+            >
+              {isSaving ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        }
+      >
+        {selectedTransaction && (
+              <>
               {/* ID */}
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
@@ -653,13 +659,20 @@ export default function TransactionsPage() {
               </div>
 
               {/* Editable fields */}
+              {selectedTransaction.cash_closing_id && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                  <p className="font-semibold mb-1">⚠ Esta transacción está vinculada a un cierre de caja</p>
+                  <p className="text-xs">No se puede modificar ni eliminar una vez que ha sido cerrada.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-slate-600 mb-1">Método de Pago</label>
                   <select
+                    disabled={!!selectedTransaction.cash_closing_id}
                     value={editForm.paymentMethod}
                     onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as "CASH" | "CARD" | "TRANSFER" })}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-500"
                   >
                     <option value="CASH">Efectivo</option>
                     <option value="CARD">Tarjeta</option>
@@ -669,10 +682,11 @@ export default function TransactionsPage() {
                 <div>
                   <label className="block text-sm font-semibold text-slate-600 mb-1">Fecha / Hora</label>
                   <input
+                    disabled={!!selectedTransaction.cash_closing_id}
                     type="datetime-local"
                     value={editForm.datetime}
                     onChange={(e) => setEditForm({ ...editForm, datetime: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-500"
                   />
                 </div>
               </div>
@@ -683,47 +697,28 @@ export default function TransactionsPage() {
                   <div>
                     <label className="block text-sm font-semibold text-blue-700 mb-1">Monto Recibido</label>
                     <input
+                      disabled={!!selectedTransaction.cash_closing_id}
                       type="number"
                       value={editForm.amount_received}
                       onChange={(e) => setEditForm({ ...editForm, amount_received: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-1.5 border border-blue-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-1.5 border border-blue-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-100 disabled:cursor-not-allowed disabled:text-slate-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-green-700 mb-1">Cambio</label>
                     <input
+                      disabled={!!selectedTransaction.cash_closing_id}
                       type="number"
                       value={editForm.change}
                       onChange={(e) => setEditForm({ ...editForm, change: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-1.5 border border-green-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-1.5 border border-green-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-green-100 disabled:cursor-not-allowed disabled:text-slate-500"
                     />
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Modal footer */}
-            <div className="flex gap-2 px-6 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
-              <Button
-                variant="secondary"
-                onClick={() => setSelectedTransaction(null)}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSaveChanges}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                {isSaving ? "Guardando..." : "Guardar"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+              </>
+        )}
+      </Dialog>
     </Container>
   );
 }

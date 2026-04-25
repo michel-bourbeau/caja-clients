@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { IconButton, PageIcon, SearchInput, DashboardHeader } from "@/components";
+import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
 import { Pencil, Package, Trash2 } from "lucide-react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
@@ -762,21 +762,24 @@ export default function InventoryPage() {
       <Section>
 
       {/* Edit product modal */}
-      {editProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900">Editar Producto</h2>
-              <IconButton
-                icon="close"
-                color="slate"
-                size="sm"
-                onClick={() => { setEditProductModal(null); setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
-                aria-label="Cerrar"
-              />
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <Dialog
+        isOpen={!!editProductModal}
+        title="Editar Producto"
+        onClose={() => { setEditProductModal(null); setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
+        maxWidth="md"
+        footer={
+          <div className="flex justify-end">
+            <Button
+              onClick={handleEditProduct}
+              disabled={editSaving || uploadingEditImage}
+              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+            >
+              {editSaving || uploadingEditImage ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre *</label>
                   <input
@@ -818,7 +821,7 @@ export default function InventoryPage() {
                     ))}
                   </select>
                 </div>
-                {!(editProductModal as any).has_variants && (
+                {editProductModal && !(editProductModal as any).has_variants && (
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Stock actual</label>
                     <input
@@ -830,7 +833,7 @@ export default function InventoryPage() {
                     />
                   </div>
                 )}
-                {!(editProductModal as any).has_variants && (
+                {editProductModal && !(editProductModal as any).has_variants && (
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
                     <input
@@ -855,7 +858,7 @@ export default function InventoryPage() {
               </div>
               
               {/* Variants section */}
-              {(editProductModal as any).has_variants && (editProductModal as any).variants && (editProductModal as any).variants.length > 0 && (
+              {editProductModal && (editProductModal as any).has_variants && (editProductModal as any).variants && (editProductModal as any).variants.length > 0 && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h3 className="text-sm font-semibold text-slate-900 mb-3">Gestionar Formatos</h3>
                   <div className="space-y-2">
@@ -983,7 +986,6 @@ export default function InventoryPage() {
                 />
                 <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
               </div>
-            </div>
             {editImagePreview && (
               <div className="mt-4 flex items-center gap-3">
                 <img
@@ -1002,24 +1004,7 @@ export default function InventoryPage() {
                 </button>
               </div>
             )}
-            <div className="flex gap-2 px-5 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-              <Button
-                onClick={handleEditProduct}
-                disabled={editSaving || uploadingEditImage}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {editSaving || uploadingEditImage ? "Guardando..." : "Guardar cambios"}
-              </Button>
-              <Button
-                onClick={() => { setEditProductModal(null); setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
-                className="bg-slate-200 text-slate-700 hover:bg-slate-300"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Dialog>
 
       {/* Header */}
       <DashboardHeader 
@@ -1033,10 +1018,10 @@ export default function InventoryPage() {
         >
           {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
         </Button>
-        <Button variant="primary" onClick={() => setShowAddCategory(!showAddCategory)}>
+        <Button variant="primary" onClick={() => setShowAddCategory(true)}>
           + Categoría
         </Button>
-        <Button variant="primary" onClick={() => setShowAddProduct(!showAddProduct)}>
+        <Button variant="primary" onClick={() => setShowAddProduct(true)}>
           + Producto
         </Button>
       </DashboardHeader>
@@ -1047,65 +1032,56 @@ export default function InventoryPage() {
         </Alert>
       )}
 
-      {/* Add Category Form */}
-      {showAddCategory && (
-        <Card>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
-            <h2 className="font-semibold text-slate-900 text-base">Nueva Categoría</h2>
-            <button
-              onClick={() => setShowAddCategory(false)}
-              className="p-1 rounded hover:bg-slate-200 text-slate-500 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      {/* Add Category Dialog */}
+      <Dialog
+        isOpen={showAddCategory}
+        title="Nueva Categoría"
+        onClose={() => setShowAddCategory(false)}
+        maxWidth="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setShowAddCategory(false)} className="whitespace-nowrap">Cancelar</Button>
+            <Button variant="primary" onClick={handleAddCategory} className="whitespace-nowrap">Crear</Button>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
-                <input
-                  placeholder="Ej: Electrónica"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
-                <input
-                  placeholder="Descripción opcional"
-                  value={newCategory.description}
-                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <Button variant="primary" onClick={handleAddCategory}>Crear</Button>
-              <Button variant="secondary" onClick={() => setShowAddCategory(false)}>Cancelar</Button>
-            </div>
+        }
+      >
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
+            <input
+              placeholder="Ej: Electrónica"
+              value={newCategory.name}
+              onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
-        </Card>
-      )}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
+            <input
+              placeholder="Descripción opcional"
+              value={newCategory.description}
+              onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </Dialog>
 
-      {/* Add Product Form */}
-      {showAddProduct && (
-        <Card>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
-            <h2 className="font-semibold text-slate-900 text-base">Nuevo Producto</h2>
-            <button
-              onClick={() => setShowAddProduct(false)}
-              className="p-1 rounded hover:bg-slate-200 text-slate-500 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      {/* Add Product Dialog */}
+      <Dialog
+        isOpen={showAddProduct}
+        title="Nuevo Producto"
+        onClose={() => setShowAddProduct(false)}
+        maxWidth="lg"
+        scrollable={true}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="whitespace-nowrap">Cancelar</Button>
+            <Button variant="primary" onClick={handleAddProduct} disabled={uploadingImage} className="whitespace-nowrap">{uploadingImage ? "Subiendo..." : "Agregar"}</Button>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+        }
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre *</label>
                 <input
@@ -1293,17 +1269,7 @@ export default function InventoryPage() {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={handleAddProduct} disabled={uploadingImage}>
-                {uploadingImage ? "Subiendo..." : "Agregar"}
-              </Button>
-              <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }}>
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+      </Dialog>
 
       {/* Reorder mode — grouped by category with ↑↓ buttons */}
       {reorderMode && (

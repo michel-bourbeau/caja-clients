@@ -61,6 +61,7 @@ export interface Transaction {
   currency_paid?: "NIO" | "USD";
   usd_amount_received?: number;
   usd_exchange_rate?: number;
+  cash_closing_id?: string; // ID of the cash closing this transaction is linked to (if any)
 }
 
 // ========== Employees ==========

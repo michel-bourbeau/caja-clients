@@ -14,7 +14,8 @@ import {
   ChevronDown, 
   ChevronUp,
   AlertCircle,
-  Loader
+  Loader,
+  RefreshCw
 } from "lucide-react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -54,7 +55,7 @@ export const Button: React.FC<ButtonProps> = ({
 };
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: "edit" | "stock" | "delete" | "close" | "search" | "plus" | "eye" | "print" | "check" | "chevron-down" | "chevron-up" | "alert" | "loader";
+  icon: "edit" | "stock" | "delete" | "close" | "search" | "plus" | "eye" | "print" | "check" | "chevron-down" | "chevron-up" | "alert" | "loader" | "refresh";
   size?: "sm" | "md" | "lg";
   color?: "slate" | "blue" | "red" | "green" | "amber";
 }
@@ -114,6 +115,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
         return <AlertCircle size={iconSize} />;
       case "loader":
         return <Loader size={iconSize} className="animate-spin" />;
+      case "refresh":
+        return <RefreshCw size={iconSize} className="group-hover:animate-spin" />;
       default:
         return null;
     }

@@ -5,7 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, ButtonGroup, DashboardHeader } from "@/components";
+import { PageIcon, ButtonGroup, DashboardHeader, Dialog, DialogFooter } from "@/components";
 
 const TZ = "America/Managua";
 
@@ -497,71 +497,61 @@ export default function AttendancePage() {
     <Container>
       <Section>
       {/* Edit entry modal */}
-      {editEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl">
-              <h2 className="text-base font-semibold text-white">Editar Registro</h2>
-              <button onClick={() => setEditEntry(null)} className="p-1.5 rounded hover:bg-slate-800 text-slate-400 transition-colors">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="text-sm text-slate-600">
-                <span className="font-semibold text-slate-900">{editEntry.employee_first_name} {editEntry.employee_last_name}</span> — {editForm.date}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Hora entrada</label>
-                  <input
-                    type="time"
-                    value={editForm.checkInTime}
-                    onChange={(e) => setEditForm((f) => ({ ...f, checkInTime: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Hora salida</label>
-                  <input
-                    type="time"
-                    value={editForm.checkOutTime}
-                    onChange={(e) => setEditForm((f) => ({ ...f, checkOutTime: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              {editForm.checkInTime && editForm.checkOutTime && editForm.checkOutTime > editForm.checkInTime && (
-                <Alert variant="success" title="Duración">
-                  {fmtDuration(Math.floor(
-                    (new Date(`2000-01-01T${editForm.checkOutTime}`).getTime() -
-                      new Date(`2000-01-01T${editForm.checkInTime}`).getTime()) / 60000
-                  ))}
-                </Alert>
-              )}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
-                <input
-                  type="text"
-                  value={editForm.notes}
-                  onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="Opcional..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="secondary" onClick={() => setEditEntry(null)} className="flex-1">
-                  Cancelar
-                </Button>
-                <Button variant="primary" onClick={handleEditSave} disabled={editSaving || !editForm.checkInTime} className="flex-1">
-                  {editSaving ? "Guardando..." : "Guardar"}
-                </Button>
-              </div>
-            </div>
+      <Dialog
+        isOpen={!!editEntry}
+        title="Editar Registro"
+        onClose={() => setEditEntry(null)}
+        maxWidth="sm"
+        footer={
+          <div className="flex justify-end">
+            <Button variant="primary" onClick={handleEditSave} disabled={editSaving || !editForm.checkInTime} className="whitespace-nowrap">
+              {editSaving ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="text-sm text-slate-600">
+          <span className="font-semibold text-slate-900">{editEntry?.employee_first_name} {editEntry?.employee_last_name}</span> — {editForm.date}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Hora entrada</label>
+            <input
+              type="time"
+              value={editForm.checkInTime}
+              onChange={(e) => setEditForm((f) => ({ ...f, checkInTime: e.target.value }))}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Hora salida</label>
+            <input
+              type="time"
+              value={editForm.checkOutTime}
+              onChange={(e) => setEditForm((f) => ({ ...f, checkOutTime: e.target.value }))}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
-      )}
+        {editForm.checkInTime && editForm.checkOutTime && editForm.checkOutTime > editForm.checkInTime && (
+          <Alert variant="success" title="Duración">
+            {fmtDuration(Math.floor(
+              (new Date(`2000-01-01T${editForm.checkOutTime}`).getTime() -
+                new Date(`2000-01-01T${editForm.checkInTime}`).getTime()) / 60000
+            ))}
+          </Alert>
+        )}
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
+          <input
+            type="text"
+            value={editForm.notes}
+            onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+            placeholder="Opcional..."
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </Dialog>
 
       {/* Header */}
       <DashboardHeader 

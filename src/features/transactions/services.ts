@@ -38,6 +38,7 @@ export const TransactionService = {
           status: tx.status || "COMPLETED",
           amount_received: tx.amount_received || 0,
           change: tx.change || 0,
+          cash_closing_id: tx.cash_closing_id || undefined,
         }))
       : [];
   },

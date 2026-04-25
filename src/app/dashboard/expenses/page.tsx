@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { Expense, Supplier, ExpenseCategory } from "@/lib/types";
+import { Dialog, DialogFooter } from "@/components";
 
 export default function ExpensesPage() {
   const { user, hasPermission } = useAuth();
@@ -739,57 +740,45 @@ export default function ExpensesPage() {
       </div>
 
       {/* Expense Form Modal */}
-      {showExpenseForm && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowExpenseForm(false);
-              setEditingExpense(null);
-              resetExpenseForm();
+      <Dialog
+        isOpen={showExpenseForm}
+        title={editingExpense ? "Editar Gasto" : "Registrar Gasto"}
+        onClose={() => {
+          setShowExpenseForm(false);
+          setEditingExpense(null);
+          resetExpenseForm();
+        }}
+        maxWidth="md"
+        footer={
+          <DialogFooter
+            onSave={handleSaveExpense}
+            saveLabel="Guardar"
+          />
+        }
+      >
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Proveedor
+          </label>
+          <select
+            value={formData.supplier_id}
+            onChange={(e) =>
+              setFormData({ ...formData, supplier_id: e.target.value })
             }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-2">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingExpense ? "Editar Gasto" : "Registrar Gasto"}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowExpenseForm(false);
-                  setEditingExpense(null);
-                  resetExpenseForm();
-                }}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          >
+            <option value="">Sin proveedor</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Proveedor
-              </label>
-              <select
-                value={formData.supplier_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, supplier_id: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              >
-                <option value="">Sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Monto *</label>
-              <input
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Monto *</label>
+          <input
                 type="number"
                 step="0.01"
                 value={formData.amount}
@@ -935,237 +924,155 @@ export default function ExpensesPage() {
                 rows={2}
               />
             </div>
-
-            <div className="flex gap-2 pt-4">
-              <button
-                onClick={() => {
-                  setShowExpenseForm(false);
-                  resetExpenseForm();
-                }}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveExpense}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Dialog>
 
       {/* Supplier Form Modal */}
-      {showSupplierForm && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowSupplierForm(false);
-              setSupplierForm({ name: "", description: "", contact: "" });
+      <Dialog
+        isOpen={showSupplierForm}
+        title="Crear Proveedor"
+        onClose={() => {
+          setShowSupplierForm(false);
+          setSupplierForm({ name: "", description: "", contact: "" });
+        }}
+        maxWidth="md"
+        footer={
+          <DialogFooter
+            onSave={handleCreateSupplier}
+            saveLabel="Crear"
+          />
+        }
+      >
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Nombre *
+          </label>
+          <input
+            type="text"
+            value={supplierForm.name}
+            onChange={(e) =>
+              setSupplierForm({ ...supplierForm, name: e.target.value })
             }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-2">
-              <h2 className="text-xl font-bold text-gray-900">Crear Proveedor</h2>
-              <button
-                onClick={() => {
-                  setShowSupplierForm(false);
-                  setSupplierForm({ name: "", description: "", contact: "" });
-                }}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Nombre *
-              </label>
-              <input
-                type="text"
-                value={supplierForm.name}
-                onChange={(e) =>
-                  setSupplierForm({ ...supplierForm, name: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Descripción
-              </label>
-              <input
-                type="text"
-                value={supplierForm.description}
-                onChange={(e) =>
-                  setSupplierForm({
-                    ...supplierForm,
-                    description: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Contacto
-              </label>
-              <input
-                type="text"
-                value={supplierForm.contact}
-                onChange={(e) =>
-                  setSupplierForm({ ...supplierForm, contact: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <button
-                onClick={() => {
-                  setShowSupplierForm(false);
-                  setSupplierForm({ name: "", description: "", contact: "" });
-                }}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCreateSupplier}
-                className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-semibold rounded-lg"
-              >
-                Crear
-              </button>
-            </div>
-          </div>
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
         </div>
-      )}
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Descripción
+          </label>
+          <input
+            type="text"
+            value={supplierForm.description}
+            onChange={(e) =>
+              setSupplierForm({
+                ...supplierForm,
+                description: e.target.value,
+              })
+            }
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Contacto
+          </label>
+          <input
+            type="text"
+            value={supplierForm.contact}
+            onChange={(e) =>
+              setSupplierForm({ ...supplierForm, contact: e.target.value })
+            }
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
+        </div>
+      </Dialog>
 
       {/* Category Management Modal */}
-      {showCategoryForm && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowCategoryForm(false);
-              setEditingCategory(null);
-              setCategoryForm({ name: "", description: "" });
+      <Dialog
+        isOpen={showCategoryForm}
+        title={editingCategory ? "Editar Categoría" : "Crear Categoría"}
+        onClose={() => {
+          setShowCategoryForm(false);
+          setEditingCategory(null);
+          setCategoryForm({ name: "", description: "" });
+        }}
+        maxWidth="md"
+        footer={
+          <DialogFooter
+            onSave={handleSaveCategory}
+            saveLabel={editingCategory ? "Actualizar" : "Crear"}
+          />
+        }
+      >
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Nombre *
+          </label>
+          <input
+            type="text"
+            value={categoryForm.name}
+            onChange={(e) =>
+              setCategoryForm({ ...categoryForm, name: e.target.value })
             }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-2">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingCategory ? "Editar Categoría" : "Crear Categoría"}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowCategoryForm(false);
-                  setEditingCategory(null);
-                  setCategoryForm({ name: "", description: "" });
-                }}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Nombre *
-              </label>
-              <input
-                type="text"
-                value={categoryForm.name}
-                onChange={(e) =>
-                  setCategoryForm({ ...categoryForm, name: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Descripción
-              </label>
-              <input
-                type="text"
-                value={categoryForm.description}
-                onChange={(e) =>
-                  setCategoryForm({ ...categoryForm, description: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <button
-                onClick={() => {
-                  setShowCategoryForm(false);
-                  setEditingCategory(null);
-                  setCategoryForm({ name: "", description: "" });
-                }}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-gray-700 font-semibold hover:bg-slate-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveCategory}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg"
-              >
-                {editingCategory ? "Actualizar" : "Crear"}
-              </button>
-            </div>
-
-            {/* Categories List */}
-            {!editingCategory && (
-              <div className="mt-6 pt-6 border-t border-slate-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Categorías Existentes</h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {categories.length === 0 ? (
-                    <p className="text-gray-700">No hay categorías creadas</p>
-                  ) : (
-                    categories.map((cat) => (
-                      <div
-                        key={cat.id}
-                        className="flex justify-between items-center p-3 bg-slate-50 rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900">{cat.name}</p>
-                          {cat.description && (
-                            <p className="text-sm text-gray-700">{cat.description}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditCategory(cat)}
-                            className="px-2 py-1 bg-blue-100 hover:bg-blue-600 text-blue-600 hover:text-white text-xs rounded transition-colors"
-                          >
-                            ✎
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCategory(cat.id)}
-                            className="px-2 py-1 bg-red-100 hover:bg-red-600 text-red-600 hover:text-white text-xs rounded transition-colors"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
         </div>
-      )}
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Descripción
+          </label>
+          <input
+            type="text"
+            value={categoryForm.description}
+            onChange={(e) =>
+              setCategoryForm({ ...categoryForm, description: e.target.value })
+            }
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
+        </div>
+
+        {/* Categories List */}
+        {!editingCategory && (
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Categorías Existentes</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {categories.length === 0 ? (
+                <p className="text-gray-700">No hay categorías creadas</p>
+              ) : (
+                categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex justify-between items-center p-3 bg-slate-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">{cat.name}</p>
+                      {cat.description && (
+                        <p className="text-sm text-gray-700">{cat.description}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditCategory(cat)}
+                        className="px-2 py-1 bg-blue-100 hover:bg-blue-600 text-blue-600 hover:text-white text-xs rounded transition-colors"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="px-2 py-1 bg-red-100 hover:bg-red-600 text-red-600 hover:text-white text-xs rounded transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

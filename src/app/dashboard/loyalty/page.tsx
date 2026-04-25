@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button as UIButton } from "@/components/ui";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader } from "@/components";
+import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter } from "@/components";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { LoyalCustomer } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -265,117 +265,97 @@ export default function LoyaltyPage() {
           </div>
 
           {/* Add Customer Modal */}
-          {showAddModal && (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-900 rounded-t-lg flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-white">Agregar Cliente Fiel</h2>
+          <Dialog
+            isOpen={showAddModal}
+            title="Agregar Cliente Fiel"
+            onClose={() => setShowAddModal(false)}
+            maxWidth="md"
+            footer={
+              <div className="flex justify-end">
+                <Button variant="primary" type="submit" form="addCustomerForm" className="whitespace-nowrap">
+                  Crear Cliente
+                </Button>
+              </div>
+            }
+          >
+            <form id="addCustomerForm" onSubmit={handleAddCustomer} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Número de Tarjeta</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={formData.card_number}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 text-slate-900 font-semibold"
+                  />
                   <button
-                    onClick={() => setShowAddModal(false)}
-                    className="close-button"
+                    type="button"
+                    onClick={async () => {
+                      const newCardNumber = await generateUniqueCardNumber();
+                      if (newCardNumber) {
+                        setFormData({ ...formData, card_number: newCardNumber });
+                      }
+                    }}
+                    className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition"
+                    title="Generar nuevo número"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    🔄
                   </button>
                 </div>
-
-                <form onSubmit={handleAddCustomer} className="px-6 py-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Número de Tarjeta</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={formData.card_number}
-                        className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 text-slate-900 font-semibold"
-                      />
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const newCardNumber = await generateUniqueCardNumber();
-                          if (newCardNumber) {
-                            setFormData({ ...formData, card_number: newCardNumber });
-                          }
-                        }}
-                        className="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition"
-                        title="Generar nuevo número"
-                      >
-                        🔄
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Nombre *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Juan Pérez"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Teléfono</label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="+505 8765 4321"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-800 mb-1.5">Correo</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="juan@ejemplo.com"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-4">
-                    <Button variant="ghost" onClick={() => setShowAddModal(false)} className="flex-1">
-                      Cancelar
-                    </Button>
-                    <Button variant="primary" type="submit" className="flex-1">
-                      Crear Cliente
-                    </Button>
-                  </div>
-                </form>
               </div>
-            </div>
-          )}
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Nombre *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Juan Pérez"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Teléfono</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="+505 8765 4321"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Correo</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="juan@ejemplo.com"
+                />
+              </div>
+            </form>
+          </Dialog>
 
           {/* Delete Confirmation Modal */}
-          {showDeleteConfirm && (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-lg shadow-lg max-w-sm w-full">
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-900 rounded-t-lg">
-                  <h2 className="text-lg font-semibold text-white">Confirmar eliminación</h2>
-                </div>
-
-                <div className="px-6 py-4">
-                  <p className="text-slate-700">¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.</p>
-                </div>
-
-                <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
-                  <Button variant="ghost" onClick={() => setShowDeleteConfirm(null)} className="flex-1">
-                    Cancelar
-                  </Button>
-                  <Button variant="danger" onClick={() => handleDelete(showDeleteConfirm)} className="flex-1">
-                    Eliminar
-                  </Button>
-                </div>
+          <Dialog
+            isOpen={!!showDeleteConfirm}
+            title="Confirmar eliminación"
+            onClose={() => setShowDeleteConfirm(null)}
+            maxWidth="sm"
+            footer={
+              <div className="flex justify-end">
+                <Button variant="danger" onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)} className="whitespace-nowrap">
+                  Eliminar
+                </Button>
               </div>
-            </div>
-          )}
+            }
+          >
+            <p className="text-slate-700">¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.</p>
+          </Dialog>
         </Section>
       </Container>
     </FeatureGuard>

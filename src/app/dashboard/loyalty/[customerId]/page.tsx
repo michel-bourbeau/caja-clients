@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
+import { Dialog, DialogFooter } from "@/components";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { LoyalCustomerStats, LoyaltyReward, LoyaltyTransaction } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -502,57 +503,49 @@ export default function CustomerDetailsPage() {
       </div>
 
       {/* Award Reward Modal */}
-      {showRewardModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-sm w-full">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Dar Recompensa</h2>
-              <button
-                onClick={() => setShowRewardModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="px-6 py-4 space-y-4">
-              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <p className="text-sm text-purple-700">
-                  <span className="font-semibold">{customer?.name}</span> ha gastado{" "}
-                  <span className="font-semibold">{fmt(customer?.total_accumulated || 0)}</span>
-                </p>
-                <p className="text-sm text-purple-700 mt-2">
-                  {loyaltySettings && (
-                    <>
-                      Recompensa: <span className="font-semibold">{loyaltySettings.loyalty_reward_value}</span>{" "}
-                      {loyaltySettings.loyalty_reward_type === "DISCOUNT_PERCENT" ? "%" : "C$"}
-                    </>
-                  )}
-                </p>
-              </div>
-
-              <p className="text-sm text-gray-600">
-                ¿Deseas dar una recompensa a este cliente? El contador reiniciará desde cero después de registrar esta recompensa.
-              </p>
-            </div>
-
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <button
-                onClick={() => setShowRewardModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAwardReward}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
-              >
-                Dar Recompensa
-              </button>
-            </div>
+      <Dialog
+        isOpen={showRewardModal}
+        title="Dar Recompensa"
+        onClose={() => setShowRewardModal(false)}
+        maxWidth="sm"
+        footer={
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowRewardModal(false)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAwardReward}
+              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
+            >
+              Dar Recompensa
+            </Button>
           </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+            <p className="text-sm text-purple-700">
+              <span className="font-semibold">{customer?.name}</span> ha gastado{" "}
+              <span className="font-semibold">{fmt(customer?.total_accumulated || 0)}</span>
+            </p>
+            <p className="text-sm text-purple-700 mt-2">
+              {loyaltySettings && (
+                <>
+                  Recompensa: <span className="font-semibold">{loyaltySettings.loyalty_reward_value}</span>{" "}
+                  {loyaltySettings.loyalty_reward_type === "DISCOUNT_PERCENT" ? "%" : "C$"}
+                </>
+              )}
+            </p>
+          </div>
+
+          <p className="text-sm text-gray-600">
+            ¿Deseas dar una recompensa a este cliente? El contador reiniciará desde cero después de registrar esta recompensa.
+          </p>
         </div>
-      )}
+      </Dialog>
       </div>
     </FeatureGuard>
   );

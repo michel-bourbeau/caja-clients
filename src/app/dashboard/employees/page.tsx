@@ -5,7 +5,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 import { Button, Container, Section, Alert, Card } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader } from "@/components";
+import { PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
 
 interface Employee {
   id: string;
@@ -1152,133 +1152,119 @@ export default function EmployeesPage() {
             </div>
 
             {/* ── Bonus Payment Modal ── */}
-            {showBonusPayModal && fichaAguinaldoData && (
-              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">Pagar Aguinaldo</h3>
-                    <button onClick={() => setShowBonusPayModal(false)} className="text-slate-400 hover:text-slate-600">
-                      ✕
-                    </button>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-white font-semibold mb-1">Monto a pagar</p>
-                    <p className="text-2xl font-bold text-white">{fmt(fichaAguinaldoData.calculatedBonus)}</p>
-                    <p className="text-xs text-white mt-1">Ciclo {fichaAguinaldoData.cycleYear}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Monto pagado</label>
-                    <input
-                      type="number"
-                      value={bonusPayForm.paidAmount}
-                      onChange={(e) => setBonusPayForm((f) => ({ ...f, paidAmount: e.target.value }))}
-                      placeholder={String(fichaAguinaldoData.calculatedBonus)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
-                    <input
-                      type="text"
-                      value={bonusPayForm.notes}
-                      onChange={(e) => setBonusPayForm((f) => ({ ...f, notes: e.target.value }))}
-                      placeholder="Ej: Transferencia bancaria"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowBonusPayModal(false)}
-                      className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={saveBonusPayment}
-                      disabled={bonusPaySaving || !bonusPayForm.paidAmount}
-                      className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg text-white font-semibold"
-                    >
-                      {bonusPaySaving ? "Guardando..." : "✓ Confirmar"}
-                    </button>
-                  </div>
+            <Dialog
+              isOpen={showBonusPayModal && !!fichaAguinaldoData}
+              title="Pagar Aguinaldo"
+              onClose={() => setShowBonusPayModal(false)}
+              maxWidth="sm"
+              footer={
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveBonusPayment}
+                    disabled={bonusPaySaving || !bonusPayForm.paidAmount}
+                    className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg text-white font-semibold whitespace-nowrap"
+                  >
+                    {bonusPaySaving ? "Guardando..." : "✓ Confirmar"}
+                  </button>
+                </div>
+              }
+            >
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-white font-semibold mb-1">Monto a pagar</p>
+                  <p className="text-2xl font-bold text-white">{fichaAguinaldoData ? fmt(fichaAguinaldoData.calculatedBonus) : 0}</p>
+                  <p className="text-xs text-white mt-1">Ciclo {fichaAguinaldoData?.cycleYear}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Monto pagado</label>
+                  <input
+                    type="number"
+                    value={bonusPayForm.paidAmount}
+                    onChange={(e) => setBonusPayForm((f) => ({ ...f, paidAmount: e.target.value }))}
+                    placeholder={fichaAguinaldoData ? String(fichaAguinaldoData.calculatedBonus) : "0"}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
+                  <input
+                    type="text"
+                    value={bonusPayForm.notes}
+                    onChange={(e) => setBonusPayForm((f) => ({ ...f, notes: e.target.value }))}
+                    placeholder="Ej: Transferencia bancaria"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
               </div>
-            )}
+            </Dialog>
 
             {/* ── Vacation Payment Modal ── */}
-            {showVacationPayModal && fichaVacationData && (
-              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">Registrar Vacaciones</h3>
-                    <button onClick={() => setShowVacationPayModal(false)} className="text-slate-400 hover:text-slate-600">
-                      ✕
-                    </button>
-                  </div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <p className="text-xs text-amber-600 font-semibold mb-1">Días disponibles</p>
-                    <p className="text-2xl font-bold text-amber-900">{fichaVacationData.daysRemaining} días</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Días</label>
-                      <input
-                        type="number"
-                        step="0.5"
-                        value={vacationPayForm.daysUsed}
-                        onChange={(e) => setVacationPayForm((f) => ({ ...f, daysUsed: e.target.value }))}
-                        placeholder="0"
-                        max={fichaVacationData.daysRemaining}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>
-                      <input
-                        type="date"
-                        value={vacationPayForm.startDate}
-                        onChange={(e) => setVacationPayForm((f) => ({ ...f, startDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+            <Dialog
+              isOpen={showVacationPayModal && !!fichaVacationData}
+              title="Registrar Vacaciones"
+              onClose={() => setShowVacationPayModal(false)}
+              maxWidth="sm"
+              footer={
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveVacationPayment}
+                    disabled={vacationPaySaving || !vacationPayForm.daysUsed || !vacationPayForm.startDate || !vacationPayForm.endDate}
+                    className="py-2 px-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-white font-semibold whitespace-nowrap"
+                  >
+                    {vacationPaySaving ? "Guardando..." : "✓ Guardar"}
+                  </button>
+                </div>
+              }
+            >
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-xs text-amber-600 font-semibold mb-1">Días disponibles</p>
+                  <p className="text-2xl font-bold text-amber-900">{fichaVacationData ? fichaVacationData.daysRemaining : 0} días</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Días</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={vacationPayForm.daysUsed}
+                      onChange={(e) => setVacationPayForm((f) => ({ ...f, daysUsed: e.target.value }))}
+                      placeholder="0"
+                      max={fichaVacationData?.daysRemaining}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hasta</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>
                     <input
                       type="date"
-                      value={vacationPayForm.endDate}
-                      onChange={(e) => setVacationPayForm((f) => ({ ...f, endDate: e.target.value }))}
+                      value={vacationPayForm.startDate}
+                      onChange={(e) => setVacationPayForm((f) => ({ ...f, startDate: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
-                    <input
-                      type="text"
-                      value={vacationPayForm.notes}
-                      onChange={(e) => setVacationPayForm((f) => ({ ...f, notes: e.target.value }))}
-                      placeholder="Ej: Aprobado por gerente"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowVacationPayModal(false)}
-                      className="flex-1 py-2 border border-slate-300 rounded-lg text-slate-700 font-semibold hover:bg-slate-50"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={saveVacationPayment}
-                      disabled={vacationPaySaving || !vacationPayForm.daysUsed || !vacationPayForm.startDate || !vacationPayForm.endDate}
-                      className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-white font-semibold"
-                    >
-                      {vacationPaySaving ? "Guardando..." : "✓ Guardar"}
-                    </button>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hasta</label>
+                  <input
+                    type="date"
+                    value={vacationPayForm.endDate}
+                    onChange={(e) => setVacationPayForm((f) => ({ ...f, endDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
+                  <input
+                    type="text"
+                    value={vacationPayForm.notes}
+                    onChange={(e) => setVacationPayForm((f) => ({ ...f, notes: e.target.value }))}
+                    placeholder="Ej: Aprobado por gerente"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
-            )}
+            </Dialog>
           </div>
         </div>
       )}
