@@ -143,6 +143,14 @@ export default function InventoryPage() {
     fetchData();
   }, [tenantId]);
 
+  // Auto-clear messages after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(""), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   const fetchData = useCallback(async () => {
     if (!tenantId) return;
     try {
