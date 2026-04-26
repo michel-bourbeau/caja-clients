@@ -11,6 +11,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 
+type PeriodType = "WEEK" | "MONTH" | "YEAR";
+
 interface SalesData {
   summary: {
     totalSales: number;
@@ -28,6 +30,11 @@ interface SalesData {
     tax: number;
     transactions: number;
     payment: Record<string, number>;
+  }>;
+  byHour: Array<{
+    hour: number;
+    sales: number;
+    transactions: number;
   }>;
 }
 
@@ -62,18 +69,79 @@ export default function ReportsPage() {
   const tenantId = useTenantId();
   const { user, hasPermission } = useAuth();
 
-  const [fromDate, setFromDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30); // Last 30 days
-    return toNicaraguaDateString(d);
-  });
-  const [toDate, setToDate] = useState(toNicaraguaDateString(new Date()));
+  const [periodType, setPeriodType] = useState<PeriodType>("MONTH");
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const [salesData, setSalesData] = useState<SalesData | null>(null);
   const [productData, setProductData] = useState<ProductData | null>(null);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Calculate date range based on period type
+  const getDateRange = (date: Date, type: PeriodType): { from: string; to: string } => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+
+    if (type === "WEEK") {
+      const d = new Date(year, month, day);
+      const dayOfWeek = d.getDay();
+      const diff = d.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const startDate = new Date(year, month, diff);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 6);
+      return {
+        from: toNicaraguaDateString(startDate),
+        to: toNicaraguaDateString(endDate),
+      };
+    } else if (type === "MONTH") {
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+      return {
+        from: toNicaraguaDateString(startDate),
+        to: toNicaraguaDateString(endDate),
+      };
+    } else {
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(year, 11, 31);
+      return {
+        from: toNicaraguaDateString(startDate),
+        to: toNicaraguaDateString(endDate),
+      };
+    }
+  };
+
+  const dateRange = getDateRange(currentDate, periodType);
+
+  const navigatePeriod = (direction: -1 | 1) => {
+    const newDate = new Date(currentDate);
+    if (periodType === "WEEK") {
+      newDate.setDate(newDate.getDate() + direction * 7);
+    } else if (periodType === "MONTH") {
+      newDate.setMonth(newDate.getMonth() + direction);
+    } else {
+      newDate.setFullYear(newDate.getFullYear() + direction);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const formatPeriodLabel = (): string => {
+    const year = currentDate.getFullYear();
+
+    if (periodType === "WEEK") {
+      const range = getDateRange(currentDate, "WEEK");
+      const [y1, m1, d1] = range.from.split("-").map(Number);
+      const [y2, m2, d2] = range.to.split("-").map(Number);
+      const startDate = new Date(y1, m1 - 1, d1);
+      const endDate = new Date(y2, m2 - 1, d2);
+      return `${startDate.toLocaleDateString("es-NI", { day: "numeric", month: "short" })} - ${endDate.toLocaleDateString("es-NI", { day: "numeric", month: "short", year: "numeric" })}`;
+    } else if (periodType === "MONTH") {
+      return currentDate.toLocaleDateString("es-NI", { month: "long", year: "numeric" });
+    } else {
+      return year.toString();
+    }
+  };
 
   const loadReports = async () => {
     if (!tenantId || !hasPermission("reports.view")) return;
@@ -84,13 +152,13 @@ export default function ReportsPage() {
     try {
       const [summaryRes, productRes, paymentRes] = await Promise.all([
         fetch(
-          `/api/tenants/${tenantId}/reports?type=SUMMARY&fromDate=${fromDate}&toDate=${toDate}`
+          `/api/tenants/${tenantId}/reports?type=SUMMARY&fromDate=${dateRange.from}&toDate=${dateRange.to}`
         ),
         fetch(
-          `/api/tenants/${tenantId}/reports?type=PRODUCT&fromDate=${fromDate}&toDate=${toDate}`
+          `/api/tenants/${tenantId}/reports?type=PRODUCT&fromDate=${dateRange.from}&toDate=${dateRange.to}`
         ),
         fetch(
-          `/api/tenants/${tenantId}/reports?type=PAYMENT&fromDate=${fromDate}&toDate=${toDate}`
+          `/api/tenants/${tenantId}/reports?type=PAYMENT&fromDate=${dateRange.from}&toDate=${dateRange.to}`
         ),
       ]);
 
@@ -116,7 +184,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadReports();
-  }, [tenantId, fromDate, toDate]);
+  }, [tenantId, currentDate, periodType]);
 
   if (!hasPermission("reports.view")) {
     return (
@@ -135,30 +203,50 @@ export default function ReportsPage() {
           subtitle="Análisis de desempeño y tendencias"
         />
 
-        {/* Date Range Filter */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 flex flex-wrap gap-4 items-end mb-6">
-          <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">Desde</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+        {/* Period Selector */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-6">
+          <div className="flex flex-wrap gap-4 items-center">
+            {/* Period Buttons */}
+            <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
+              {(["WEEK", "MONTH", "YEAR"] as PeriodType[]).map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setPeriodType(period)}
+                  className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                    periodType === period
+                      ? "bg-blue-600 text-white"
+                      : "bg-transparent text-slate-700 hover:bg-slate-300"
+                  }`}
+                >
+                  {period === "WEEK" ? "Semana" : period === "MONTH" ? "Mes" : "Año"}
+                </button>
+              ))}
+            </div>
+
+            {/* Period Navigation */}
+            <div className="flex gap-2 items-center">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigatePeriod(-1)}
+                className="px-2 py-1 text-xs"
+              >
+                ← Anterior
+              </Button>
+              <span className="text-sm font-semibold text-slate-900 min-w-40 text-center capitalize">
+                {formatPeriodLabel()}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigatePeriod(1)}
+                className="px-2 py-1 text-xs"
+                disabled={periodType === "YEAR" && currentDate.getFullYear() === new Date().getFullYear()}
+              >
+                Siguiente →
+              </Button>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-800 mb-1.5">Hasta</label>
-            <input
-              type="date"
-              value={toDate}
-              max={toNicaraguaDateString(new Date())}
-              onChange={(e) => setToDate(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <Button variant="primary" onClick={loadReports} disabled={loading} size="sm">
-            {loading ? "Cargando..." : "Actualizar"}
-          </Button>
         </div>
 
         {error && (
@@ -194,6 +282,47 @@ export default function ReportsPage() {
               <p className="text-sm text-purple-700 font-semibold mb-1">Mejor Hora</p>
               <p className="text-3xl font-bold text-purple-900">{String(salesData.summary.bestHour).padStart(2, "0")}:00</p>
               <p className="text-xs text-purple-600 mt-2">{salesData.summary.bestHourCount} transacciones</p>
+            </div>
+          </div>
+        )}
+
+        {/* Sales by Hour Chart */}
+        {salesData && salesData.byHour && salesData.byHour.length > 0 && (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Ventas por Hora</h2>
+            
+            {/* Desktop Chart */}
+            <div className="hidden sm:block">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={salesData.byHour}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="hour"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `${String(value).padStart(2, "0")}:00`}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, "Ventas"]}
+                    labelFormatter={(label) => `${String(label).padStart(2, "0")}:00`}
+                  />
+                  <Legend />
+                  <Bar dataKey="sales" fill="#3B82F6" name="Ventas" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Mobile List */}
+            <div className="sm:hidden space-y-2">
+              {salesData.byHour.filter((h: any) => h.sales > 0).map((hour: any) => (
+                <div key={hour.hour} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <div>
+                    <p className="font-medium text-slate-900">{String(hour.hour).padStart(2, "0")}:00</p>
+                    <p className="text-xs text-slate-600">{hour.transactions} transacciones</p>
+                  </div>
+                  <p className="font-bold text-blue-900">C$ {hour.sales.toFixed(2)}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -328,7 +457,7 @@ export default function ReportsPage() {
                   {/* Mobile and Desktop List */}
                   <div className="sm:hidden space-y-2">
                     {productData.topByRevenue.slice(0, 5).map((prod, i) => (
-                      <div key={prod.productId} className="flex justify-between items-start p-3 bg-slate-50 rounded-lg border border-slate-200">
+                      <div key={`revenue-${prod.productId}-${i}`} className="flex justify-between items-start p-3 bg-slate-50 rounded-lg border border-slate-200">
                         <div className="flex-1">
                           <p className="font-medium text-slate-900 text-sm">#{i + 1} {prod.name}</p>
                           <p className="text-xs text-slate-600 mt-0.5">{prod.quantity} unidades</p>
@@ -384,7 +513,7 @@ export default function ReportsPage() {
                 {/* Mobile Cards */}
                 <div className="sm:hidden space-y-2">
                   {productData.topByQuantity.map((prod, i) => (
-                    <div key={prod.productId} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div key={`quantity-${prod.productId}-${i}`} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1">
                           <p className="font-medium text-slate-900 text-sm">#{i + 1}</p>

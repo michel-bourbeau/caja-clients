@@ -14,6 +14,7 @@ interface Employee {
   first_name: string;
   last_name: string;
   status: "ACTIVE" | "INACTIVE";
+  is_system_user?: boolean;
 }
 
 interface TimeEntry {

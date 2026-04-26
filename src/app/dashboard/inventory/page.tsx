@@ -1072,7 +1072,7 @@ export default function InventoryPage() {
         isOpen={showAddProduct}
         title="Nuevo Producto"
         onClose={() => setShowAddProduct(false)}
-        maxWidth="3xl"
+        maxWidth="lg"
         scrollable={true}
         footer={
           <div className="flex justify-end gap-2">

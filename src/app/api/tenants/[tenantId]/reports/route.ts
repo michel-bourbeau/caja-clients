@@ -87,6 +87,7 @@ function generateSummarySales(
   let totalTax = 0;
   let bestHour = { hour: 0, count: 0 };
   const hourCounts = new Map<number, number>();
+  const hourSales = new Map<number, number>();
 
   txns.forEach((tx) => {
     const date = new Date(tx.created_at);
@@ -100,6 +101,7 @@ function generateSummarySales(
 
     // Track hourly distribution
     hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+    hourSales.set(hour, (hourSales.get(hour) || 0) + Number(tx.total));
     if ((hourCounts.get(hour) || 0) > bestHour.count) {
       bestHour = { hour, count: hourCounts.get(hour)! };
     }
@@ -128,6 +130,16 @@ function generateSummarySales(
     a.date.localeCompare(b.date)
   );
 
+  // Build hourly data (0-23)
+  const byHour = [];
+  for (let hour = 0; hour < 24; hour++) {
+    byHour.push({
+      hour,
+      sales: hourSales.get(hour) || 0,
+      transactions: hourCounts.get(hour) || 0,
+    });
+  }
+
   return {
     summary: {
       totalSales,
@@ -139,6 +151,7 @@ function generateSummarySales(
       bestHourCount: bestHour.count,
     },
     byDay,
+    byHour,
   };
 }
 
@@ -182,7 +195,7 @@ function generateProductReport(txns: any[]) {
       }
       
       prod.quantity += item.quantity || 0;
-      prod.revenue += item.total || 0;
+      prod.revenue += (item.quantity || 0) * (Number(item.price) || 0);
       prod.count += 1;
     });
   });
