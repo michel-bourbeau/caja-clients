@@ -60,11 +60,24 @@ export async function GET(
     const { tenantId } = await params;
     const supabaseAdmin = getSupabaseAdmin();
 
-    const { data, error } = await supabaseAdmin
+    // Get optional date filters from query params
+    const url = new URL(request.url);
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+
+    let query = supabaseAdmin
       .from("transactions")
       .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+      .eq("tenant_id", tenantId);
+
+    // Apply date filters if provided
+    if (from && to) {
+      query = query
+        .gte("created_at", `${from}T00:00:00Z`)
+        .lte("created_at", `${to}T23:59:59Z`);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) throw error;
     return NextResponse.json(data || []);

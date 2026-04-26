@@ -1,26 +1,16 @@
 import { Transaction, CartItem } from "@/lib/types";
 
 export const TransactionService = {
-  async fetchTransactions(tenantId: string): Promise<Transaction[]> {
-    const response = await fetch(`/api/tenants/${tenantId}/transactions`);
+  async fetchTransactions(tenantId: string, from?: string, to?: string): Promise<Transaction[]> {
+    let url = `/api/tenants/${tenantId}/transactions`;
+    if (from && to) {
+      url += `?from=${from}&to=${to}`;
+    }
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch transactions: ${response.statusText}`);
     }
     const data = await response.json();
-    
-    // Get admin name for Unknown transactions
-    let adminName = "Admin";
-    try {
-      const adminResponse = await fetch(`/api/tenants/${tenantId}/admin`);
-      if (adminResponse.ok) {
-        const adminData = await adminResponse.json();
-        if (adminData.first_name && adminData.last_name) {
-          adminName = `${adminData.first_name} ${adminData.last_name}`.trim();
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch admin name:", error);
-    }
     
     // Map API response to Transaction type
     return Array.isArray(data)
@@ -34,7 +24,7 @@ export const TransactionService = {
           paymentMethod: tx.payment_method || "CASH",
           timestamp: tx.created_at ? new Date(tx.created_at) : new Date(),
           cashierId: tx.cashier_id || "unknown",
-          cashierName: tx.cashier_name && tx.cashier_name !== "Unknown" ? tx.cashier_name : adminName,
+          cashierName: tx.cashier_name || "Admin",
           status: tx.status || "COMPLETED",
           amount_received: tx.amount_received || 0,
           change: tx.change || 0,

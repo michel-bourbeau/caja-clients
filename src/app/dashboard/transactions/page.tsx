@@ -28,7 +28,7 @@ export default function TransactionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTaxModuleEnabled, setIsTaxModuleEnabled] = useState(false);
-  const [periodType, setPeriodType] = useState<PeriodType>("MONTH");
+  const [periodType, setPeriodType] = useState<PeriodType>("WEEK");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filters, setFilters] = useState({
     paymentMethod: "ALL",
@@ -112,8 +112,21 @@ export default function TransactionsPage() {
   };
 
   useEffect(() => {
-    loadData();
+    if (tenantId) {
+      // Load products once
+      fetch(`/api/tenants/${tenantId}/products`)
+        .then((res) => res.json())
+        .then((data) => setProducts(data))
+        .catch((err) => console.error("Failed to load products:", err));
+    }
   }, [tenantId]);
+
+  // Load transactions when date range changes
+  useEffect(() => {
+    if (tenantId) {
+      loadData();
+    }
+  }, [tenantId, currentDate, periodType]);
 
   // Update tax module status when features load
   useEffect(() => {
@@ -131,12 +144,13 @@ export default function TransactionsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      const [transactionsData, productsData] = await Promise.all([
-        TransactionService.fetchTransactions(tenantId),
-        fetch(`/api/tenants/${tenantId}/products`).then((res) => res.json()),
-      ]);
+      // Fetch transactions for the current date range
+      const transactionsData = await TransactionService.fetchTransactions(
+        tenantId,
+        dateRange.from,
+        dateRange.to
+      );
       setTransactions(transactionsData);
-      setProducts(productsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
