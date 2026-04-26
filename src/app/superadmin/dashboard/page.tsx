@@ -38,11 +38,11 @@ const PLAN_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 // Precios mensuales en NIO (Nicaragua)
-const PLAN_PRICES: Record<string, { min: number; max: number }> = {
-  basic: { min: 400, max: 550 },
-  professional: { min: 1000, max: 1300 },
-  enterprise: { min: 1800, max: 2300 },
-  custom: { min: 0, max: 0 },
+const PLAN_PRICES: Record<string, number> = {
+  basic: 475,
+  professional: 1150,
+  enterprise: 2050,
+  custom: 0,
 };
 
 const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
@@ -97,7 +97,7 @@ export default function SuperAdminDashboard() {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [showManagePlans, setShowManagePlans] = useState(false);
   const [planConfigs, setPlanConfigs] = useState<Record<string, Record<string, boolean>>>(PLAN_PRESETS);
-  const [planPrices, setPlanPrices] = useState<Record<string, { min: number; max: number }>>(PLAN_PRICES);
+  const [planPrices, setPlanPrices] = useState<Record<string, number>>(PLAN_PRICES);
 
   // Generate dynamic plan description based on enabled modules
   const getPlanDescription = (planId: string): string => {
@@ -573,46 +573,21 @@ export default function SuperAdminDashboard() {
                   {/* Pricing Section */}
                   {planId !== "custom" && (
                     <div className="mb-4 pb-4 border-b-2 border-orange-100">
-                      <label className="block text-xs font-semibold text-orange-800 mb-2">💵 Prix (NIO/mois)</label>
-                      <div className="flex gap-2 items-center">
-                        <div className="flex-1">
-                          <input
-                            type="number"
-                            placeholder="Min"
-                            value={planPrices[planId]?.min ?? 0}
-                            onChange={(e) =>
-                              setPlanPrices((prev) => ({
-                                ...prev,
-                                [planId]: {
-                                  ...prev[planId],
-                                  min: parseInt(e.target.value) || 0,
-                                },
-                              }))
-                            }
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
-                          />
-                        </div>
-                        <span className="text-xs text-orange-700 font-semibold">-</span>
-                        <div className="flex-1">
-                          <input
-                            type="number"
-                            placeholder="Max"
-                            value={planPrices[planId]?.max ?? 0}
-                            onChange={(e) =>
-                              setPlanPrices((prev) => ({
-                                ...prev,
-                                [planId]: {
-                                  ...prev[planId],
-                                  max: parseInt(e.target.value) || 0,
-                                },
-                              }))
-                            }
-                            className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
-                          />
-                        </div>
-                      </div>
+                      <label className="block text-xs font-semibold text-orange-800 mb-2">💵 Prix fixe (NIO/mois)</label>
+                      <input
+                        type="number"
+                        placeholder="Montant"
+                        value={planPrices[planId] ?? 0}
+                        onChange={(e) =>
+                          setPlanPrices((prev) => ({
+                            ...prev,
+                            [planId]: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                      />
                       <p className="text-xs text-orange-600 mt-1">
-                        💰 {planPrices[planId]?.min ?? 0} - {planPrices[planId]?.max ?? 0} NIO/mes
+                        💰 {planPrices[planId] ?? 0} NIO/mes
                       </p>
                     </div>
                   )}
@@ -699,7 +674,7 @@ export default function SuperAdminDashboard() {
                         {PLAN_LABELS[tenant.plan]?.label || tenant.plan}
                       </span>
                       <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-green-50 text-green-700 border border-green-200">
-                        💵 {PLAN_PRICES[tenant.plan]?.min || 0} - {PLAN_PRICES[tenant.plan]?.max || 0} NIO/mes
+                        💵 {PLAN_PRICES[tenant.plan] || 0} NIO/mes
                       </span>
                       {tenant.is_paid ? (
                         <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-green-100 text-green-700">

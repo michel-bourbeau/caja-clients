@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
 // Store plan prices in-memory (in production, would use database)
-let planPrices: Record<string, { min: number; max: number }> = {
-  basic: { min: 400, max: 550 },
-  professional: { min: 1000, max: 1300 },
-  enterprise: { min: 1800, max: 2300 },
-  custom: { min: 0, max: 0 },
+let planPrices: Record<string, number> = {
+  basic: 475,
+  professional: 1150,
+  enterprise: 2050,
+  custom: 0,
 };
 
 /**
