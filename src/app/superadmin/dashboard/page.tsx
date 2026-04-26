@@ -25,6 +25,7 @@ const AVAILABLE_MODULES = [
   { id: "loyalty", label: "Clientes Fieles", icon: "💳", description: "Programa de fidelización" },
   { id: "expenses", label: "Gastos y Proveedores", icon: "💸", description: "Registro de gastos" },
   { id: "taxes", label: "Impuestos", icon: "📋", description: "Gestión de impuestos" },
+  { id: "contacts", label: "Contactos", icon: "📋", description: "Gestión de contactos importantes" },
 ];
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
@@ -45,6 +46,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     loyalty: false,
     expenses: false,
     taxes: false,
+    contacts: false,
   },
   professional: {
     pos: true,
@@ -56,6 +58,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     loyalty: true,
     expenses: true,
     taxes: true,
+    contacts: true,
   },
   enterprise: {
     pos: true,
@@ -67,6 +70,7 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     loyalty: true,
     expenses: true,
     taxes: true,
+    contacts: true,
   },
 };
 
@@ -260,6 +264,34 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleSyncTenant = async (tenant: Tenant) => {
+    try {
+      // Get modules for this tenant's plan
+      const planModules = planConfigs[tenant.plan] || planConfigs.basic;
+      
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          features: { ...planModules, settings: true },
+          plan: tenant.plan,
+        }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setTenants(tenants.map((t) => (t.id === updated.id ? updated : t)));
+        setMessage(`✅ Les modules de ${tenant.name} ont été synchronisés avec le plan ${PLAN_LABELS[tenant.plan]?.label || tenant.plan}`);
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        const error = await response.json();
+        setMessage(`❌ ${error.message}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     router.push("/superadmin/login");
@@ -393,10 +425,7 @@ export default function SuperAdminDashboard() {
                   Pré-sélectionnés selon le plan — vous pouvez ajuster manuellement.
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {AVAILABLE_MODULES.filter(module => {
-                    // Only show modules that are available for this plan
-                    return planConfigs[formData.plan]?.[module.id] !== undefined;
-                  }).map((module) => (
+                  {AVAILABLE_MODULES.map((module) => (
                     <label key={module.id} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -592,10 +621,7 @@ export default function SuperAdminDashboard() {
                       <div>
                         <label className="block text-sm font-semibold mb-3 text-slate-900">Modules</label>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {AVAILABLE_MODULES.filter(module => {
-                            // Only show modules that are available for this plan
-                            return planConfigs[editingPlan]?.[module.id] !== undefined;
-                          }).map((module) => (
+                          {AVAILABLE_MODULES.map((module) => (
                             <label key={module.id} className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="checkbox"
@@ -702,6 +728,12 @@ export default function SuperAdminDashboard() {
                           className="bg-blue-600"
                         >
                           ✏️ Modifier Modules
+                        </Button>
+                        <Button
+                          onClick={() => handleSyncTenant(tenant)}
+                          className="bg-amber-600"
+                        >
+                          🔄 Synchroniser
                         </Button>
                         <Button
                           onClick={() => {

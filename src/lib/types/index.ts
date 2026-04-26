@@ -124,6 +124,8 @@ export interface User {
   lastName: string;
   roleId: string; // ID del rol personalizado
   permissions: string[]; // Permisos del usuario
+  tenantId?: string;
+  hasPermission?: (permission: string) => boolean;
 }
 
 export interface AuthContextType {

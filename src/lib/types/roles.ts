@@ -236,6 +236,32 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
     category: "SETTINGS",
     description: "Activar/desactivar módulos y configurar opciones",
   },
+
+  // Contacts Permissions
+  {
+    id: "contacts.view",
+    name: "Ver contactos",
+    category: "SETTINGS",
+    description: "Ver lista de contactos importants",
+  },
+  {
+    id: "contacts.create",
+    name: "Agregar contactos",
+    category: "SETTINGS",
+    description: "Crear nuevos contactos",
+  },
+  {
+    id: "contacts.edit",
+    name: "Editar contactos",
+    category: "SETTINGS",
+    description: "Modificar información de contactos",
+  },
+  {
+    id: "contacts.delete",
+    name: "Eliminar contactos",
+    category: "SETTINGS",
+    description: "Eliminar contactos",
+  },
 ];
 
 // Default Roles

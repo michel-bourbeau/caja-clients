@@ -17,6 +17,7 @@ import {
   Calendar,
   AlertCircle,
   Receipt,
+  BookOpen,
 } from "lucide-react";
 
 type PageIconType = 
@@ -36,7 +37,8 @@ type PageIconType =
   | "periods"
   | "taxes"
   | "roles"
-  | "expenses";
+  | "expenses"
+  | "contacts";
 
 type IconDisplayType = "emoji" | "lucide";
 
@@ -66,6 +68,7 @@ const emojiMap: Record<PageIconType, string> = {
   taxes: "💳",
   roles: "🔑",
   expenses: "💸",
+  contacts: "📇",
 };
 
 // Map icon types to Lucide components
@@ -87,6 +90,7 @@ const lucideMap: Record<PageIconType, React.ComponentType<any>> = {
   taxes: AlertCircle,
   roles: Key,
   expenses: Receipt,
+  contacts: BookOpen,
 };
 
 // Standardized emoji size mapping

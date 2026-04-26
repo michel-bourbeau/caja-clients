@@ -48,7 +48,7 @@ const AVAILABLE_MODULES = [
   { id: "settings",  label: "Configuracion",            icon: "\u2699\uFE0F" },
 ];
 
-type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "settings";
+type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
 
 interface PayrollConfig {
   frequency: "weekly" | "biweekly" | "monthly";
@@ -156,7 +156,21 @@ export default function SettingsPage() {
   // Update modules when features load
   useEffect(() => {
     if (features) {
-      setModules({ ...features, settings: true });
+      // Ensure settings is always enabled and convert undefined to false
+      const normalized: Record<ModuleKey, boolean> = {
+        pos: features.pos ?? false,
+        inventory: features.inventory ?? false,
+        employees: features.employees ?? false,
+        schedules: features.schedules ?? false,
+        payroll: features.payroll ?? false,
+        reports: features.reports ?? false,
+        loyalty: features.loyalty ?? false,
+        expenses: features.expenses ?? false,
+        taxes: features.taxes ?? false,
+        contacts: features.contacts ?? false,
+        settings: true,
+      };
+      setModules(normalized);
     }
   }, [features]);
 

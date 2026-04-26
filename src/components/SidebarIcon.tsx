@@ -17,6 +17,7 @@ import {
   Calendar,
   AlertCircle,
   Receipt,
+  BookOpen,
 } from "lucide-react";
 
 type SidebarIconType =
@@ -36,7 +37,8 @@ type SidebarIconType =
   | "taxes"
   | "roles"
   | "settings"
-  | "expenses";
+  | "expenses"
+  | "contacts";
 
 interface SidebarIconProps {
   type: SidebarIconType;
@@ -70,6 +72,7 @@ export const SidebarIcon: React.FC<SidebarIconProps> = ({
     roles: <Key className={iconClasses} />,
     settings: <Settings className={iconClasses} />,
     expenses: <Receipt className={iconClasses} />,
+    contacts: <BookOpen className={iconClasses} />,
   };
 
   return iconMap[type];

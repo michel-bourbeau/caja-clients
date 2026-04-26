@@ -113,6 +113,11 @@ export const Sidebar: React.FC = () => {
           <NavLink href="/dashboard/expenses" label="Gastos" iconType="expenses" />
         )}
 
+        {/* Contacts - Direct links */}
+        {features.contacts && hasPermission("contacts.view") && (
+          <NavLink href="/dashboard/contacts" label="Contactos" iconType="contacts" />
+        )}
+
         {/* Divider before Admin */}
         {(canManageRoles || canManageModules) && (
           <div className="sidebar-divider"></div>
@@ -144,7 +149,7 @@ export const Sidebar: React.FC = () => {
 
 interface AccordionProps {
   label: string;
-  iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings";
+  iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "contacts" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings";
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -176,7 +181,7 @@ const Accordion: React.FC<AccordionProps> = ({
   </div>
 );
 
-const NavLink: React.FC<{ href: string; label: string; iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings"; isNested?: boolean }> = ({
+const NavLink: React.FC<{ href: string; label: string; iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "contacts" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings"; isNested?: boolean }> = ({
   href,
   label,
   iconType,

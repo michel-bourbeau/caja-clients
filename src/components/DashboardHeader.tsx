@@ -22,7 +22,8 @@ type PageIconType =
   | "periods"
   | "taxes"
   | "roles"
-  | "expenses";
+  | "expenses"
+  | "contacts";
 
 interface DashboardHeaderProps {
   pageType: PageIconType;

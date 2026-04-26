@@ -17,6 +17,7 @@ const ADMIN_PERMISSIONS = [
   "payroll.view", "payroll.create", "payroll.approve", "payroll.pay",
   "settings.view", "settings.edit", "settings.manage_roles",
   "pos.cierre", "pos.cierre_review",
+  "contacts.view", "contacts.create", "contacts.edit", "contacts.delete",
 ];
 
 /** Resolve permissions from a role_id — falls back to empty (least privilege) for unknown roles */
@@ -38,6 +39,7 @@ function buildUser(
   const lastName  = employeeRow?.last_name  ?? meta.last_name  ?? "";
   const roleId    = employeeRow?.role_id    ?? meta.role_id    ?? "cashier";
   const tenantId  = employeeRow?.tenant_id  ?? meta.tenant_id  ?? null;
+  const permissions = customPermissions ?? permissionsForRole(roleId);
 
   return {
     id: authUser.id,
@@ -45,8 +47,9 @@ function buildUser(
     firstName,
     lastName,
     roleId,
-    permissions: customPermissions ?? permissionsForRole(roleId),
+    permissions,
     ...(tenantId ? { tenantId } : {}),
+    hasPermission: (permission: string) => permissions.includes(permission),
   } as User;
 }
 
@@ -130,6 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           roleId: "admin",
           permissions: ADMIN_PERMISSIONS,
           tenantId: imp.tenantId,
+          hasPermission: (permission: string) => ADMIN_PERMISSIONS.includes(permission),
         } as User);
         setIsLoading(false);
         return true;
@@ -159,12 +163,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("[Auth] Found employee:", employee);
 
           if (employee) {
-            let perms: string[] | null = null;
-            if (employee.tenant_id && employee.role_id) {
+            // Always use system role permissions if it's a system role (admin, manager, cashier)
+            // Don't look for tenant-specific overrides for system roles
+            const systemPerms = permissionsForRole(employee.role_id || "cashier");
+            let perms = systemPerms.length > 0 ? systemPerms : null;
+            
+            // Only look for tenant-specific role permissions if it's NOT a system role
+            if (!perms && employee.tenant_id && employee.role_id) {
               perms = await fetchTenantRolePermissions(employee.tenant_id, employee.role_id);
             }
-            console.log("[Auth] Employee roleId:", employee.role_id, "perms from tenant_roles:", perms);
-            console.log("[Auth] Using fallback perms:", permissionsForRole(employee.role_id || "cashier"));
+            
+            console.log("[Auth] Employee roleId:", employee.role_id, "system perms count:", systemPerms.length);
+            console.log("[Auth] Using perms:", perms?.length || 0);
 
             setUser({
               id: employee.id,
@@ -174,6 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               roleId: employee.role_id || "cashier",
               permissions: perms || permissionsForRole(employee.role_id || "cashier"),
               tenantId: empImp.tenantId,
+              hasPermission: (permission: string) => (perms || permissionsForRole(employee.role_id || "cashier")).includes(permission),
             } as User);
             console.log("[Auth] User set to impersonated employee");
           } else {
@@ -233,6 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               lastName: "",
               roleId: "admin",
               permissions: ADMIN_PERMISSIONS,
+              hasPermission: (permission: string) => ADMIN_PERMISSIONS.includes(permission),
             });
             if (storedSession.tenantId && typeof window !== "undefined") {
               sessionStorage.setItem("defaultTenantId", storedSession.tenantId);

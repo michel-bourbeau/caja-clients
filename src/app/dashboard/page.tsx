@@ -40,6 +40,7 @@ import {
   X,
   AlertCircle,
   RefreshCw,
+  BookOpen,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -296,6 +297,16 @@ export default function DashboardPage() {
       color: "bg-yellow-50 border-yellow-200 text-yellow-800",
       iconBg: "bg-yellow-100",
       show: features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all")),
+    },
+    {
+      id: "contacts",
+      title: "Contactos",
+      icon: BookOpen,
+      description: "Contactos importantes de la empresa",
+      href: "/dashboard/contacts",
+      color: "bg-indigo-50 border-indigo-200 text-indigo-800",
+      iconBg: "bg-indigo-100",
+      show: features.contacts && hasPermission("contacts.view"),
     },
     {
       id: "taxes",

@@ -19,6 +19,7 @@ interface TenantFeatures {
   expenses?: boolean;
   taxes?: boolean;
   settings?: boolean;
+  contacts?: boolean;
   [key: string]: boolean | undefined;
 }
 

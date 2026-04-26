@@ -6,7 +6,7 @@ import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { Container, Section, Card, CardHeader, CardTitle, CardContent, Button, Alert } from "@/components/StripeUIComponents";
 
-type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "settings";
+type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
 
 interface ModuleConfig {
   enabled: boolean;
@@ -77,6 +77,12 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
     icon: "📋",
     description: "Gestión de impuestos",
   },
+  contacts: {
+    enabled: true,
+    name: "Contactos",
+    icon: "📋",
+    description: "Gestión de contactos importantes",
+  },
   settings: {
     enabled: true,
     name: "Configuración",
@@ -105,8 +111,21 @@ export default function ModulesPage() {
   // Update modules when features load
   useEffect(() => {
     if (features) {
-      // Ensure settings is always enabled
-      setModules({ ...features, settings: true });
+      // Ensure settings is always enabled and convert undefined to false
+      const normalized: Record<ModuleKey, boolean> = {
+        pos: features.pos ?? false,
+        inventory: features.inventory ?? false,
+        employees: features.employees ?? false,
+        schedules: features.schedules ?? false,
+        payroll: features.payroll ?? false,
+        reports: features.reports ?? false,
+        loyalty: features.loyalty ?? false,
+        expenses: features.expenses ?? false,
+        taxes: features.taxes ?? false,
+        contacts: features.contacts ?? false,
+        settings: true,
+      };
+      setModules(normalized);
     }
   }, [features]);
 
@@ -134,8 +153,9 @@ export default function ModulesPage() {
                 .map(([key]) => key as ModuleKey)
             );
             
-            // Settings is ALWAYS authorized for all users
+            // Settings & Contacts are ALWAYS authorized for all users
             authorized.add("settings");
+            authorized.add("contacts");
             
             setAuthorizedModules(authorized);
           }
