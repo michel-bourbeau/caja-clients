@@ -91,7 +91,8 @@ function generateSummarySales(
 
   txns.forEach((tx) => {
     const date = new Date(tx.created_at);
-    const localDate = new Date(date.getTime() + 6 * 60 * 60 * 1000); // UTC-6 for Nicaragua
+    // Convert UTC → Nicaragua local time (UTC-6) for display
+    const localDate = new Date(date.getTime() - 6 * 60 * 60 * 1000);
     const dateStr = localDate.toISOString().split("T")[0];
     const hour = localDate.getUTCHours();
 
@@ -161,6 +162,14 @@ function generateSummarySales(
  * Fix for multi-formato: Always keep the best available name
  * - Prefer non-empty names from items
  * - For items without names, use productId as fallback
+ * 
+ * For imported data with missing productId:
+ * - Use product name as key if productId is null
+ * - This ensures products with same name are grouped together
+ * 
+ * For imported data with missing prices:
+ * - Use quantity * price if price is available
+ * - If price is 0 or missing, calculate proportionally from transaction total
  */
 function generateProductReport(txns: any[]) {
   const productMap = new Map<string, {
@@ -173,13 +182,26 @@ function generateProductReport(txns: any[]) {
 
   txns.forEach((tx) => {
     const items = tx.items || [];
+    
+    // Calculate total quantity in transaction for proportion-based revenue calculation
+    const totalQtyInTx = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+    const txSubtotal = Number(tx.subtotal) || 0;
+    
     items.forEach((item: any) => {
-      const key = item.productId;
-      const itemName = item.name && item.name.trim() ? item.name.trim() : `Producto ${key}`;
+      const itemQty = item.quantity || 0;
+      
+      // Skip items with zero quantity
+      if (itemQty === 0) {
+        return;
+      }
+      
+      // Use productId if available, otherwise use product name as key
+      const itemName = item.name && item.name.trim() ? item.name.trim() : "Unknown Product";
+      const key = item.productId && item.productId.trim() ? item.productId : itemName;
       
       if (!productMap.has(key)) {
         productMap.set(key, {
-          productId: key,
+          productId: item.productId || itemName,
           name: itemName,
           quantity: 0,
           revenue: 0,
@@ -188,14 +210,21 @@ function generateProductReport(txns: any[]) {
       }
       
       const prod = productMap.get(key)!;
+      prod.quantity += itemQty;
       
-      // Update name if current one is a fallback and new one is not
-      if (prod.name.startsWith("Producto ") && !itemName.startsWith("Producto ")) {
-        prod.name = itemName;
+      // Calculate revenue: prefer direct price, fallback to proportion-based calculation
+      let itemRevenue = 0;
+      const itemPrice = Number(item.price) || 0;
+      
+      if (itemPrice > 0) {
+        // Price is available - use direct calculation
+        itemRevenue = itemQty * itemPrice;
+      } else if (totalQtyInTx > 0 && txSubtotal > 0) {
+        // Price missing - calculate proportionally from transaction subtotal
+        itemRevenue = (itemQty / totalQtyInTx) * txSubtotal;
       }
       
-      prod.quantity += item.quantity || 0;
-      prod.revenue += (item.quantity || 0) * (Number(item.price) || 0);
+      prod.revenue += itemRevenue;
       prod.count += 1;
     });
   });
