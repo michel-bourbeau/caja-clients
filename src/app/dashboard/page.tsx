@@ -1,11 +1,10 @@
-"use client";
-
 import React from "react";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
+import { TrialExpiredBanner } from "@/components/TrialExpiredBanner";
 import {
   Card,
   CardHeader,
@@ -367,6 +366,9 @@ export default function DashboardPage() {
         title="Dashboard"
         subtitle={`${roleLabel[user?.roleId ?? ""] ?? user?.roleId ?? "Usuario"} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
       />
+
+      {/* Trial Status Banner */}
+      <TrialExpiredBanner />
 
       {/* Modules Grid */}
         {/* Module cards grid */}

@@ -80,6 +80,8 @@ export async function POST(request: Request) {
         slug,
         plan: plan || "basic",
         features: features || {},
+        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // +14 jours
+        is_paid: false,
       })
       .select()
       .single();

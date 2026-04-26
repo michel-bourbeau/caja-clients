@@ -292,6 +292,31 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const markAsPaid = async (tenant: Tenant) => {
+    try {
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_paid: true,
+          trial_ends_at: null, // Supprimer la date d'expiration
+        }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setTenants(tenants.map((t) => (t.id === updated.id ? updated : t)));
+        setMessage(`✅ ${tenant.name} marqué comme payé`);
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        const error = await response.json();
+        setMessage(`❌ ${error.message}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     router.push("/superadmin/login");
@@ -586,15 +611,34 @@ export default function SuperAdminDashboard() {
                       <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${PLAN_LABELS[tenant.plan]?.color || "bg-slate-100 text-slate-700"}`}>
                         {PLAN_LABELS[tenant.plan]?.label || tenant.plan}
                       </span>
-                      <button
-                        onClick={() => enterTenant(tenant)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                        </svg>
-                        Accéder
-                      </button>
+                      {tenant.is_paid ? (
+                        <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-green-100 text-green-700">
+                          ✅ Payé
+                        </span>
+                      ) : tenant.trial_ends_at ? (
+                        <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-yellow-100 text-yellow-700">
+                          ⏳ Essai (Expire: {new Date(tenant.trial_ends_at).toLocaleDateString()})
+                        </span>
+                      ) : null}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => enterTenant(tenant)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                          </svg>
+                          Accéder
+                        </button>
+                        {!tenant.is_paid && (
+                          <button
+                            onClick={() => markAsPaid(tenant)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                          >
+                            ✅ Payer
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 /**
  * PUT /api/superadmin/tenants/[tenantId]
- * Mettre à jour les modules d'un tenant
+ * Mettre à jour les modules, plan, et statut de paiement d'un tenant
  */
 export async function PUT(
   request: Request,
@@ -11,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const { tenantId } = await params;
-    const { features, plan } = await request.json();
+    const { features, plan, is_paid, trial_ends_at } = await request.json();
 
     const supabase = getSupabaseAdmin();
 
@@ -29,9 +29,12 @@ export async function PUT(
       );
     }
 
-    // Mettre à jour les features et le plan
-    const updateData: Record<string, unknown> = { features };
+    // Mettre à jour les fields fournis
+    const updateData: Record<string, unknown> = {};
+    if (features) updateData.features = features;
     if (plan) updateData.plan = plan;
+    if (typeof is_paid === "boolean") updateData.is_paid = is_paid;
+    if (trial_ends_at !== undefined) updateData.trial_ends_at = trial_ends_at;
 
     const { data, error } = await supabase
       .from("tenants")

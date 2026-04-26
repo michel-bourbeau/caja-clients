@@ -19,6 +19,8 @@ export interface Tenant {
   language?: string; // en, es, fr
   maxUsers?: number;
   maxProducts?: number;
+  trial_ends_at?: string | Date | null; // Date d'expiration de l'essai gratuit
+  is_paid?: boolean; // Si le tenant a un abonnement payant
   features: {
     pos: boolean;
     inventory: boolean;
