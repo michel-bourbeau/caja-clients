@@ -1,20 +1,39 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-// Store plan prices in-memory (in production, would use database)
-let planPrices: Record<string, number> = {
-  basic: 475,
-  professional: 1150,
-  enterprise: 2050,
-  custom: 0,
-};
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /**
  * GET /api/superadmin/plan-prices
- * Récupère les prix de tous les forfaits
+ * Récupère les prix actuels de tous les forfaits
  */
 export async function GET() {
   try {
-    return NextResponse.json({ prices: planPrices });
+    const { data, error } = await supabase
+      .from("plan_prices")
+      .select("*")
+      .order("plan", { ascending: true })
+      .order("effective_date", { ascending: false });
+
+    if (error) {
+      return NextResponse.json(
+        { error: "Erreur lors de la récupération des prix" },
+        { status: 500 }
+      );
+    }
+
+    // Get the latest price for each plan
+    const latestPrices: Record<string, any> = {};
+    (data || []).forEach((price: any) => {
+      if (!latestPrices[price.plan]) {
+        latestPrices[price.plan] = price;
+      }
+    });
+
+    return NextResponse.json({ prices: latestPrices });
   } catch (error) {
     return NextResponse.json(
       { error: "Erreur lors de la récupération des prix" },
@@ -26,6 +45,7 @@ export async function GET() {
 /**
  * PUT /api/superadmin/plan-prices
  * Met à jour les prix de tous les forfaits
+ * Crée une entrée historique pour chaque plan modifié
  */
 export async function PUT(request: Request) {
   try {
@@ -38,12 +58,29 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Update plan prices
-    planPrices = prices;
+    // Insert new prices for each plan (creates history)
+    const priceEntries = Object.entries(prices).map(([plan, price]) => ({
+      plan,
+      price: Number(price),
+      currency: "NIO",
+      effective_date: new Date().toISOString(),
+    }));
+
+    const { data, error } = await supabase
+      .from("plan_prices")
+      .insert(priceEntries)
+      .select();
+
+    if (error) {
+      return NextResponse.json(
+        { error: `Erreur lors de la sauvegarde: ${error.message}` },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       message: "Prix des forfaits mis à jour avec succès",
-      prices: planPrices,
+      prices: data,
     });
   } catch (error) {
     return NextResponse.json(

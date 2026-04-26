@@ -21,6 +21,9 @@ export interface Tenant {
   maxProducts?: number;
   trial_ends_at?: string | Date | null; // Date d'expiration de l'essai gratuit
   is_paid?: boolean; // Si le tenant a un abonnement payant
+  paid_until?: string | Date | null; // Jusqu'à quand le client a payé
+  plan_price_at_subscription?: number; // Prix qu'il avait quand il a souscrit
+  current_plan_price?: number; // Prix actuel du plan
   features: {
     pos: boolean;
     inventory: boolean;
@@ -76,3 +79,28 @@ export interface TenantUser {
 export type WithTenant<T> = T & {
   tenant_id: string;
 };
+
+// Plan pricing tracking
+export interface PlanPrice {
+  id: string;
+  plan: "basic" | "professional" | "enterprise" | "custom";
+  price: number;
+  currency: string;
+  effective_date: string | Date;
+  created_at: string | Date;
+}
+
+// Payment history for tenants
+export interface PaymentHistory {
+  id: string;
+  tenant_id: string;
+  plan: "basic" | "professional" | "enterprise" | "custom";
+  amount: number;
+  paid_until: string | Date;
+  payment_date: string | Date;
+  payment_method?: string;
+  notes?: string;
+  created_by?: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+}

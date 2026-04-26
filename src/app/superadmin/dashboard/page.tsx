@@ -98,6 +98,11 @@ export default function SuperAdminDashboard() {
   const [showManagePlans, setShowManagePlans] = useState(false);
   const [planConfigs, setPlanConfigs] = useState<Record<string, Record<string, boolean>>>(PLAN_PRESETS);
   const [planPrices, setPlanPrices] = useState<Record<string, number>>(PLAN_PRICES);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentModalTenant, setPaymentModalTenant] = useState<Tenant | null>(null);
+  const [paymentFormData, setPaymentFormData] = useState({ amount: "", paid_until: "", payment_method: "", notes: "" });
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
 
   // Generate dynamic plan description based on enabled modules
   const getPlanDescription = (planId: string): string => {
@@ -208,6 +213,65 @@ export default function SuperAdminDashboard() {
     } catch (error) {
       setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
       return false;
+    }
+  };
+
+  const openPaymentModal = async (tenant: Tenant & { paid_until?: string | Date | null }) => {
+    setPaymentModalTenant(tenant as any);
+    setPaymentFormData({ 
+      amount: String(PLAN_PRICES[tenant.plan] || ""), 
+      paid_until: (tenant.paid_until) ? new Date(tenant.paid_until).toISOString().split('T')[0] : "",
+      payment_method: "",
+      notes: ""
+    });
+    setPaymentHistory([]);
+    setLoadingPaymentHistory(true);
+    
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/payment`);
+      if (res.ok) {
+        const data = await res.json();
+        setPaymentHistory(data.history || []);
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+    } finally {
+      setLoadingPaymentHistory(false);
+    }
+    
+    setShowPaymentModal(true);
+  };
+
+  const handleRecordPayment = async () => {
+    if (!paymentModalTenant || !paymentFormData.paid_until) {
+      setMessage("❌ Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${paymentModalTenant.id}/payment`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: paymentModalTenant.plan,
+          amount: Number(paymentFormData.amount),
+          paid_until: paymentFormData.paid_until,
+          payment_method: paymentFormData.payment_method,
+          notes: paymentFormData.notes,
+        }),
+      });
+
+      if (res.ok) {
+        setMessage("✅ Paiement enregistré avec succès");
+        setTimeout(() => setMessage(""), 3000);
+        setShowPaymentModal(false);
+        fetchTenants();
+      } else {
+        const error = await res.json();
+        setMessage(`❌ Erreur: ${error.error || "Impossible d'enregistrer"}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
     }
   };
 
@@ -703,6 +767,12 @@ export default function SuperAdminDashboard() {
                             ✅ Payer
                           </button>
                         )}
+                        <button
+                          onClick={() => openPaymentModal(tenant)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          💳 Historique paiement
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -862,6 +932,137 @@ export default function SuperAdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && paymentModalTenant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto bg-white">
+            <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-300 p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-blue-900">💳 Gérer Paiements</h2>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="text-3xl text-slate-500 hover:text-slate-700 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Tenant Info */}
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <p className="text-sm text-slate-600"><strong>Client:</strong> {paymentModalTenant.name}</p>
+                <p className="text-sm text-slate-600"><strong>Plan:</strong> {PLAN_LABELS[paymentModalTenant.plan]?.label}</p>
+                <p className="text-sm text-slate-600"><strong>Statut:</strong> {paymentModalTenant.is_paid ? "✅ Payé" : "⏳ Essai"}</p>
+                {((paymentModalTenant as any).paid_until) && (
+                  <p className="text-sm text-slate-600">
+                    <strong>Payé jusqu'au:</strong> {new Date((paymentModalTenant as any).paid_until).toLocaleDateString('fr-FR')}
+                  </p>
+                )}
+              </div>
+
+              {/* Payment Form */}
+              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">📝 Enregistrer un paiement</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Montant (NIO/mois)</label>
+                    <input
+                      type="number"
+                      value={paymentFormData.amount}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
+                      placeholder="Montant"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Payé jusqu'au</label>
+                    <input
+                      type="date"
+                      value={paymentFormData.paid_until}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, paid_until: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Méthode de paiement</label>
+                    <input
+                      type="text"
+                      value={paymentFormData.payment_method}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_method: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
+                      placeholder="ex: Virement, PayPal, Carte..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Notes</label>
+                    <textarea
+                      value={paymentFormData.notes}
+                      onChange={(e) => setPaymentFormData({ ...paymentFormData, notes: e.target.value })}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white h-20"
+                      placeholder="Notes optionnelles..."
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleRecordPayment}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                  >
+                    💾 Enregistrer le paiement
+                  </Button>
+                </div>
+              </div>
+
+              {/* Payment History */}
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">📊 Historique des paiements</h3>
+                {loadingPaymentHistory ? (
+                  <p className="text-slate-600">Chargement...</p>
+                ) : paymentHistory.length === 0 ? (
+                  <p className="text-slate-600">Aucun paiement enregistré</p>
+                ) : (
+                  <div className="space-y-3">
+                    {paymentHistory.map((payment: any) => (
+                      <div key={payment.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              💰 {payment.amount} NIO - {payment.plan}
+                            </p>
+                            <p className="text-xs text-slate-600">
+                              Enregistré le: {new Date(payment.payment_date).toLocaleDateString('fr-FR')}
+                            </p>
+                            <p className="text-xs text-slate-600">
+                              Payé jusqu'au: {new Date(payment.paid_until).toLocaleDateString('fr-FR')}
+                            </p>
+                            {payment.payment_method && (
+                              <p className="text-xs text-slate-600">Méthode: {payment.payment_method}</p>
+                            )}
+                            {payment.notes && (
+                              <p className="text-xs text-slate-600 italic">Note: {payment.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="flex-1 bg-slate-500 hover:bg-slate-600"
+                >
+                  ❌ Fermer
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
