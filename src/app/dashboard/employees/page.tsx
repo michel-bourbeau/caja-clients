@@ -72,6 +72,7 @@ export default function EmployeesPage() {
 
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingIsSystemUser, setEditingIsSystemUser] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [showPassword, setShowPassword] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -145,29 +146,33 @@ export default function EmployeesPage() {
   const openAdd = () => {
     setForm({ ...EMPTY_FORM });
     setEditingId(null);
+    setEditingIsSystemUser(false);
     setModalMode("add");
     setShowPassword(false);
   };
 
   const openEdit = (emp: Employee) => {
+    // Resolve role_id to UUID: employees may store a slug ("cashier") or a UUID
+    const matchedRole = tenantRoles.find((r) => r.id === emp.role_id || r.slug === emp.role_id);
     setForm({
       firstName: emp.first_name,
       lastName: emp.last_name,
       email: emp.email,
       phone: emp.phone ?? "",
-      roleId: emp.role_id,
-      salary: String(emp.salary),
+      roleId: matchedRole ? matchedRole.id : emp.role_id,
+      salary: emp.salary != null ? String(emp.salary) : "",
       salaryType: emp.salary_type || "hourly",
       hireDate: emp.hire_date ?? new Date().toISOString().split("T")[0],
       password: "",
       confirmPassword: "",
     });
     setEditingId(emp.id);
+    setEditingIsSystemUser(emp.is_system_user === true);
     setModalMode("edit");
     setShowPassword(false);
   };
 
-  const closeModal = () => { setModalMode(null); setEditingId(null); };
+  const closeModal = () => { setModalMode(null); setEditingId(null); setEditingIsSystemUser(false); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -731,6 +736,12 @@ export default function EmployeesPage() {
             </div>
 
             <form onSubmit={handleSave} className="p-6 space-y-4">
+              {editingIsSystemUser && (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+                  Compte administrateur — seuls le nom et le mot de passe peuvent être modifiés.
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Nombre *</label>
@@ -744,41 +755,45 @@ export default function EmployeesPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email (login) *</label>
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required disabled={editingIsSystemUser} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500" />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
-                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
+              {!editingIsSystemUser && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                    <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Rol *</label>
-                  <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {tenantRoles.map((r) => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Salario *</label>
-                  <select value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value as "hourly" | "monthly" })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="hourly">Tarifa por hora</option>
-                    <option value="monthly">Salario mensual</option>
-                  </select>
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Rol *</label>
+                      <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {tenantRoles.map((r) => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Salario *</label>
+                      <select value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value as "hourly" | "monthly" })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="hourly">Tarifa por hora</option>
+                        <option value="monthly">Salario mensual</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{form.salaryType === "monthly" ? "Salario mensual" : "Tarifa por hora"} *</label>
-                <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{form.salaryType === "monthly" ? "Salario mensual" : "Tarifa por hora"} *</label>
+                    <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de contratacion *</label>
-                <input type="date" value={form.hireDate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de contratacion *</label>
+                    <input type="date" value={form.hireDate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </>
+              )}
 
               <div className="border-t border-slate-200 pt-4">
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium">

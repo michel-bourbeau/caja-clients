@@ -71,6 +71,8 @@ export default function InventoryPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<{ id: string; name: string; description: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -1018,6 +1020,9 @@ export default function InventoryPage() {
         >
           {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
         </Button>
+        <Button variant="secondary" onClick={() => setShowCategoryManager((v) => !v)}>
+          {showCategoryManager ? "✕ Categorías" : "🏷 Categorías"}
+        </Button>
         <Button variant="primary" onClick={() => setShowAddCategory(true)}>
           + Categoría
         </Button>
@@ -1030,6 +1035,127 @@ export default function InventoryPage() {
         <Alert variant="success" title="Mensaje">
           {message}
         </Alert>
+      )}
+
+      {/* Category Manager Panel */}
+      {showCategoryManager && (
+        <Card>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+            <p className="text-base font-bold text-slate-800">🏷 Gestión de Categorías ({categories.length})</p>
+            <Button variant="secondary" onClick={() => { setShowCategoryManager(false); setShowAddCategory(true); }}>
+              + Nueva
+            </Button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {categories.length === 0 ? (
+              <p className="px-6 py-8 text-center text-slate-400">No hay categorías. Crea una con el botón + Categoría.</p>
+            ) : (
+              categories.map((cat) => {
+                const productCount = products.filter((p) => p.category_id === cat.id).length;
+                const isEditing = editingCategory?.id === cat.id;
+                return (
+                  <div key={cat.id} className="px-6 py-3 hover:bg-slate-50">
+                    {isEditing ? (
+                      /* Edit mode — inline fields */
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex flex-col gap-1.5">
+                          <input
+                            autoFocus
+                            value={editingCategory!.name}
+                            onChange={(e) => setEditingCategory((prev) => prev ? { ...prev, name: e.target.value } : prev)}
+                            className="px-2.5 py-1.5 border border-blue-400 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Nombre"
+                          />
+                          <input
+                            value={editingCategory!.description}
+                            onChange={(e) => setEditingCategory((prev) => prev ? { ...prev, description: e.target.value } : prev)}
+                            className="px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Descripción (opcional)"
+                          />
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <button
+                            onClick={async () => {
+                              if (!editingCategory!.name.trim()) return;
+                              const res = await fetch(`/api/tenants/${tenantId}/categories?id=${cat.id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ name: editingCategory!.name, description: editingCategory!.description }),
+                              });
+                              if (res.ok) {
+                                const updated = await res.json();
+                                setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, name: updated.name, description: updated.description } : c));
+                                setMessage(`Categoría renombrada a "${updated.name}"`);
+                              } else {
+                                const err = await res.json();
+                                setMessage(err.error || "Error al guardar");
+                              }
+                              setEditingCategory(null);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={() => setEditingCategory(null)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-100 transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Normal display mode */
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-800">{cat.name}</p>
+                          {cat.description && <p className="text-xs text-slate-500">{cat.description}</p>}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                            {productCount} producto{productCount !== 1 ? "s" : ""}
+                          </span>
+                          {/* Edit button */}
+                          <button
+                            onClick={() => setEditingCategory({ id: cat.id, name: cat.name, description: cat.description ?? "" })}
+                            className="p-1.5 rounded text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Editar categoría"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          {/* Delete button */}
+                          <button
+                            onClick={async () => {
+                              const msg = productCount > 0
+                                ? `¿Eliminar "${cat.name}"? Los ${productCount} producto(s) pasarán a "Sin categoría".`
+                                : `¿Eliminar la categoría "${cat.name}"?`;
+                              if (!confirm(msg)) return;
+                              const res = await fetch(`/api/tenants/${tenantId}/categories?id=${cat.id}`, { method: "DELETE" });
+                              if (res.ok) {
+                                setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+                                if (productCount > 0) {
+                                  setProducts((prev) => prev.map((p) => p.category_id === cat.id ? { ...p, category_id: undefined } : p));
+                                }
+                                setMessage(`Categoría "${cat.name}" eliminada${productCount > 0 ? ` — ${productCount} producto(s) movidos a Sin categoría` : ""}`);
+                              } else {
+                                const err = await res.json();
+                                setMessage(err.error || "Error al eliminar");
+                              }
+                            }}
+                            className="p-1.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Eliminar categoría"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </Card>
       )}
 
       {/* Add Category Dialog */}

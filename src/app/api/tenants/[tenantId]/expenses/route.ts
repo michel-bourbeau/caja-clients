@@ -10,80 +10,75 @@ export async function GET(
     const supabaseAdmin = getSupabaseAdmin();
     const userId = request.headers.get("x-user-id");
 
-    // Validate UUID format (simple check)
     const isValidUUID = (id: string | null): boolean => {
       if (!id) return false;
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      return uuidRegex.test(id);
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     };
 
-    // Get user permissions to determine what they can see
-    let userPermissions: string[] = [];
-    let validUserId: string | null = isValidUUID(userId) ? userId : null;
-    let userRoleId: string | null = null;
+    const validUserId: string | null = isValidUUID(userId) ? userId : null;
+    let canViewAll = false;
 
-    // Only query if we have a valid UUID
-    let userData = null;
     if (validUserId) {
-      const result = await supabaseAdmin
+      // 1. Try custom users table
+      const { data: userData } = await supabaseAdmin
         .from("users")
-        .select("permissions, id, role_id")
+        .select("permissions, role_id")
         .eq("id", validUserId)
         .maybeSingle();
-      userData = result.data;
-    }
 
-    if (userData) {
-      userPermissions = userData.permissions || [];
-      validUserId = userData.id;
-      userRoleId = userData.role_id;
+      let roleId: string | null = null;
+      let directPerms: string[] = [];
 
-    } else {
-      // User not found, check if there's an employee that corresponds
+      if (userData) {
+        directPerms = userData.permissions || [];
+        roleId = userData.role_id;
+      } else {
+        // 2. Fallback: resolve via Supabase auth email → employees table
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(validUserId);
+        if (authUser?.user?.email) {
+          const { data: emp } = await supabaseAdmin
+            .from("employees")
+            .select("role_id")
+            .eq("email", authUser.user.email)
+            .eq("tenant_id", tenantId)
+            .maybeSingle();
+          if (emp) roleId = emp.role_id;
+        }
+      }
 
-      const { data: employee } = await supabaseAdmin
-        .from("employees")
-        .select("id, email, role_id")
-        .eq("tenant_id", tenantId)
-        .limit(1)
-        .maybeSingle();
-
-      if (employee) {
-        // Check if a user exists for this employee email
-        const { data: employeeUser } = await supabaseAdmin
-          .from("users")
-          .select("id, permissions, role_id")
-          .eq("tenant_id", tenantId)
-          .eq("email", employee.email)
+      // Resolve canViewAll from direct perms or role
+      if (directPerms.includes("expenses.view_all")) {
+        canViewAll = true;
+      } else if (roleId === "admin" || roleId === "superadmin") {
+        canViewAll = true;
+      } else if (roleId && isValidUUID(roleId)) {
+        const { data: roleData } = await supabaseAdmin
+          .from("tenant_roles")
+          .select("slug, permissions")
+          .eq("id", roleId)
           .maybeSingle();
-
-        if (employeeUser) {
-          validUserId = employeeUser.id;
-          userPermissions = employeeUser.permissions || [];
-          userRoleId = employeeUser.role_id || employee.role_id;
-
+        if (roleData) {
+          const rolePerms: string[] = roleData.permissions || [];
+          canViewAll =
+            roleData.slug === "admin" ||
+            roleData.slug === "superadmin" ||
+            rolePerms.includes("expenses.view_all");
         }
       }
     }
 
-    // Admins always have view_all permission
-    const canViewAll = userRoleId === "admin" || userPermissions.includes("expenses.view_all");
-
-    // If user doesn't have view_all permission and no valid user ID, return empty
-    if (!canViewAll && !validUserId) {
-      return NextResponse.json([]);
-    }
-
-    // Build query
+    // Build query — always scope to tenant
     let query = supabaseAdmin
       .from("expenses")
       .select("*, suppliers(id, name), users(id, email)")
       .eq("tenant_id", tenantId)
       .order("expense_date", { ascending: false });
 
-    // If user doesn't have view_all permission, only show their expenses
+    // Non-admins without view_all can only see their own expenses
     if (!canViewAll && validUserId) {
       query = query.eq("created_by", validUserId);
+    } else if (!canViewAll && !validUserId) {
+      return NextResponse.json([]);
     }
 
     const { data, error } = await query;

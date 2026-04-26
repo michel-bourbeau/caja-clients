@@ -81,8 +81,8 @@ async function fetchTenantRolePermissions(tenantId: string, roleId: string): Pro
     }
     const roles: Array<{ id: string; slug: string; name: string; permissions: string[] }> = await res.json();
 
-    // Search by UUID (id), not slug — role_id is the UUID from employees.role_id
-    const match = roles.find((r) => r.id === roleId);
+    // Search by id (UUID) first, then fall back to slug (e.g. "admin" literal)
+    const match = roles.find((r) => r.id === roleId) ?? roles.find((r) => r.slug === roleId);
     if (!match) {
       console.warn("[Auth] Role not found:", roleId);
       return null;

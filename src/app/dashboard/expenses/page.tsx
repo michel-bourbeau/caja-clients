@@ -374,9 +374,8 @@ export default function ExpensesPage() {
   const filteredExpenses = useMemo(() => {
     let list = [...expenses];
 
-    if (!canViewAll) {
-      list = list.filter((e) => e.created_by === user?.id);
-    }
+    // NOTE: server-side API already filters by created_by when user doesn't have view_all.
+    // No client-side ownership filter needed — avoids false-negatives when roleId is a UUID.
 
     if (filters.category !== "ALL") {
       list = list.filter((e) => e.category === filters.category);

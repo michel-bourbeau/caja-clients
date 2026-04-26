@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
  * PUT /api/tenants/[tenantId]/employees/[employeeId]
- * Update an employee (name, salary, role, phone, status)
+ * Update an employee (employees table) or a system user (users table)
  */
 export async function PUT(
   request: NextRequest,
@@ -16,83 +16,122 @@ export async function PUT(
 
     const supabase = getSupabaseAdmin();
 
-    // Get the OLD email before updating
-    const { data: oldEmployee } = await supabase
+    // Check if this is an employee in the employees table
+    const { data: existingEmployee } = await supabase
       .from("employees")
       .select("email")
       .eq("id", employeeId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (firstName    !== undefined) updates.first_name = firstName.trim();
-    if (lastName     !== undefined) updates.last_name  = lastName.trim();
-    if (email        !== undefined) updates.email      = email.trim().toLowerCase();
-    if (phone        !== undefined) updates.phone      = phone?.trim() || null;
-    if (roleId       !== undefined) updates.role_id    = roleId;
-    if (salary       !== undefined) updates.salary     = parseFloat(salary);
-    if (salaryType   !== undefined) updates.salary_type = salaryType;
-    if (status       !== undefined) updates.status     = status;
-    if (hireDate     !== undefined) updates.hire_date  = hireDate || null;
+    if (existingEmployee) {
+      // --- Update regular employee ---
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (firstName  !== undefined) updates.first_name  = firstName.trim();
+      if (lastName   !== undefined) updates.last_name   = lastName.trim();
+      if (email      !== undefined) updates.email       = email.trim().toLowerCase();
+      if (phone      !== undefined) updates.phone       = phone?.trim() || null;
+      if (roleId     !== undefined) updates.role_id     = roleId;
+      if (salary     !== undefined) updates.salary      = parseFloat(salary);
+      if (salaryType !== undefined) updates.salary_type = salaryType;
+      if (status     !== undefined) updates.status      = status;
+      if (hireDate   !== undefined) updates.hire_date   = hireDate || null;
 
-    const { data, error } = await supabase
-      .from("employees")
-      .update(updates)
+      const { data, error } = await supabase
+        .from("employees")
+        .update(updates)
+        .eq("id", employeeId)
+        .eq("tenant_id", tenantId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // If email was updated, sync to users table and Supabase Auth
+      if (email !== undefined) {
+        const oldEmail = existingEmployee.email;
+        const newEmail = email.trim().toLowerCase();
+        if (oldEmail !== newEmail) {
+          const { data: linkedUser } = await supabase
+            .from("users")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("email", oldEmail)
+            .maybeSingle();
+          if (linkedUser) {
+            await supabase.from("users").update({ email: newEmail }).eq("id", linkedUser.id);
+            const { data: authList } = await supabase.auth.admin.listUsers();
+            const authUser = authList?.users?.find((u) => u.email === oldEmail);
+            if (authUser) await supabase.auth.admin.updateUserById(authUser.id, { email: newEmail });
+          }
+        }
+      }
+
+      // Update password in Supabase Auth if provided
+      if (password && data?.email) {
+        const { data: authList } = await supabase.auth.admin.listUsers();
+        const authUser = authList?.users?.find((u) => u.email === data.email.trim().toLowerCase());
+        if (authUser) await supabase.auth.admin.updateUserById(authUser.id, { password });
+      }
+
+      return NextResponse.json(data);
+    }
+
+    // --- Not in employees table: check users table (system users / admins) ---
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id, email, first_name, last_name, role_id, status, created_at")
       .eq("id", employeeId)
       .eq("tenant_id", tenantId)
-      .select()
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
-    if (!data) {
-      return NextResponse.json({ error: "Employé introuvable" }, { status: 404 });
+    if (!existingUser) {
+      return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
     }
 
-    // If email was updated, also update in users table if a user exists
-    if (email !== undefined && oldEmployee) {
-      const oldEmail = oldEmployee.email;
-      const newEmail = email.trim().toLowerCase();
-      
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("email", oldEmail)
-        .maybeSingle();
+    // Only allow updating password and name for system users (protect role/email changes)
+    const userUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (firstName !== undefined) userUpdates.first_name = firstName.trim();
+    if (lastName  !== undefined) userUpdates.last_name  = lastName.trim();
 
-      if (existingUser) {
-        // Update the user's email in users table
-        const { error: userUpdateError } = await supabase
-          .from("users")
-          .update({ email: newEmail })
-          .eq("id", existingUser.id)
-          .eq("tenant_id", tenantId);
+    const { error: userUpdateError } = await supabase
+      .from("users")
+      .update(userUpdates)
+      .eq("id", employeeId)
+      .eq("tenant_id", tenantId);
 
-        if (userUpdateError) {
-          console.error("Error updating user email:", userUpdateError);
-        }
+    if (userUpdateError) throw userUpdateError;
 
-        // Also update in Supabase Auth if user exists there
-        const { data: authUsers } = await supabase.auth.admin.listUsers();
-        const authUser = authUsers?.users?.find((u) => u.email === oldEmail);
-        if (authUser) {
-          await supabase.auth.admin.updateUserById(authUser.id, { email: newEmail });
-        }
-      }
-    }
-
-    // Update password via Supabase Auth if provided
-    if (password && data.email) {
-      const { data: authUsers } = await supabase.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find(
-        (u) => u.email === data.email.trim().toLowerCase()
-      );
+    // Update password in Supabase Auth if provided
+    if (password) {
+      const targetEmail = existingUser.email.trim().toLowerCase();
+      const { data: authList } = await supabase.auth.admin.listUsers();
+      const authUser = authList?.users?.find((u) => u.email === targetEmail);
       if (authUser) {
-        await supabase.auth.admin.updateUserById(authUser.id, { password });
+        const { error: authError } = await supabase.auth.admin.updateUserById(authUser.id, { password });
+        if (authError) throw authError;
+      } else {
+        return NextResponse.json({ error: "Compte Auth introuvable pour cet utilisateur" }, { status: 404 });
       }
     }
 
-    return NextResponse.json(data);
+    // Return the updated user in employee-compatible format
+    return NextResponse.json({
+      id: existingUser.id,
+      tenant_id: tenantId,
+      first_name: firstName?.trim() ?? existingUser.first_name,
+      last_name: lastName?.trim() ?? existingUser.last_name,
+      email: existingUser.email,
+      phone: null,
+      role_id: existingUser.role_id || "admin",
+      salary: null,
+      salary_type: null,
+      hire_date: existingUser.created_at?.split("T")[0] || null,
+      status: existingUser.status,
+      created_at: existingUser.created_at,
+      is_system_user: true,
+      is_principal_admin: existingUser.role_id === "admin" || existingUser.role_id === null,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unknown error" },

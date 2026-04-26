@@ -89,3 +89,75 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   return Response.json({ success: true });
 }
+
+/**
+ * PUT /api/tenants/[tenantId]/categories?id=xxx
+ * Rename/update a category
+ * Body: { name, description? }
+ */
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id requis" }, { status: 400 });
+  }
+
+  const { name, description } = await request.json();
+
+  if (!name?.trim()) {
+    return Response.json({ error: "Le nom est requis" }, { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("product_categories")
+    .update({ name: name.trim(), description: description?.trim() || null })
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .select()
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json(data);
+}
+
+/**
+ * DELETE /api/tenants/[tenantId]/categories?id=xxx
+ * Delete a category — products linked to it are moved to "Sin categoría" (category_id = null)
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ tenantId: string }> }) {
+  const { tenantId } = await params;
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return Response.json({ error: "id requis" }, { status: 400 });
+  }
+
+  const supabase = getSupabaseAdmin();
+
+  // Reassign all products in this category to "Sin categoría"
+  await supabase
+    .from("products")
+    .update({ category_id: null })
+    .eq("category_id", id)
+    .eq("tenant_id", tenantId);
+
+  const { error } = await supabase
+    .from("product_categories")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ success: true });
+}
