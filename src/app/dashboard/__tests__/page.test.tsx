@@ -18,6 +18,18 @@ jest.mock("next/link", () => {
   return ({ children, href }: any) => <a href={href}>{children}</a>;
 });
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+  }),
+  usePathname: () => "/dashboard",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseTenantFeatures = useTenantFeatures as jest.MockedFunction<typeof useTenantFeatures>;
 const mockUseTenantId = useTenantId as jest.MockedFunction<typeof useTenantId>;
@@ -472,8 +484,8 @@ describe("DashboardPage - Module Cards", () => {
 
     it("should show Clientes Fieles when loyalty feature is enabled", async () => {
       mockUseAuth.mockReturnValue({
-        user: { id: "user-1", firstName: "John", roleId: "admin", permissions: [] },
-        hasPermission: jest.fn(() => false),
+        user: { id: "user-1", firstName: "John", roleId: "admin", permissions: ["loyalty.view"] },
+        hasPermission: jest.fn((perm: string) => perm === "loyalty.view"),
         logout: jest.fn(),
       } as any);
 

@@ -314,3 +314,14 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
 
 // Permissions only admins can manage
 export const ADMIN_ONLY_PERMISSIONS = ["settings.manage_modules"];
+
+/**
+ * Resolve permissions for a given role ID
+ * Falls back to empty array (least privilege) for unknown role IDs
+ */
+export function permissionsForRole(roleId: string): string[] {
+  const role = DEFAULT_ROLES.find((r) => r.id === roleId);
+  // SECURITY: never fall back to admin permissions for unknown role IDs
+  // An unrecognized role gets zero permissions until the DB lookup succeeds
+  return role ? role.permissions : [];
+}
