@@ -67,7 +67,7 @@ export default function DashboardPage() {
   
   // Edit mode for low-stock products
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<Record<string, number>>({});
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
   
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -141,7 +141,7 @@ export default function DashboardPage() {
 
   const handleEditStart = (productId: string, quantity: number) => {
     setEditingId(productId);
-    setEditValues({ [productId]: quantity });
+    setEditValues({ [productId]: String(quantity) });
   };
 
   const handleEditCancel = () => {
@@ -150,7 +150,8 @@ export default function DashboardPage() {
   };
 
   const handleEditSave = async (productId: string) => {
-    const newQuantity = editValues[productId];
+    const newQuantityStr = editValues[productId];
+    const newQuantity = parseInt(newQuantityStr) || 0;
     const product = lowStockProducts.find((p) => p.id === productId);
     
     if (!product || newQuantity === undefined) return;
@@ -428,7 +429,7 @@ export default function DashboardPage() {
 
       {/* Low stock products section */}
       {lowStockProducts.length > 0 && (
-        <Section title="Productos con Stock Bajo">
+        <Section className="mt-12" title="Productos con Stock Bajo">
           {/* Low stock products grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
             {lowStockProducts.map((p) => {
@@ -452,9 +453,13 @@ export default function DashboardPage() {
                             </Badge>
                           )}
                         </div>
-                        <code className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded inline-block mt-2">{p.sku}</code>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
+                        {isEmpty ? (
+                          <Badge variant="error" className="text-base font-semibold px-3 py-1">URGENTE</Badge>
+                        ) : (
+                          <Badge variant="warning" className="text-base font-semibold px-3 py-1">{pct}% stock</Badge>
+                        )}
                         {!isEditing && (
                           <button
                             onClick={() => handleEditStart(p.id, p.quantity)}
@@ -464,59 +469,16 @@ export default function DashboardPage() {
                             <Edit2 className="w-4 h-4" />
                           </button>
                         )}
-                        <Badge variant={isEmpty ? "error" : "warning"}>
-                          {isEmpty ? "Agotado" : "Bajo"}
-                        </Badge>
+                        
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {/* Stock input or display */}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-2">Stock Actual</label>
-                        {isEditing ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              value={currentQuantity}
-                              onChange={(e) =>
-                                setEditValues({ ...editValues, [p.id]: parseInt(e.target.value) || 0 })
-                              }
-                              className="flex-1 px-2 py-1 border border-slate-300 rounded text-sm"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => handleEditSave(p.id)}
-                              className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                              title="Guardar"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={handleEditCancel}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                              title="Cancelar"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <p className="text-lg font-semibold text-slate-900">{p.quantity}</p>
-                        )}
-                      </div>
-
-                      {/* Min stock display */}
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Mínimo Requerido</label>
-                        <p className="text-sm text-slate-700">{p.min_stock} unidades</p>
-                      </div>
-
                       {/* Progress bar */}
                       <div>
-                        <div className="flex justify-between text-xs text-slate-600 mb-2">
-                          <span>Stock: <strong>{currentQuantity}</strong> / {p.min_stock}</span>
+                        <div className="flex justify-between text-base text-slate-600 mb-2">
+                          <span>Stock: <strong>{currentQuantity}</strong> / {p.min_stock} Mínimo Requerido</span>
                           <span>{pct}%</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
@@ -531,9 +493,50 @@ export default function DashboardPage() {
 
                       {/* Suggestion to order */}
                       {!isEditing && (
-                        <p className="text-xs text-slate-600 pt-2">
-                          Pedir <strong className="text-slate-900">{Math.max(0, p.min_stock - p.quantity + Math.floor(p.min_stock * 0.5))}</strong> unidades para reponer
+                        <p className="text-base text-slate-600 pt-2">
+                          Pedir <strong className="text-slate-900">{Math.max(0, p.min_stock - p.quantity)}</strong> unidades para reponer
                         </p>
+                      )}
+
+                      {/* Edit mode */}
+                      {isEditing && (
+                        <div className="flex gap-2 items-end pt-2">
+                          <div className="flex-1">
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Nueva cantidad</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={editValues[p.id] ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "") {
+                                  setEditValues({ ...editValues, [p.id]: "" });
+                                } else {
+                                  const num = Number(val);
+                                  if (!isNaN(num) && num >= 0) {
+                                    setEditValues({ ...editValues, [p.id]: String(num) });
+                                  }
+                                }
+                              }}
+                              className="w-full px-2 py-1.5 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              autoFocus
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleEditSave(p.id)}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700"
+                            title="Guardar"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={handleEditCancel}
+                            className="px-3 py-1.5 bg-slate-300 text-slate-700 rounded text-sm font-medium hover:bg-slate-400"
+                            title="Cancelar"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </CardContent>
