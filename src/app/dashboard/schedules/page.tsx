@@ -201,7 +201,10 @@ export default function AttendancePage() {
       const ent: TimeEntry[] = await entRes.json();
       const settings: any = await settingsRes.json();
       
-      const active = Array.isArray(emp) ? emp.filter((e) => e.status === "ACTIVE") : [];
+      // Filter to exclude system users (tenants) - only show real employees
+      const active = Array.isArray(emp) 
+        ? emp.filter((e) => e.status === "ACTIVE" && !e.is_system_user) 
+        : [];
       setEmployees(active);
       setTodayEntries(Array.isArray(ent) ? ent : []);
       
@@ -587,6 +590,17 @@ export default function AttendancePage() {
           message.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
         }`}>
           {message.text}
+        </div>
+      )}
+
+      {/* Info message for system users (tenants) */}
+      {user && (user as any).is_system_user && (
+        <div className="mb-5 px-4 py-3 rounded-lg border bg-blue-50 border-blue-200 text-blue-800 text-sm">
+          <strong>ℹ️ Sistema de Asistencia</strong>
+          <p className="mt-1">
+            Solo los empleados pueden registrar entrada y salida de tiempo. Si deseas punchar tiempo, 
+            debes crear una cuenta de empleado para ti mismo en la gestión de empleados.
+          </p>
         </div>
       )}
 
