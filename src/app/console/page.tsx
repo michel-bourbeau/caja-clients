@@ -3,12 +3,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Home() {
+export default function ConsolePage() {
   const router = useRouter();
 
-  // Redirect to login
+  // Redirect to superadmin login
   useEffect(() => {
-    router.push("/login");
+    router.push("/superadmin/login");
   }, [router]);
 
   return null;

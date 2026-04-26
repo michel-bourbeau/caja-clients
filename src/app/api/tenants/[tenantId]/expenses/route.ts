@@ -10,16 +10,28 @@ export async function GET(
     const supabaseAdmin = getSupabaseAdmin();
     const userId = request.headers.get("x-user-id");
 
+    // Validate UUID format (simple check)
+    const isValidUUID = (id: string | null): boolean => {
+      if (!id) return false;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(id);
+    };
+
     // Get user permissions to determine what they can see
     let userPermissions: string[] = [];
-    let validUserId = userId;
+    let validUserId: string | null = isValidUUID(userId) ? userId : null;
     let userRoleId: string | null = null;
 
-    const { data: userData } = await supabaseAdmin
-      .from("users")
-      .select("permissions, id, role_id")
-      .eq("id", userId)
-      .single();
+    // Only query if we have a valid UUID
+    let userData = null;
+    if (validUserId) {
+      const result = await supabaseAdmin
+        .from("users")
+        .select("permissions, id, role_id")
+        .eq("id", validUserId)
+        .maybeSingle();
+      userData = result.data;
+    }
 
     if (userData) {
       userPermissions = userData.permissions || [];
@@ -34,7 +46,7 @@ export async function GET(
         .select("id, email, role_id")
         .eq("tenant_id", tenantId)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (employee) {
         // Check if a user exists for this employee email
@@ -43,7 +55,7 @@ export async function GET(
           .select("id, permissions, role_id")
           .eq("tenant_id", tenantId)
           .eq("email", employee.email)
-          .single();
+          .maybeSingle();
 
         if (employeeUser) {
           validUserId = employeeUser.id;
@@ -57,6 +69,10 @@ export async function GET(
     // Admins always have view_all permission
     const canViewAll = userRoleId === "admin" || userPermissions.includes("expenses.view_all");
 
+    // If user doesn't have view_all permission and no valid user ID, return empty
+    if (!canViewAll && !validUserId) {
+      return NextResponse.json([]);
+    }
 
     // Build query
     let query = supabaseAdmin
@@ -66,7 +82,7 @@ export async function GET(
       .order("expense_date", { ascending: false });
 
     // If user doesn't have view_all permission, only show their expenses
-    if (!canViewAll) {
+    if (!canViewAll && validUserId) {
       query = query.eq("created_by", validUserId);
     }
 
@@ -92,6 +108,13 @@ export async function POST(
     const body = await request.json();
     const userId = request.headers.get("x-user-id");
 
+    // Validate UUID format (simple check)
+    const isValidUUID = (id: string | null): boolean => {
+      if (!id) return false;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(id);
+    };
+
     const {
       supplier_id,
       amount,
@@ -114,61 +137,65 @@ export async function POST(
     const supabaseAdmin = getSupabaseAdmin();
 
     // Verify or find a valid user for created_by
-    let validUserId = userId;
-    if (userId) {
+    let validUserId: string | null = isValidUUID(userId) ? userId : null;
+    
+    // If no valid UUID provided, or user doesn't exist, try to find an employee
+    if (validUserId) {
       const { data: userExists } = await supabaseAdmin
         .from("users")
         .select("id")
-        .eq("id", userId)
+        .eq("id", validUserId)
         .eq("tenant_id", tenantId)
-        .single();
+        .maybeSingle();
 
-      // If user doesn't exist, find any employee in this tenant and create/use their user entry
-      if (!userExists) {
+      if (userExists) {
+        // User exists, we're good
+      } else {
+        // User doesn't exist, try to find employee
+        validUserId = null;
+      }
+    }
 
-        const { data: employee } = await supabaseAdmin
-          .from("employees")
-          .select("id, email, first_name, last_name")
+    // If we still don't have a valid user, try to find an employee in this tenant
+    if (!validUserId) {
+      const { data: employee } = await supabaseAdmin
+        .from("employees")
+        .select("id, email, first_name, last_name")
+        .eq("tenant_id", tenantId)
+        .limit(1)
+        .maybeSingle();
+
+      if (employee) {
+        // Check if there's already a user with this email
+        const { data: existingUser } = await supabaseAdmin
+          .from("users")
+          .select("id")
           .eq("tenant_id", tenantId)
-          .limit(1)
-          .single();
+          .eq("email", employee.email)
+          .maybeSingle();
 
-        if (employee) {
-
-          
-          // Check if there's already a user with this email
-          const { data: existingUser } = await supabaseAdmin
+        if (existingUser) {
+          validUserId = existingUser.id;
+        } else {
+          // Create a user entry for this employee
+          const { data: newUser, error: userError } = await supabaseAdmin
             .from("users")
+            .insert([
+              {
+                tenant_id: tenantId,
+                email: employee.email,
+                first_name: employee.first_name,
+                last_name: employee.last_name,
+                status: "ACTIVE",
+              }
+            ])
             .select("id")
-            .eq("tenant_id", tenantId)
-            .eq("email", employee.email)
             .single();
 
-          if (existingUser) {
-            validUserId = existingUser.id;
-
-          } else {
-            // Create a user entry for this employee
-            const { data: newUser, error: userError } = await supabaseAdmin
-              .from("users")
-              .insert([
-                {
-                  tenant_id: tenantId,
-                  email: employee.email,
-                  first_name: employee.first_name,
-                  last_name: employee.last_name,
-                  status: "ACTIVE",
-                }
-              ])
-              .select("id")
-              .single();
-
-            if (newUser) {
-              validUserId = newUser.id;
-
-            } else if (userError) {
-              console.error("Error creating user for employee:", userError);
-            }
+          if (newUser) {
+            validUserId = newUser.id;
+          } else if (userError) {
+            console.error("Error creating user for employee:", userError);
           }
         }
       }

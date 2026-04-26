@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const { login, isLoading, user } = useAuth();
+  const { login, logout, isLoading, user } = useAuth();
   const router = useRouter();
 
   // Redirect if already logged in
@@ -26,6 +26,41 @@ export default function LoginPage() {
 
     try {
       await login(email, password, rememberMe);
+      
+      // CHECK PAYMENT STATUS - Block if suspended
+      const tenantId = typeof window !== "undefined" ? sessionStorage.getItem("defaultTenantId") : null;
+      
+      if (tenantId) {
+        try {
+          const paymentRes = await fetch(`/api/tenants/${tenantId}/payment`);
+          if (paymentRes.ok) {
+            const paymentData = await paymentRes.json();
+            
+            // Check if tenant is suspended (paid_until is null or expired > 3 days)
+            let isSuspended = false;
+            if (!paymentData.paid_until) {
+              isSuspended = true; // Explicitly cancelled payment
+            } else {
+              const paidUntil = new Date(paymentData.paid_until);
+              const now = new Date();
+              const diffTime = paidUntil.getTime() - now.getTime();
+              const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              isSuspended = daysUntilExpiration < -3; // Expired > 3 days
+            }
+            
+            if (isSuspended) {
+              setError("🚨 Cuenta suspendida - Su suscripción ha expirado. Contacte al administrador del sistema para efectuar el pago.");
+              // Logout to prevent access
+              await logout();
+              return;
+            }
+          }
+        } catch (paymentCheckError) {
+          console.error("Error checking payment status:", paymentCheckError);
+          // Don't block login if we can't check payment status
+        }
+      }
+      
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Email ou mot de passe incorrect");

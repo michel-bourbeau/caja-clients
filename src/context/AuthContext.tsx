@@ -73,22 +73,21 @@ async function resolveProfile(email: string): Promise<Record<string, any> | null
 }
 
 /** Fetch permissions for a role from the tenant_roles table */
-async function fetchTenantRolePermissions(tenantId: string, slug: string): Promise<string[] | null> {
+async function fetchTenantRolePermissions(tenantId: string, roleId: string): Promise<string[] | null> {
   try {
     const res = await fetch(`/api/tenants/${tenantId}/roles`);
     if (!res.ok) {
-
       return null;
     }
-    const roles: Array<{ slug: string; name: string; permissions: string[] }> = await res.json();
+    const roles: Array<{ id: string; slug: string; name: string; permissions: string[] }> = await res.json();
 
-    const match = roles.find((r) => r.slug === slug);
+    // Search by UUID (id), not slug — role_id is the UUID from employees.role_id
+    const match = roles.find((r) => r.id === roleId);
     if (!match) {
-
-    } else {
-
+      console.warn("[Auth] Role not found:", roleId);
+      return null;
     }
-    return match?.permissions ?? null;
+    return match.permissions ?? null;
   } catch (err) {
     console.error("[Auth] fetchTenantRolePermissions erreur:", err);
     return null;
@@ -341,28 +340,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   /** Re-fetch permissions from tenant_roles for the current user. Call after role changes. */
   const refreshPermissions = useCallback(async () => {
-    if (!user?.email) return;
+    if (!user?.email) return Promise.resolve();
     
     // Skip profile resolution for superadmin impersonation
     if (user.id === "superadmin" && user.email === "superadmin@caja.app") {
       // Superadmin already has ADMIN_PERMISSIONS set during impersonation
-      return;
+      return Promise.resolve();
     }
     
     try {
       const profile = await resolveProfile(user.email);
+      console.log("[Auth] Refreshing permissions for", user.email, "profile:", profile);
+      
       let customPerms: string[] | null = profile?.direct_permissions?.length
         ? profile.direct_permissions
         : null;
       if (!customPerms && profile?.tenant_id && profile?.role_id) {
         customPerms = await fetchTenantRolePermissions(profile.tenant_id, profile.role_id);
+        console.log("[Auth] Fetched tenant role permissions:", customPerms?.length ?? 0);
       }
       // Always apply resolved permissions — fall back to DEFAULT_ROLES if DB lookup fails.
       // SECURITY: never keep potentially stale/elevated permissions when the lookup returns null.
       const resolvedPerms = customPerms ?? permissionsForRole(profile?.role_id ?? "");
+      console.log("[Auth] Setting user permissions to:", resolvedPerms.length, "permissions");
       setUser((prev) => prev ? { ...prev, permissions: resolvedPerms } : prev);
     } catch (err) {
-
+      console.error("[Auth] refreshPermissions error:", err);
     }
   }, [user?.email, user?.id]);
 

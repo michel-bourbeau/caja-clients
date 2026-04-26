@@ -10,7 +10,7 @@ import { ROUTES } from "@/lib/constants";
 import { SidebarIcon } from "./SidebarIcon";
 
 export const Sidebar: React.FC = () => {
-  const { hasPermission, refreshPermissions } = useAuth();
+  const { hasPermission, refreshPermissions, user } = useAuth();
   const { features } = useTenantFeatures();
   const { settings } = useTheme();
   const pathname = usePathname();
@@ -25,6 +25,7 @@ export const Sidebar: React.FC = () => {
   // Refresh permissions on every navigation so role changes take effect without re-login
   useEffect(() => {
     refreshPermissions();
+    console.log("[Sidebar] Navigation to", pathname, "- user permissions:", user?.permissions?.length ?? 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -55,8 +56,8 @@ export const Sidebar: React.FC = () => {
         {/* Dashboard - Always visible */}
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" iconType="dashboard" />
 
-        {/* Quick Actions - Always visible */}
-        {features.pos && (hasPermission("pos.view") || hasPermission("pos.create")) && (
+        {/* Quick Actions - Show if user has permissions (no need for features.pos) */}
+        {(hasPermission("pos.view") || hasPermission("pos.create")) && (
           <>
             {hasPermission("pos.create") && (
               <NavLink href={ROUTES.POS} label="Caja" iconType="pos" />
@@ -64,57 +65,64 @@ export const Sidebar: React.FC = () => {
             {hasPermission("pos.view") && (
               <NavLink href={ROUTES.TRANSACTIONS} label="Transacciones" iconType="transactions" />
             )}
-            {(hasPermission("pos.view") || hasPermission("pos.create")) && (
+            {(hasPermission("pos.cierre") || hasPermission("pos.cierre_review")) && (
               <NavLink href={ROUTES.CIERRE} label="Cierre de Caja" iconType="cierre" />
             )}
           </>
         )}
 
-        {/* Gestión de Productos - Always visible if inventory enabled */}
-        {features.inventory && hasPermission("inventory.view") && (
+        {/* Gestión de Productos - Show if user has permissions */}
+        {hasPermission("inventory.view") && (
           <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" iconType="inventory" />
         )}
 
         {/* Divider */}
-        {((features.employees || features.schedules) || (features.payroll) || hasPermission("reports.view") || features.loyalty) && (
+        {(hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin") || hasPermission("payroll.view") || hasPermission("payroll.create") || hasPermission("reports.view") || hasPermission("loyalty.view") || hasPermission("expenses.create") || hasPermission("expenses.view_all") || hasPermission("expenses.view_own") || hasPermission("contacts.view")) && (
           <div className="sidebar-divider"></div>
         )}
 
         {/* Personal - Direct links */}
-        {(features.employees || features.schedules) && 
-         (hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
+        {(hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
           <>
-            {features.employees && hasPermission("employees.view") && (
+            {hasPermission("employees.view") && (
               <NavLink href={ROUTES.EMPLOYEES} label="Empleados" iconType="employees" />
             )}
-            {features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
+            {(hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
               <NavLink href={ROUTES.SCHEDULES} label="Asistencia" iconType="schedules" />
             )}
           </>
         )}
 
-        {/* Payroll - Direct links */}
-        {features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")) && (
-          <NavLink href={ROUTES.PAYROLL} label="Recibos" iconType="payroll" />
+        {/* Payroll - Accordion with both Períodos and Recibos */}
+        {(hasPermission("payroll.view") || hasPermission("payroll.create")) && (
+          <Accordion
+            label="Nómina"
+            iconType="payroll"
+            isOpen={expandedSections.payroll}
+            onToggle={() => toggleSection("payroll")}
+          >
+            <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
+            <NavLink href={ROUTES.PAYROLL} label="Recibos" iconType="payroll" isNested />
+          </Accordion>
         )}
 
         {/* Reports - Direct links */}
-        {features.reports && hasPermission("reports.view") && (
+        {hasPermission("reports.view") && (
           <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" />
         )}
 
         {/* Loyalty - Direct links */}
-        {features.loyalty && (
+        {hasPermission("loyalty.view") && (
           <NavLink href="/dashboard/loyalty" label="Clientes Fieles" iconType="loyalty" />
         )}
 
         {/* Expenses - Direct links */}
-        {features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all")) && (
+        {(hasPermission("expenses.create") || hasPermission("expenses.view_all") || hasPermission("expenses.view_own")) && (
           <NavLink href="/dashboard/expenses" label="Gastos" iconType="expenses" />
         )}
 
         {/* Contacts - Direct links */}
-        {features.contacts && hasPermission("contacts.view") && (
+        {hasPermission("contacts.view") && (
           <NavLink href="/dashboard/contacts" label="Contactos" iconType="contacts" />
         )}
 
@@ -131,11 +139,8 @@ export const Sidebar: React.FC = () => {
             isOpen={expandedSections.admin}
             onToggle={() => toggleSection("admin")}
           >
-            {canManageRoles && features.employees && (
+            {canManageRoles && (
               <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" iconType="roles" isNested />
-            )}
-            {canManageModules && features.payroll && (
-              <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
             )}
             {(canManageRoles || canManageModules) && (
               <NavLink href={ROUTES.SETTINGS} label="Configuración General" iconType="settings" isNested />

@@ -61,6 +61,7 @@ export default function EmployeesPage() {
   const { fmt } = useCurrency();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [tenantRoles, setTenantRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,9 +104,19 @@ export default function EmployeesPage() {
   useEffect(() => {
     if (!tenantId) return;
     setLoading(true);
-    fetch(`/api/tenants/${tenantId}/employees`)
-      .then((r) => r.json())
-      .then((data) => setEmployees(Array.isArray(data) ? data : []))
+    
+    // Load employees and tenant roles in parallel
+    Promise.all([
+      fetch(`/api/tenants/${tenantId}/employees`).then((r) => r.json()),
+      fetch(`/api/tenants/${tenantId}/roles`).then((r) => r.json()),
+    ])
+      .then(([employees, roles]) => {
+        setEmployees(Array.isArray(employees) ? employees : []);
+        // Use tenant roles (already includes system roles)
+        // If API returns empty, fallback to DEFAULT_ROLES
+        const roleList = Array.isArray(roles) && roles.length > 0 ? roles : DEFAULT_ROLES;
+        setTenantRoles(roleList);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [tenantId]);
@@ -515,7 +526,7 @@ export default function EmployeesPage() {
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todos los roles</option>
-            {DEFAULT_ROLES.map((r) => (
+            {tenantRoles.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
@@ -557,7 +568,7 @@ export default function EmployeesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {displayed.map((emp) => {
-                  const role = DEFAULT_ROLES.find((r) => r.id === emp.role_id);
+                  const role = tenantRoles.find((r) => r.id === emp.role_id);
                   return (
                     <tr key={emp.id} className="group hover:bg-blue-50 transition-colors">
                       <td className="px-4 py-3">
@@ -613,7 +624,7 @@ export default function EmployeesPage() {
             {/* Mobile: Card view */}
             <div className="sm:hidden space-y-3 px-2">
               {displayed.map((emp) => {
-                const role = DEFAULT_ROLES.find((r) => r.id === emp.role_id);
+                const role = tenantRoles.find((r) => r.id === emp.role_id);
                 return (
                   <div key={emp.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
                     {/* Row 1: Name + Status */}
@@ -745,7 +756,7 @@ export default function EmployeesPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Rol *</label>
                   <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    {DEFAULT_ROLES.map((r) => (
+                    {tenantRoles.map((r) => (
                       <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
                   </select>

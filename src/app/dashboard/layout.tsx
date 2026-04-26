@@ -2,13 +2,16 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, AlertCircle } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
 import { SUPERADMIN_IMPERSONATION_KEY, EMPLOYEE_IMPERSONATION_KEY, ImpersonationSession, EmployeeImpersonationSession } from "@/context/AuthContext";
 import { useTenantName } from "@/lib/utils/tenantName";
+import { useRoleName } from "@/lib/hooks/useRoleName";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
+import { Card } from "@/components/StripeUIComponents";
+
 
 export default function DashboardLayout({
   children,
@@ -19,10 +22,11 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
   const { tenantName } = useTenantName();
+  const { roleName } = useRoleName(user?.roleId);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [impersonation, setImpersonation] = useState<ImpersonationSession | EmployeeImpersonationSession | null>(null);
-
-  const roleName = DEFAULT_ROLES.find((r) => r.id === user?.roleId)?.name ?? user?.roleId ?? "";
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -49,6 +53,11 @@ export default function DashboardLayout({
     }
   }, []);
 
+  // Close sidebar on route change
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
   // Redirect to login if not authenticated (after render completes)
   useEffect(() => {
     if (!isLoading && !user) {
@@ -56,10 +65,53 @@ export default function DashboardLayout({
     }
   }, [user, isLoading, router]);
 
-  // Close sidebar on route change
+  // CHECK PAYMENT STATUS - Block if suspended
   useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [pathname]);
+    if (!user || isLoading) return;
+
+    const checkPaymentStatus = async () => {
+      try {
+        setCheckingPayment(true);
+        const tenantId = typeof window !== "undefined" ? sessionStorage.getItem("defaultTenantId") : null;
+        
+        if (!tenantId) {
+          setPaymentError("Tenant ID not found");
+          return;
+        }
+
+        const res = await fetch(`/api/tenants/${tenantId}/payment`);
+        if (!res.ok) {
+          setPaymentError("Could not verify payment status");
+          return;
+        }
+
+        const paymentData = await res.json();
+        
+        // Check if suspended
+        let isSuspended = false;
+        if (!paymentData.paid_until) {
+          isSuspended = true; // Explicitly cancelled
+        } else {
+          const paidUntil = new Date(paymentData.paid_until);
+          const now = new Date();
+          const diffTime = paidUntil.getTime() - now.getTime();
+          const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          isSuspended = daysUntilExpiration < -3; // Expired > 3 days
+        }
+
+        if (isSuspended) {
+          setPaymentError("🚨 Cuenta suspendida - Su suscripción ha expirado. Contacte al administrador del sistema.");
+        }
+      } catch (error) {
+        console.error("Error checking payment status:", error);
+        // Don't block if check fails
+      } finally {
+        setCheckingPayment(false);
+      }
+    };
+
+    checkPaymentStatus();
+  }, [user, isLoading]);
 
   const exitImpersonation = () => {
     // Remove impersonation keys but DON'T logout the Superadmin session
@@ -73,7 +125,7 @@ export default function DashboardLayout({
     }
     
     // Navigate without full reload - AuthContext will detect impersonation keys are gone
-    router.push("/superadmin/users");
+    router.push("/superadmin");
   };
 
   // Show loading state initially
@@ -94,6 +146,32 @@ export default function DashboardLayout({
     );
   }
 
+  // Show payment error if account is suspended
+  if (paymentError) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-red-50 to-red-100">
+        <Card className="w-full max-w-md shadow-lg">
+          <div className="p-8 text-center space-y-6">
+            <AlertCircle className="w-16 h-16 text-red-600 mx-auto" />
+            <div>
+              <h1 className="text-2xl font-bold text-red-900 mb-2">Cuenta Suspendida</h1>
+              <p className="text-red-800">{paymentError}</p>
+            </div>
+            <button
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+              className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <TenantProvider>
       <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -106,7 +184,7 @@ export default function DashboardLayout({
           />
         )}
 
-        {/* Sidebar - always visible on xl+, slide-in on smaller screens */}
+        {/* Sidebar */}
         <div
           className={`fixed xl:static left-0 top-0 h-screen z-50 xl:z-auto flex-shrink-0 transform transition-transform duration-300 ease-in-out xl:translate-x-0 ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -180,28 +258,21 @@ export default function DashboardLayout({
 
             {/* User info - right side */}
             <div className="ml-auto flex items-center gap-4">
-              {/* Bouton Caja global - visible sauf sur la page Caja */}
-              {pathname !== '/dashboard/pos' && (
-                <button
-                  onClick={() => router.push('/dashboard/pos')}
-                  className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center"
-                  title="Ir a Caja"
-                  aria-label="Ir a Caja"
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                </button>
-              )}
+              {/* Bouton Caja global */}
+              <button
+                onClick={() => router.push('/dashboard/pos')}
+                className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center"
+                title="Ir a Caja"
+                aria-label="Ir a Caja"
+              >
+                <ShoppingCart className="w-5 h-5" />
+              </button>
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-medium text-slate-800 leading-tight">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-xs text-slate-500 leading-tight">{user?.email}</p>
+                <p className="text-xs text-slate-500 leading-tight">{roleName}</p>
               </div>
-              {roleName && (
-                <span className="hidden sm:inline-block px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded-full font-medium border border-slate-200">
-                  {roleName}
-                </span>
-              )}
               <button
                 onClick={handleLogout}
                 title="Cerrar Sesión"

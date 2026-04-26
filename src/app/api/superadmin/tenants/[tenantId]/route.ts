@@ -11,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const { tenantId } = await params;
-    const { features, plan, is_paid, trial_ends_at } = await request.json();
+    const { features, plan, is_paid, trial_ends_at, paid_until } = await request.json();
 
     const supabase = getSupabaseAdmin();
 
@@ -35,6 +35,7 @@ export async function PUT(
     if (plan) updateData.plan = plan;
     if (typeof is_paid === "boolean") updateData.is_paid = is_paid;
     if (trial_ends_at !== undefined) updateData.trial_ends_at = trial_ends_at;
+    if (paid_until !== undefined) updateData.paid_until = paid_until;
 
     const { data, error } = await supabase
       .from("tenants")

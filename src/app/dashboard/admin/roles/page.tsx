@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { DEFAULT_PERMISSIONS, ADMIN_ONLY_PERMISSIONS, Permission } from "@/lib/types/roles";
 import { useTenantId } from "@/lib/utils/tenant";
+import { useAuth } from "@/context/AuthContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { IconButton } from "@/components";
+import { IconButton, Dialog } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,9 +29,11 @@ const CATEGORY_LABELS: Record<string, string> = {
   EMPLOYEES: "Empleados",
   SCHEDULES: "Horarios",
   PAYROLL: "Nómina",
-  SETTINGS: "Configuración",
   REPORTS: "Reportes",
   EXPENSES: "Gastos",
+  SETTINGS: "Configuración",
+  LOYALTY: "Clientes Fieles",
+  CONTACTS: "Contactos",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -39,9 +42,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   EMPLOYEES:  "bg-purple-100 text-purple-700 border-purple-200",
   SCHEDULES:  "bg-orange-100 text-orange-700 border-orange-200",
   PAYROLL:    "bg-yellow-100 text-yellow-700 border-yellow-200",
-  SETTINGS:   "bg-slate-100 text-slate-700 border-slate-200",
   REPORTS:    "bg-pink-100 text-pink-700 border-pink-200",
   EXPENSES:   "bg-red-100 text-red-700 border-red-200",
+  SETTINGS:   "bg-slate-100 text-slate-700 border-slate-200",
+  LOYALTY:    "bg-rose-100 text-rose-700 border-rose-200",
+  CONTACTS:   "bg-indigo-100 text-indigo-700 border-indigo-200",
 };
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[];
@@ -77,6 +82,7 @@ function PermissionCount({ permissions }: { permissions: string[] }) {
 
 export default function RolesPage() {
   const tenantId = useTenantId();
+  const { refreshPermissions } = useAuth();
 
   const [roles, setRoles] = useState<TenantRole[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -212,6 +218,10 @@ export default function RolesPage() {
       }
       const updated: TenantRole = await res.json();
       setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      
+      // Refresh user permissions if their role was updated
+      await refreshPermissions();
+      
       showFlash("success", "Derechos guardados");
       setShowEditModal(false);
     } catch (e) {
@@ -268,6 +278,10 @@ export default function RolesPage() {
         setShowEditModal(false);
       }
       setConfirmDelete(null);
+      
+      // Refresh user permissions in case their role was deleted
+      await refreshPermissions();
+      
       showFlash("success", `Rol "${confirmDelete.name}" eliminado`);
     } catch (e) {
       showFlash("error", e instanceof Error ? e.message : "Error al eliminar");
@@ -419,241 +433,217 @@ export default function RolesPage() {
         )}
 
         {/* ── Edit Role Modal ──────────────────────────────────────────────────────── */}
-        {showEditModal && selectedRole && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-4 sm:my-8">
-              <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-slate-50 border-b border-slate-200">
-                <div className="flex items-center gap-3 min-w-0">
-                  <h2 className="text-lg font-bold text-slate-900 truncate">{selectedRole.name}</h2>
-                  <RoleBadge role={selectedRole} />
-                  {isDirty && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex-shrink-0">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
-                      </svg>
-                      Sin guardar
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <Dialog
+          isOpen={showEditModal && !!selectedRole}
+          title={selectedRole?.name || ""}
+          onClose={() => {
+            setShowEditModal(false);
+            setDraftPerms(selectedRole?.permissions || []);
+          }}
+          footer={
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setDraftPerms(selectedRole?.permissions || []);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSave}
+                disabled={!isDirty || saving}
+              >
+                {saving ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                </button>
-              </div>
-
-              <div className="overflow-y-auto max-h-[60vh] p-4 sm:p-6 space-y-6">
-                {CATEGORIES.map((cat) => {
-                  const perms = GROUPED_PERMISSIONS[cat];
-                  if (!perms || perms.length === 0) return null;
-                  const checkedCount = perms.filter((p) => draftPerms.includes(p.id)).length;
-                  const allChecked = checkedCount === perms.length;
-                  const someChecked = checkedCount > 0 && !allChecked;
-
-                  return (
-                    <div key={cat}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <button onClick={() => toggleCategory(cat)} className="flex items-center gap-2 group">
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            allChecked
-                              ? "bg-slate-900 border-slate-900"
-                              : someChecked
-                              ? "bg-slate-200 border-slate-400"
-                              : "border-slate-300 group-hover:border-slate-500"
-                          }`}>
-                            {allChecked && (
-                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                            {someChecked && <div className="w-2 h-0.5 bg-slate-600 rounded" />}
-                          </div>
-                        </button>
-                        <span className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-md border ${CATEGORY_COLORS[cat] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
-                          {CATEGORY_LABELS[cat] ?? cat}
-                        </span>
-                        <span className="text-xs text-slate-400">{checkedCount}/{perms.length}</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-8">
-                        {perms.map((perm) => {
-                          const checked = draftPerms.includes(perm.id);
-                          return (
-                            <label
-                              key={perm.id}
-                              className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                                checked ? "bg-slate-50 border-slate-300" : "bg-white border-slate-200 hover:border-slate-300"
-                              }`}
-                            >
-                              <div className="mt-0.5 shrink-0">
-                                <input type="checkbox" checked={checked} onChange={() => togglePerm(perm.id)} className="sr-only" />
-                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                  checked ? "bg-slate-900 border-slate-900" : "border-slate-300"
-                                }`}>
-                                  {checked && (
-                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-slate-800">{perm.name}</p>
-                                {perm.description && (
-                                  <p className="text-xs text-slate-400 mt-0.5 leading-snug">{perm.description}</p>
-                                )}
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-center justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setDraftPerms(selectedRole.permissions);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="primary"
-                  onClick={handleSave}
-                  disabled={!isDirty || saving}
-                >
-                  {saving ? (
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                  Guardar
-                </Button>
-              </div>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+                Guardar
+              </Button>
             </div>
+          }
+        >
+          {isDirty && (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 mb-4">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
+              </svg>
+              Sin guardar
+            </div>
+          )}
+
+          <div className="space-y-6">
+            {CATEGORIES.map((cat) => {
+              const perms = GROUPED_PERMISSIONS[cat];
+              if (!perms || perms.length === 0) return null;
+              const checkedCount = perms.filter((p) => draftPerms.includes(p.id)).length;
+              const allChecked = checkedCount === perms.length;
+              const someChecked = checkedCount > 0 && !allChecked;
+
+              return (
+                <div key={cat}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <button onClick={() => toggleCategory(cat)} className="flex items-center gap-2 group">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        allChecked
+                          ? "bg-slate-900 border-slate-900"
+                          : someChecked
+                          ? "bg-slate-200 border-slate-400"
+                          : "border-slate-300 group-hover:border-slate-500"
+                      }`}>
+                        {allChecked && (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                        {someChecked && <div className="w-2 h-0.5 bg-slate-600 rounded" />}
+                      </div>
+                    </button>
+                    <span className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-md border ${CATEGORY_COLORS[cat] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                      {CATEGORY_LABELS[cat] ?? cat}
+                    </span>
+                    <span className="text-xs text-slate-400">{checkedCount}/{perms.length}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-8">
+                    {perms.map((perm) => {
+                      const checked = draftPerms.includes(perm.id);
+                      return (
+                        <label
+                          key={perm.id}
+                          className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                            checked ? "bg-slate-50 border-slate-300" : "bg-white border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="mt-0.5 shrink-0">
+                            <input type="checkbox" checked={checked} onChange={() => togglePerm(perm.id)} className="sr-only" />
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                              checked ? "bg-slate-900 border-slate-900" : "border-slate-300"
+                            }`}>
+                              {checked && (
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-800">{perm.name}</p>
+                            {perm.description && (
+                              <p className="text-xs text-slate-400 mt-0.5 leading-snug">{perm.description}</p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </Dialog>
 
         {/* ── Add Role Modal ──────────────────────────────────────────────────────── */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
-                <h3 className="text-base font-bold text-slate-900">Nuevo rol</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <Dialog
+          isOpen={showAddModal}
+          title="Nuevo rol"
+          onClose={() => setShowAddModal(false)}
+          footer={
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleAddRole}
+                disabled={addLoading}
+              >
+                {addLoading && (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                </button>
-              </div>
-              <form onSubmit={handleAddRole} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del rol *</label>
-                  <input
-                    type="text"
-                    required
-                    value={addForm.name}
-                    onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Ej: Supervisor"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
-                  <input
-                    type="text"
-                    value={addForm.description}
-                    onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
-                    placeholder="Descripción breve (opcional)"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                  />
-                </div>
-                <p className="text-xs text-slate-400">
-                  Los derechos se configurarán después de la creación.
-                </p>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAddModal(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="sm"
-                    disabled={addLoading}
-                  >
-                    {addLoading && (
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    )}
-                    Crear rol
-                  </Button>
-                </div>
-              </form>
+                )}
+                Crear rol
+              </Button>
             </div>
+          }
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del rol *</label>
+              <input
+                type="text"
+                required
+                value={addForm.name}
+                onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ej: Supervisor"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+              <input
+                type="text"
+                value={addForm.description}
+                onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Descripción breve (opcional)"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+              />
+            </div>
+            <p className="text-xs text-slate-400">
+              Los derechos se configurarán después de la creación.
+            </p>
           </div>
-        )}
+        </Dialog>
 
         {/* ── Delete Confirm Modal ────────────────────────────────────────────────── */}
-        {confirmDelete && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
-              <div className="px-6 py-4 bg-red-50 border-b border-red-200">
-                <h3 className="text-base font-bold text-red-900">Eliminar rol</h3>
-              </div>
-              <div className="p-6">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">¿Eliminar "{confirmDelete.name}"?</p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      Esta acción es irreversible. Los empleados con este rol deberán ser reasignados.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfirmDelete(null)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={handleDeleteRole}
-                  >
-                    Eliminar
-                  </Button>
-                </div>
-              </div>
+        <Dialog
+          isOpen={!!confirmDelete}
+          title="Eliminar rol"
+          onClose={() => setConfirmDelete(null)}
+          footer={
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setConfirmDelete(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDeleteRole}
+              >
+                Eliminar
+              </Button>
+            </div>
+          }
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">¿Eliminar "{confirmDelete?.name}"?</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Esta acción es irreversible. Los empleados con este rol deberán ser reasignados.
+              </p>
             </div>
           </div>
-        )}
+        </Dialog>
       </Section>
     </Container>
   );

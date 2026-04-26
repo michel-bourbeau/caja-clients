@@ -15,6 +15,7 @@ interface Tenant {
   created_at: string;
   is_paid?: boolean;
   trial_ends_at?: string | null;
+  paid_until?: string | Date | null;
 }
 
 const AVAILABLE_MODULES = [
@@ -103,9 +104,24 @@ export default function SuperAdminDashboard() {
   const [paymentFormData, setPaymentFormData] = useState({ amount: "", paid_until: "", payment_method: "", notes: "" });
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
-  const [showQuickPaymentModal, setShowQuickPaymentModal] = useState(false);
-  const [quickPaymentTenant, setQuickPaymentTenant] = useState<Tenant | null>(null);
-  const [quickPaymentFormData, setQuickPaymentFormData] = useState({ paid_until: "", payment_method: "" });
+
+  // Check if a tenant account is suspended
+  const isSuspended = (tenant: Tenant): boolean => {
+    if (!tenant.paid_until) {
+      return true; // Explicitly cancelled payment
+    }
+    const paidUntil = new Date(tenant.paid_until);
+    const now = new Date();
+    const diffTime = paidUntil.getTime() - now.getTime();
+    const daysUntilExpiration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return daysUntilExpiration < -3; // Expired more than 3 days ago
+  };
+
+  // Check if payment is currently active (paid_until is in the future)
+  const isPaymentActive = (tenant: Tenant): boolean => {
+    if (!tenant.paid_until) return false;
+    return new Date(tenant.paid_until) > new Date();
+  };
 
   // Generate dynamic plan description based on enabled modules
   const getPlanDescription = (planId: string): string => {
@@ -219,7 +235,7 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const openPaymentModal = async (tenant: Tenant & { paid_until?: string | Date | null }) => {
+  const openPaymentModal = async (tenant: Tenant) => {
     setPaymentModalTenant(tenant as any);
     setPaymentFormData({ 
       amount: String(PLAN_PRICES[tenant.plan] || ""), 
@@ -418,71 +434,47 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const openQuickPaymentModal = (tenant: Tenant & { paid_until?: string | Date | null }) => {
-    setQuickPaymentTenant(tenant as any);
-    setQuickPaymentFormData({ 
-      paid_until: (tenant.paid_until) ? new Date(tenant.paid_until).toISOString().split('T')[0] : "",
-      payment_method: ""
-    });
-    setShowQuickPaymentModal(true);
-  };
-
-  const handleRecordQuickPayment = async () => {
-    if (!quickPaymentTenant || !quickPaymentFormData.paid_until) {
-      setMessage("❌ Veuillez remplir tous les champs obligatoires");
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/superadmin/tenants/${quickPaymentTenant.id}/payment`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: quickPaymentTenant.plan,
-          amount: PLAN_PRICES[quickPaymentTenant.plan] || 0,
-          paid_until: quickPaymentFormData.paid_until,
-          payment_method: quickPaymentFormData.payment_method,
-          notes: "",
-        }),
-      });
-
-      if (res.ok) {
-        setMessage("✅ Paiement enregistré avec succès");
-        setTimeout(() => setMessage(""), 3000);
-        setShowQuickPaymentModal(false);
-        fetchTenants();
-      } else {
-        const error = await res.json();
-        setMessage(`❌ Erreur: ${error.error || "Impossible d'enregistrer"}`);
-      }
-    } catch (error) {
-      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
-    }
-  };
 
   const handleCancelPayment = async (tenant: Tenant) => {
-    if (!confirm(`Êtes-vous sûr de vouloir annuler le paiement de ${tenant.name}?`)) {
+    if (!confirm(`Êtes-vous sûr de vouloir annuler le paiement de ${tenant.name}? Le tenant et tous ses utilisateurs seront suspendus.`)) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/superadmin/tenants/${tenant.id}`, {
-        method: "PUT",
+      // Call the dedicated payment cancellation endpoint
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}/payment/cancel`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          is_paid: false,
-          paid_until: null,
-        }),
       });
 
       if (response.ok) {
-        const updated = await response.json();
-        setTenants(tenants.map((t) => (t.id === updated.id ? updated : t)));
-        setMessage(`✅ Paiement annulé pour ${tenant.name}`);
-        setTimeout(() => setMessage(""), 3000);
+        const result = await response.json();
+        setMessage(`✅ ${result.message} - Accès suspendu!`);
+        
+        // Close the payment modal if open
+        if (paymentModalTenant?.id === tenant.id) {
+          setPaymentModalTenant(null);
+        }
+        
+        // Refresh tenants list to get updated paid_until status
+        // Add small delay to ensure DB is updated
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          const tenantsResponse = await fetch("/api/superadmin/tenants");
+          if (tenantsResponse.ok) {
+            const updatedTenants = await tenantsResponse.json();
+            console.log("Tenants refreshed after payment cancel:", updatedTenants);
+            setTenants(updatedTenants);
+          }
+        } catch (refreshError) {
+          console.error("Failed to refresh tenants:", refreshError);
+        }
+        
+        setTimeout(() => setMessage(""), 4000);
       } else {
         const error = await response.json();
-        setMessage(`❌ ${error.message}`);
+        setMessage(`❌ ${error.error || error.message || "Erreur lors de l'annulation"}`);
       }
     } catch (error) {
       setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
@@ -807,53 +799,88 @@ export default function SuperAdminDashboard() {
                         ID: {tenant.id}
                       </p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${PLAN_LABELS[tenant.plan]?.color || "bg-slate-100 text-slate-700"}`}>
-                        {PLAN_LABELS[tenant.plan]?.label || tenant.plan}
-                      </span>
-                      <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-green-50 text-green-700 border border-green-200">
-                        💵 {PLAN_PRICES[tenant.plan] || 0} NIO/mes
-                      </span>
-                      {tenant.is_paid ? (
-                        <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-green-100 text-green-700">
-                          ✅ Payé
-                        </span>
-                      ) : tenant.trial_ends_at ? (
-                        <span className="inline-block px-3 py-1 rounded text-sm font-semibold bg-yellow-100 text-yellow-700">
-                          ⏳ Essai (Expire: {new Date(tenant.trial_ends_at).toLocaleDateString()})
-                        </span>
-                      ) : null}
-                      <div className="flex gap-2">
+                    <div className="flex flex-col items-end gap-3">
+                      {/* Subscription Info Section */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 min-w-max">
+                        <div className="flex flex-col gap-2">
+                          {/* Plan Badge */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-slate-600">Plan:</span>
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${PLAN_LABELS[tenant.plan]?.color || "bg-slate-100 text-slate-700"}`}>
+                                {PLAN_LABELS[tenant.plan]?.label || tenant.plan}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditingTenant(tenant);
+                                  setSelectedModules(tenant.features || {});
+                                  setEditingPlan(tenant.plan || "basic");
+                                }}
+                                className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors"
+                                title="Modifier le plan et les modules"
+                              >
+                                ✏️
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Price */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-semibold text-slate-600">Precio:</span>
+                            <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-50 text-green-700">
+                              💵 {PLAN_PRICES[tenant.plan] || 0} NIO/mes
+                            </span>
+                          </div>
+
+                          {/* Expiration Date */}
+                          {tenant.paid_until && (
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-slate-600">Vencimiento:</span>
+                              <span className="inline-block px-2 py-1 rounded text-xs font-mono bg-blue-50 text-blue-700 border border-blue-200">
+                                📅 {new Date(tenant.paid_until).toLocaleDateString('fr-FR')}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Status Badge */}
+                          <div className="border-t border-slate-200 pt-2 mt-2">
+                            {isSuspended(tenant) ? (
+                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-red-600 text-white border border-red-700 w-full text-center">
+                                🚨 SUSPENDU
+                              </span>
+                            ) : isPaymentActive(tenant) ? (
+                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-700 border border-green-300 w-full text-center">
+                                ✅ Payé
+                              </span>
+                            ) : tenant.paid_until && new Date(tenant.paid_until) <= new Date() ? (
+                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-300 w-full text-center">
+                                ⚠️ Expiré
+                              </span>
+                            ) : tenant.trial_ends_at ? (
+                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300 w-full text-center">
+                                ⏳ Essai
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap gap-2 w-full">
                         <button
                           onClick={() => enterTenant(tenant)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-lg transition-colors"
+                          className="flex-1 min-w-fit flex items-center justify-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-lg transition-colors"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                           </svg>
                           Accéder
                         </button>
-                        {!tenant.is_paid && (
-                          <button
-                            onClick={() => openQuickPaymentModal(tenant)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                          >
-                            ✅ Payer
-                          </button>
-                        )}
-                        {tenant.is_paid && (
-                          <button
-                            onClick={() => handleCancelPayment(tenant)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                          >
-                            ❌ Annuler paiement
-                          </button>
-                        )}
                         <button
                           onClick={() => openPaymentModal(tenant)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                          className="flex-1 min-w-fit flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
                         >
-                          💳 Historique paiement
+                          ⚙️ Gérer l'abonnement
                         </button>
                       </div>
                     </div>
@@ -988,7 +1015,7 @@ export default function SuperAdminDashboard() {
                           }}
                           className="bg-blue-600"
                         >
-                          ✏️ Modifier Modules
+                          ✏️ Modifier Plan & Modules
                         </Button>
                         <Button
                           onClick={() => handleSyncTenant(tenant)}
@@ -1020,7 +1047,7 @@ export default function SuperAdminDashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto bg-white">
             <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-300 p-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-blue-900">💳 Gérer Paiements</h2>
+              <h2 className="text-2xl font-bold text-blue-900">⚙️ Gérer l'abonnement</h2>
               <button
                 onClick={() => setShowPaymentModal(false)}
                 className="text-3xl text-slate-500 hover:text-slate-700 font-bold"
@@ -1034,7 +1061,7 @@ export default function SuperAdminDashboard() {
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <p className="text-sm text-slate-600"><strong>Client:</strong> {paymentModalTenant.name}</p>
                 <p className="text-sm text-slate-600"><strong>Plan:</strong> {PLAN_LABELS[paymentModalTenant.plan]?.label}</p>
-                <p className="text-sm text-slate-600"><strong>Statut:</strong> {paymentModalTenant.is_paid ? "✅ Payé" : "⏳ Essai"}</p>
+                <p className="text-sm text-slate-600"><strong>Statut:</strong> {isPaymentActive(paymentModalTenant) ? "✅ Payé" : "⏳ Essai"}</p>
                 {((paymentModalTenant as any).paid_until) && (
                   <p className="text-sm text-slate-600">
                     <strong>Payé jusqu'au:</strong> {new Date((paymentModalTenant as any).paid_until).toLocaleDateString('fr-FR')}
@@ -1069,13 +1096,16 @@ export default function SuperAdminDashboard() {
 
                   <div>
                     <label className="block text-sm font-semibold text-slate-900 mb-2">Méthode de paiement</label>
-                    <input
-                      type="text"
+                    <select
                       value={paymentFormData.payment_method}
                       onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_method: e.target.value })}
                       className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
-                      placeholder="ex: Virement, PayPal, Carte..."
-                    />
+                    >
+                      <option value="">-- Sélectionner une méthode --</option>
+                      <option value="CASH">💵 Espèces</option>
+                      <option value="CARD">💳 Crédit</option>
+                      <option value="TRANSFER">🏦 Transfert</option>
+                    </select>
                   </div>
 
                   <div>
@@ -1140,9 +1170,9 @@ export default function SuperAdminDashboard() {
                 >
                   ❌ Fermer
                 </Button>
-                {paymentModalTenant?.is_paid && (
+                {isPaymentActive(paymentModalTenant!) && (
                   <Button
-                    onClick={() => handleCancelPayment(paymentModalTenant)}
+                    onClick={() => handleCancelPayment(paymentModalTenant!)}
                     className="flex-1 bg-red-600 hover:bg-red-700"
                   >
                     🗑️ Annuler paiement
@@ -1154,73 +1184,6 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* Quick Payment Modal */}
-      {showQuickPaymentModal && quickPaymentTenant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4 bg-white">
-            <div className="sticky top-0 bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-300 p-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-green-900">✅ Enregistrer un paiement</h2>
-              <button
-                onClick={() => setShowQuickPaymentModal(false)}
-                className="text-3xl text-slate-500 hover:text-slate-700 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {/* Tenant Info */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600"><strong>Client:</strong> {quickPaymentTenant.name}</p>
-                <p className="text-sm text-slate-600"><strong>Plan:</strong> {PLAN_LABELS[quickPaymentTenant.plan]?.label}</p>
-                <p className="text-sm text-slate-600"><strong>Montant:</strong> {PLAN_PRICES[quickPaymentTenant.plan] || 0} NIO/mois</p>
-              </div>
-
-              {/* Payment Form */}
-              <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">Payé jusqu'au *</label>
-                    <input
-                      type="date"
-                      value={quickPaymentFormData.paid_until}
-                      onChange={(e) => setQuickPaymentFormData({ ...quickPaymentFormData, paid_until: e.target.value })}
-                      className="w-full px-3 py-2 border border-green-300 rounded-lg text-slate-900 bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">Méthode de paiement</label>
-                    <input
-                      type="text"
-                      value={quickPaymentFormData.payment_method}
-                      onChange={(e) => setQuickPaymentFormData({ ...quickPaymentFormData, payment_method: e.target.value })}
-                      className="w-full px-3 py-2 border border-green-300 rounded-lg text-slate-900 bg-white"
-                      placeholder="ex: Virement, PayPal, Carte..."
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleRecordQuickPayment}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
-                  >
-                    💾 Enregistrer
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => setShowQuickPaymentModal(false)}
-                  className="flex-1 bg-slate-500 hover:bg-slate-600"
-                >
-                  ❌ Annuler
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }

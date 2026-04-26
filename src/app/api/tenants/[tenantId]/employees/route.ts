@@ -119,7 +119,7 @@ export async function POST(
       throw empError;
     }
 
-    // If a password is provided, create a Supabase Auth user
+    // If a password is provided, create a Supabase Auth user AND a users table entry
     if (password) {
       const { error: authError } = await supabase.auth.admin.createUser({
         email: email.trim().toLowerCase(),
@@ -140,6 +140,28 @@ export async function POST(
           { error: `Erreur création compte: ${authError.message}` },
           { status: 500 }
         );
+      }
+
+      // Also create/update entry in users table for consistency
+      const { error: userTableError } = await supabase
+        .from("users")
+        .upsert(
+          [
+            {
+              tenant_id: tenantId,
+              email: email.trim().toLowerCase(),
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+              role_id: roleId || "cashier",
+              status: "ACTIVE",
+            },
+          ],
+          { onConflict: "tenant_id,email" }
+        );
+
+      if (userTableError) {
+        console.error("Error creating user table entry:", userTableError);
+        // Don't fail the employee creation, just log the error
       }
     }
 

@@ -16,6 +16,14 @@ export async function PUT(
 
     const supabase = getSupabaseAdmin();
 
+    // Get the OLD email before updating
+    const { data: oldEmployee } = await supabase
+      .from("employees")
+      .select("email")
+      .eq("id", employeeId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (firstName    !== undefined) updates.first_name = firstName.trim();
     if (lastName     !== undefined) updates.last_name  = lastName.trim();
@@ -40,11 +48,44 @@ export async function PUT(
       return NextResponse.json({ error: "Employé introuvable" }, { status: 404 });
     }
 
+    // If email was updated, also update in users table if a user exists
+    if (email !== undefined && oldEmployee) {
+      const oldEmail = oldEmployee.email;
+      const newEmail = email.trim().toLowerCase();
+      
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("email", oldEmail)
+        .maybeSingle();
+
+      if (existingUser) {
+        // Update the user's email in users table
+        const { error: userUpdateError } = await supabase
+          .from("users")
+          .update({ email: newEmail })
+          .eq("id", existingUser.id)
+          .eq("tenant_id", tenantId);
+
+        if (userUpdateError) {
+          console.error("Error updating user email:", userUpdateError);
+        }
+
+        // Also update in Supabase Auth if user exists there
+        const { data: authUsers } = await supabase.auth.admin.listUsers();
+        const authUser = authUsers?.users?.find((u) => u.email === oldEmail);
+        if (authUser) {
+          await supabase.auth.admin.updateUserById(authUser.id, { email: newEmail });
+        }
+      }
+    }
+
     // Update password via Supabase Auth if provided
-    if (password && email) {
+    if (password && data.email) {
       const { data: authUsers } = await supabase.auth.admin.listUsers();
       const authUser = authUsers?.users?.find(
-        (u) => u.email === (email ?? data.email).trim().toLowerCase()
+        (u) => u.email === data.email.trim().toLowerCase()
       );
       if (authUser) {
         await supabase.auth.admin.updateUserById(authUser.id, { password });

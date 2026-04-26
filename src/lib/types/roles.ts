@@ -14,7 +14,7 @@ export interface Permission {
   id: string;
   name: string;
   description?: string;
-  category: "POS" | "INVENTORY" | "EMPLOYEES" | "PAYROLL" | "SCHEDULES" | "SETTINGS" | "REPORTS" | "EXPENSES";
+  category: "POS" | "INVENTORY" | "EMPLOYEES" | "PAYROLL" | "SCHEDULES" | "SETTINGS" | "REPORTS" | "EXPENSES" | "LOYALTY" | "CONTACTS";
 }
 
 export interface RoleWithCount extends Role {
@@ -241,26 +241,34 @@ export const DEFAULT_PERMISSIONS: Permission[] = [
   {
     id: "contacts.view",
     name: "Ver contactos",
-    category: "SETTINGS",
+    category: "CONTACTS",
     description: "Ver lista de contactos importants",
   },
   {
     id: "contacts.create",
     name: "Agregar contactos",
-    category: "SETTINGS",
+    category: "CONTACTS",
     description: "Crear nuevos contactos",
   },
   {
     id: "contacts.edit",
     name: "Editar contactos",
-    category: "SETTINGS",
+    category: "CONTACTS",
     description: "Modificar información de contactos",
   },
   {
     id: "contacts.delete",
     name: "Eliminar contactos",
-    category: "SETTINGS",
+    category: "CONTACTS",
     description: "Eliminar contactos",
+  },
+
+  // Loyalty Permissions
+  {
+    id: "loyalty.view",
+    name: "Ver clientes fieles",
+    category: "LOYALTY",
+    description: "Ver programa de fidelización y clientes",
   },
 ];
 

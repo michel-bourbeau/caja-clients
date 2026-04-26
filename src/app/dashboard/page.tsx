@@ -6,7 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
-import { TrialExpiredBanner } from "@/components/TrialExpiredBanner";
+import { useRoleName } from "@/lib/hooks/useRoleName";
+
 import {
   Card,
   CardHeader,
@@ -44,11 +45,15 @@ import {
   BookOpen,
 } from "lucide-react";
 
+import { useRouter } from "next/navigation";
+
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, hasPermission } = useAuth();
   const { features, loading } = useTenantFeatures();
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { roleName } = useRoleName(user?.roleId, tenantId ?? undefined);
 
   const canManageRoles = hasPermission("settings.manage_roles");
   const canManageModules = hasPermission("settings.manage_modules");
@@ -287,7 +292,7 @@ export default function DashboardPage() {
       href: "/dashboard/loyalty",
       color: "bg-rose-50 border-rose-200 text-rose-800",
       iconBg: "bg-rose-100",
-      show: features.loyalty,
+      show: hasPermission("loyalty.view"),
     },
     {
       id: "expenses",
@@ -317,7 +322,7 @@ export default function DashboardPage() {
       href: "/dashboard/settings/taxes",
       color: "bg-red-50 border-red-200 text-red-800",
       iconBg: "bg-red-100",
-      show: (canManageRoles || canManageModules),
+      show: features.taxes && (canManageRoles || canManageModules),
     },
     {
       id: "roles",
@@ -337,18 +342,11 @@ export default function DashboardPage() {
       href: "/dashboard/settings",
       color: "bg-indigo-50 border-indigo-200 text-indigo-800",
       iconBg: "bg-indigo-100",
-      show: features.settings && hasPermission("settings.view"),
+      show: hasPermission("settings.view"),
     },
   ];
 
   const visibleCards = statCards.filter((c) => c.show);
-
-  const roleLabel: Record<string, string> = {
-    admin:    "Administrador",
-    gerente:  "Gerente",
-    cajero:   "Cajero",
-    employee: "Empleado",
-  };
 
   if (loading) {
     return (
@@ -366,11 +364,8 @@ export default function DashboardPage() {
       <DashboardHeader
         pageType="dashboard"
         title="Dashboard"
-        subtitle={`${roleLabel[user?.roleId ?? ""] ?? user?.roleId ?? "Usuario"} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
+        subtitle={`${roleName} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
       />
-
-      {/* Trial Status Banner */}
-      <TrialExpiredBanner />
 
       {/* Modules Grid */}
         {/* Module cards grid */}
@@ -431,45 +426,9 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Debug: Show permission issues */}
-      {!(features.inventory && hasPermission("inventory.view")) && (
-        <Card className="mt-12 bg-amber-50 border-amber-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <Lock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-amber-900">Acceso limitado</h3>
-                <p className="text-sm text-amber-800 mt-1">
-                  {!features.inventory ? "El módulo de Inventario no está habilitado. " : ""}
-                  {!hasPermission("inventory.view") ? "No tienes permiso para ver el inventario." : ""}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Low Stock Alert Section - requires inventory management permissions */}
-      {features.inventory && (hasPermission("inventory.create") || hasPermission("inventory.edit")) && lowStockProducts.length > 0 && (
-        <Section title="Productos por Reabastecer" description="Stock bajo detectado" className="mt-12">
-          <Alert variant="warning" title={`${lowStockProducts.length} producto${lowStockProducts.length !== 1 ? "s" : ""} con stock bajo`}>
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm mt-2">
-                Los siguientes productos han alcanzado su stock mínimo. Considera reabastecer pronto.
-              </p>
-              
-              {/* Refresh button - aligned right and center vertically */}
-              <button
-                onClick={() => fetchLowStockProducts()}
-                disabled={isRefreshing}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-all flex-shrink-0"
-              >
-                <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
-                {isRefreshing ? "Actualizando..." : "Actualizar"}
-              </button>
-            </div>
-          </Alert>
-
+      {/* Low stock products section */}
+      {lowStockProducts.length > 0 && (
+        <Section title="Productos con Stock Bajo">
           {/* Low stock products grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
             {lowStockProducts.map((p) => {

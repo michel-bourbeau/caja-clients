@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { IconButton } from "./ui";
 
 interface DialogProps {
@@ -48,6 +48,19 @@ export const Dialog: React.FC<DialogProps> = ({
   maxWidth = "md",
   scrollable = true,
 }) => {
+  // Block body scroll when dialog is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -60,7 +73,7 @@ export const Dialog: React.FC<DialogProps> = ({
       }}
     >
       <div
-        className={`bg-white rounded-lg shadow-xl w-full ${maxWidthClasses[maxWidth]} p-6 space-y-4 ${
+        className={`bg-white rounded-lg shadow-xl w-[80%] max-w-[800px] p-6 space-y-4 ${
           scrollable ? "max-h-[90vh] overflow-y-auto" : ""
         }`}
       >

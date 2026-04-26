@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { enableTenantAccess, disableTenantAccess, isTenantSuspended } from "@/lib/utils/tenantAccessControl";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -182,10 +183,21 @@ export async function PUT(
       );
     }
 
+    // Re-enable tenant access (modules and users)
+    const enableResult = await enableTenantAccess(tenantId);
+    if (!enableResult.success) {
+      console.warn(`Partial success: Payment recorded but failed to enable access: ${enableResult.error}`);
+    } else {
+      console.log(
+        `Tenant ${tenantId} re-enabled: ${enableResult.usersEnabled} users/employees, modules restored`
+      );
+    }
+
     return NextResponse.json({
       message: "Paiement enregistré avec succès",
       payment: paymentData?.[0],
       tenant: updatedTenant?.[0],
+      accessRestored: enableResult.success,
     });
   } catch (error) {
     console.error("PUT payment error:", error);

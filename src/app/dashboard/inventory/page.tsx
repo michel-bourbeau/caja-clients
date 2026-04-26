@@ -1072,7 +1072,7 @@ export default function InventoryPage() {
         isOpen={showAddProduct}
         title="Nuevo Producto"
         onClose={() => setShowAddProduct(false)}
-        maxWidth="lg"
+        maxWidth="3xl"
         scrollable={true}
         footer={
           <div className="flex justify-end gap-2">
@@ -1081,70 +1081,79 @@ export default function InventoryPage() {
           </div>
         }
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre *</label>
-                <input
-                  placeholder="Nombre del producto"
-                  value={newProduct.name}
-                  onChange={(e) => {
-                    const newName = e.target.value;
-                    setNewProduct({ ...newProduct, name: newName, sku: generateSKU(newName) });
-                  }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+        <div className="space-y-5 mb-6">
+              {/* Row 1: Nombre & Categoría */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre *</label>
+                  <input
+                    placeholder="Nombre del producto"
+                    value={newProduct.name}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      setNewProduct({ ...newProduct, name: newName, sku: generateSKU(newName) });
+                    }}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Categoría</label>
+                  <select
+                    value={newProduct.category_id}
+                    onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">— Sin categoría —</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">SKU *</label>
-                <input
-                  placeholder="Generado automáticamente"
-                  value={newProduct.sku}
-                  readOnly
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-500 bg-slate-50 cursor-not-allowed"
-                  title="El SKU se genera automáticamente a partir del nombre"
-                />
+
+              {/* Row 2: SKU & Descripción */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">SKU *</label>
+                  <input
+                    placeholder="Generado automáticamente"
+                    value={newProduct.sku}
+                    readOnly
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-500 bg-slate-50 cursor-not-allowed"
+                    title="El SKU se genera automáticamente a partir del nombre"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción</label>
+                  <input
+                    placeholder="Descripción opcional"
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
+
+              {/* Row 3: Imagen del producto */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
-                <select
-                  value={newProduct.category_id}
-                  onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">— Sin categoría —</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
-                <input
-                  placeholder="Descripción opcional"
-                  value={newProduct.description}
-                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Imagen del producto</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageSelect}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
+                <p className="text-xs text-slate-400 mt-1">JPG, PNG (máx 5MB)</p>
               </div>
             </div>
 
             {/* Image preview */}
             {productImagePreview && (
-              <div className="mt-3 flex items-center gap-3 mb-4">
+              <div className="mt-6 mb-6 flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <img
                   src={productImagePreview}
                   alt="Preview"
-                  className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                  className="w-24 h-24 object-cover rounded-lg border border-slate-300"
                 />
                 <button
                   onClick={() => {
@@ -1153,29 +1162,31 @@ export default function InventoryPage() {
                   }}
                   className="text-sm text-red-600 hover:text-red-700 font-semibold"
                 >
-                  Eliminar imagen
+                  ❌ Eliminar imagen
                 </button>
               </div>
             )}
 
             {/* Multi-format toggle */}
-            <label className="inline-flex items-center gap-2 mb-4 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isMultiFormat}
-                onChange={(e) => {
-                  setIsMultiFormat(e.target.checked);
-                  setVariantRows([{ label: "", price: "", quantity: "" }]);
-                }}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm font-semibold text-slate-700">Multi-formato (varios tamaños / presentaciones)</span>
-            </label>
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isMultiFormat}
+                  onChange={(e) => {
+                    setIsMultiFormat(e.target.checked);
+                    setVariantRows([{ label: "", price: "", quantity: "" }]);
+                  }}
+                  className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-semibold text-slate-700">Multi-formato (varios tamaños / presentaciones)</span>
+              </label>
+            </div>
 
             {/* Single product price+qty OR variant rows */}
             {isMultiFormat ? (
-              <div className="space-y-2 mb-4">
-                <p className="text-sm font-semibold text-slate-600">Formatos:</p>
+              <div className="space-y-4 mb-6">
+                <p className="text-sm font-bold text-slate-700">Formatos y Precios:</p>
                 {variantRows.map((v, i) => (
                   <div key={i} className="flex flex-wrap gap-2 items-end">
                     <div className="flex-1 min-w-[120px]">
@@ -1234,37 +1245,39 @@ export default function InventoryPage() {
                 >+ Agregar formato</button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Precio *</label>
-                  <input
-                    type="number"
-                    placeholder="Precio unitario"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+              <div className="space-y-5 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Precio *</label>
+                    <input
+                      type="number"
+                      placeholder="Precio unitario"
+                      value={newProduct.price}
+                      onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Stock inicial</label>
+                    <input
+                      type="number"
+                      placeholder="Cantidad disponible"
+                      value={newProduct.quantity}
+                      onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Stock inicial</label>
-                  <input
-                    type="number"
-                    placeholder="Cantidad disponible"
-                    value={newProduct.quantity}
-                    onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Stock mínimo</label>
                   <input
                     type="number"
                     placeholder="Alerta bajo inventario"
                     value={newProduct.min_stock}
                     onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+                  <p className="text-xs text-slate-500 mt-2">Se alertará cuando el stock llegue a este número</p>
                 </div>
               </div>
             )}

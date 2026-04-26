@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSuperAdmin } from "@/context/SuperAdminContext";
-import { EMPLOYEE_IMPERSONATION_KEY } from "@/context/AuthContext";
+import { EMPLOYEE_IMPERSONATION_KEY, SUPERADMIN_IMPERSONATION_KEY } from "@/context/AuthContext";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 
 interface Tenant {
@@ -42,6 +42,7 @@ export default function SuperAdminUsersPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>("");
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [tenantRoles, setTenantRoles] = useState<any[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,11 +75,19 @@ export default function SuperAdminUsersPage() {
     if (!tenantId) return;
     setLoadingEmployees(true);
     try {
-      const res = await fetch(`/api/tenants/${tenantId}/employees`);
-      const data = await res.json();
-      setEmployees(Array.isArray(data) ? data : []);
+      const [empRes, rolesRes] = await Promise.all([
+        fetch(`/api/tenants/${tenantId}/employees`),
+        fetch(`/api/tenants/${tenantId}/roles`)
+      ]);
+      
+      const empData = await empRes.json();
+      setEmployees(Array.isArray(empData) ? empData : []);
+      
+      const rolesData = await rolesRes.json();
+      setTenantRoles(Array.isArray(rolesData) ? rolesData : []);
     } catch {
       setEmployees([]);
+      setTenantRoles([]);
     } finally {
       setLoadingEmployees(false);
     }
@@ -168,6 +177,9 @@ export default function SuperAdminUsersPage() {
       showFlash("error", "Tenant non trouvé");
       return;
     }
+
+    // Clear superadmin impersonation first (so employee impersonation takes priority)
+    sessionStorage.removeItem(SUPERADMIN_IMPERSONATION_KEY);
 
     // Store employee impersonation in sessionStorage
     const impersonationData = {
@@ -369,9 +381,13 @@ export default function SuperAdminUsersPage() {
                         onChange={(e) => setForm({ ...form, roleId: e.target.value })}
                         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
                       >
-                        {DEFAULT_ROLES.map((r) => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
+                        {tenantRoles.length > 0
+                          ? tenantRoles.map((r) => (
+                              <option key={r.id} value={r.id}>{r.name}</option>
+                            ))
+                          : DEFAULT_ROLES.map((r) => (
+                              <option key={r.id} value={r.id}>{r.name}</option>
+                            ))}
                       </select>
                     </div>
                     <div>
@@ -472,7 +488,8 @@ export default function SuperAdminUsersPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filtered.map((emp) => {
-                      const role = DEFAULT_ROLES.find((r) => r.id === emp.role_id);
+                      // Search in tenant roles first, then fallback to system roles
+                      const role = tenantRoles.find((r) => r.id === emp.role_id) || DEFAULT_ROLES.find((r) => r.id === emp.role_id);
                       const initials = `${emp.first_name[0] ?? ""}${emp.last_name[0] ?? ""}`.toUpperCase();
                       // Detect superuser: either via is_principal_admin flag OR (is_system_user AND role_id === "admin")
                       const isSuperUser = emp.is_principal_admin === true || (emp.is_system_user && emp.role_id === "admin");

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
+import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
 
@@ -35,19 +36,6 @@ const PLAN_LABELS: Record<string, PlanDetails> = {
   },
 };
 
-const AVAILABLE_MODULES = [
-  { id: "pos",       label: "Punto de Venta (Cajas)",   icon: "\u{1F6D2}" },
-  { id: "inventory", label: "Gestion de Inventario",    icon: "\u{1F4E6}" },
-  { id: "employees", label: "Gestion de Empleados",     icon: "\u{1F465}" },
-  { id: "schedules", label: "Horarios y Turnos",        icon: "\u{1F4C5}" },
-  { id: "payroll",   label: "Nomina",                   icon: "\u{1F4B0}" },
-  { id: "reports",   label: "Reportes",                 icon: "\u{1F4CA}" },
-  { id: "loyalty",   label: "Clientes Fieles",          icon: "\u{1F4B3}" },
-  { id: "expenses",  label: "Gastos",                   icon: "\u{1F4B8}" },
-  { id: "taxes",     label: "Impuestos",                icon: "\u{1F4CB}" },
-  { id: "settings",  label: "Configuracion",            icon: "\u2699\uFE0F" },
-];
-
 type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
 
 interface PayrollConfig {
@@ -67,6 +55,22 @@ interface Settings {
   payrollConfig: PayrollConfig;
 }
 
+interface PaymentRecord {
+  id: string;
+  plan: string;
+  amount: number;
+  paid_until: string;
+  payment_date: string;
+  payment_method: string;
+  notes?: string;
+}
+
+interface PaymentInfo {
+  plan: string;
+  paid_until: string | null;
+  history: PaymentRecord[];
+}
+
 const DEFAULT_SETTINGS: Settings = {
   companyName: "",
   companyPhone: "",
@@ -81,18 +85,19 @@ const DEFAULT_SETTINGS: Settings = {
 export default function SettingsPage() {
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  const [loadingPayment, setLoadingPayment] = useState(true);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [modules, setModules] = useState<Record<ModuleKey, boolean>>({} as Record<ModuleKey, boolean>);
-  const [authorizedModules, setAuthorizedModules] = useState<Set<ModuleKey>>(new Set());
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingCompany, setSavingCompany] = useState(false);
   const [savingPOS, setSavingPOS] = useState(false);
   const [savingPayroll, setSavingPayroll] = useState(false);
-  const [savingModules, setSavingModules] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") : null;
+  const { paymentStatus, loading: paymentLoading } = usePaymentStatus(tenantId);
+  const isSuspended = paymentStatus?.isSuspended ?? false;
 
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -102,34 +107,14 @@ export default function SettingsPage() {
   const loadSettings = useCallback(async () => {
     if (!tenantId) return;
     try {
-      const [tenantRes, settingsRes] = await Promise.all([
+      const [tenantRes, settingsRes, paymentRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}`),
         fetch(`/api/tenants/${tenantId}/settings`),
+        fetch(`/api/tenants/${tenantId}/payment`),
       ]);
       if (tenantRes.ok) {
         const t = await tenantRes.json();
         if (t?.plan) setTenantPlan(t.plan);
-
-        // Load plan configs to get authorized modules
-        if (t?.plan) {
-          const planRes = await fetch("/api/superadmin/plan-configs");
-          if (planRes.ok) {
-            const planData = await planRes.json();
-            const planConfig = planData.configs?.[t.plan] || {};
-            
-            // Get authorized modules for this plan (always include settings)
-            const authorized = new Set<ModuleKey>(
-              Object.entries(planConfig)
-                .filter(([_, enabled]) => enabled)
-                .map(([key]) => key as ModuleKey)
-            );
-            
-            // Settings is ALWAYS authorized for all users
-            authorized.add("settings");
-            
-            setAuthorizedModules(authorized);
-          }
-        }
       }
       if (settingsRes.ok) {
         const s = await settingsRes.json();
@@ -146,33 +131,17 @@ export default function SettingsPage() {
         });
         broadcastCurrencyChange(cur);
       }
+      if (paymentRes.ok) {
+        const p = await paymentRes.json();
+        setPaymentInfo(p);
+      }
     } catch (e) {
       console.error("Error loading settings:", e);
     } finally {
       setLoadingSettings(false);
+      setLoadingPayment(false);
     }
   }, [tenantId]);
-
-  // Update modules when features load
-  useEffect(() => {
-    if (features) {
-      // Ensure settings is always enabled and convert undefined to false
-      const normalized: Record<ModuleKey, boolean> = {
-        pos: features.pos ?? false,
-        inventory: features.inventory ?? false,
-        employees: features.employees ?? false,
-        schedules: features.schedules ?? false,
-        payroll: features.payroll ?? false,
-        reports: features.reports ?? false,
-        loyalty: features.loyalty ?? false,
-        expenses: features.expenses ?? false,
-        taxes: features.taxes ?? false,
-        contacts: features.contacts ?? false,
-        settings: true,
-      };
-      setModules(normalized);
-    }
-  }, [features]);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
 
@@ -263,34 +232,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleModuleToggle = (moduleKey: ModuleKey) => {
-    setModules((prev) => ({
-      ...prev,
-      [moduleKey]: !prev[moduleKey],
-    }));
-  };
-
-  const handleSaveModules = async () => {
-    if (!tenantId) return;
-    setSavingModules(true);
-
-    try {
-      const res = await fetch(`/api/tenants/${tenantId}/features`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ features: { ...modules, settings: true } }),
-      });
-
-      if (!res.ok) throw new Error("Error al guardar módulos");
-
-      showMessage("success", "Módulos actualizados exitosamente");
-    } catch (err) {
-      showMessage("error", (err as Error).message);
-    } finally {
-      setSavingModules(false);
-    }
-  };
-
   const planInfo = tenantPlan ? PLAN_LABELS[tenantPlan] : null;
 
   return (
@@ -302,6 +243,44 @@ export default function SettingsPage() {
           description="Gestiona tu información de empresa, plan y módulos activos"
         />
 
+        {/* LOADING SCREEN - Show while payment status is loading */}
+        {paymentLoading ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-slate-600">Cargando información de pago...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+        {/* SUSPENSION ALERT - PROMINENT */}
+        {isSuspended && (
+          <Alert
+            variant="error"
+            title="🔴 CUENTA SUSPENDIDA"
+          >
+            <div className="space-y-3 mt-2">
+              <p className="font-semibold">Tu suscripción ha expirado hace más de 3 días.</p>
+              <p className="text-sm">Todos los módulos, usuarios y empleados han sido desactivados temporalmente.</p>
+              <p className="text-sm font-semibold">✅ Se reactivarán automáticamente cuando registres un pago.</p>
+              <div className="mt-4 pt-4 border-t border-red-200">
+                <p className="text-sm mb-3">Para reactivar tu cuenta inmediatamente, contacta con el administrador del sistema:</p>
+                <Button 
+                  variant="secondary"
+                  onClick={() => {
+                    const email = "michelbourbeau@gmail.com";
+                    const subject = encodeURIComponent("Reactivar Suscripción - Cuenta Suspendida");
+                    const body = encodeURIComponent("Necesito reactivar mi suscripción y acceso a la plataforma.");
+                    window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
+                  }}
+                >
+                  📧 Enviar Email al Soporte
+                </Button>
+              </div>
+            </div>
+          </Alert>
+        )}
+
         {/* Messages */}
         {message && (
           <Alert
@@ -312,47 +291,81 @@ export default function SettingsPage() {
           </Alert>
         )}
 
-        {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {authorizedModules.has("taxes") && (
-            <a href="/dashboard/settings/taxes" className="block">
-              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex flex-col items-center justify-center text-center gap-3 pt-6 pb-6">
-                  <span className="text-4xl">💳</span>
-                  <div>
-                    <h3 className="font-bold text-slate-900">Impuestos</h3>
-                    <p className="text-sm text-slate-500 mt-1">Tasas y categorías</p>
+        {/* ONLY SHOW PAYMENT INFO IF SUSPENDED */}
+        {isSuspended ? (
+          // When suspended: show ONLY payment information
+          <Card>
+            <CardHeader>
+              <CardTitle>Información de Pago y Reactivación</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingPayment ? (
+                <p className="text-sm text-slate-500">Cargando...</p>
+              ) : paymentInfo ? (
+                <div className="space-y-6">
+                  <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-sm text-slate-700 mb-2 font-semibold">Estado Actual:</p>
+                    <p className="text-lg text-red-700 font-bold">❌ SUSPENDIDO</p>
+                    {paymentInfo.paid_until && (
+                      <p className="text-sm text-slate-600 mt-2">
+                        Expirado desde: {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-            </a>
-          )}
-          {authorizedModules.has("loyalty") && (
-            <a href="/dashboard/settings/loyalty" className="block">
-              <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="flex flex-col items-center justify-center text-center gap-3 pt-6 pb-6">
-                  <span className="text-4xl">❤️</span>
-                  <div>
-                    <h3 className="font-bold text-slate-900">Fidelización</h3>
-                    <p className="text-sm text-slate-500 mt-1">Clientes fieles</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </a>
-          )}
-          <a href="/dashboard/settings/exchange-rate" className="block">
-            <Card className="h-full hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="flex flex-col items-center justify-center text-center gap-3 pt-6 pb-6">
-                <span className="text-4xl">💱</span>
-                <div>
-                  <h3 className="font-bold text-slate-900">Cambio USD</h3>
-                  <p className="text-sm text-slate-500 mt-1">USD/NIO tasa</p>
-                </div>
-              </CardContent>
-            </Card>
-          </a>
-        </div>
 
+                  {/* Payment History */}
+                  {paymentInfo.history && paymentInfo.history.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-slate-900 mb-3">Historial de Pagos</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200">
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Fecha de Pago</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Plan</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Monto</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Válido Hasta</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Método</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paymentInfo.history.map((payment) => (
+                              <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="py-3 px-2">
+                                  {new Date(payment.payment_date).toLocaleDateString('es-NI')}
+                                </td>
+                                <td className="py-3 px-2 font-medium capitalize text-slate-900">{payment.plan}</td>
+                                <td className="py-3 px-2 text-slate-900">C$ {payment.amount.toFixed(2)}</td>
+                                <td className="py-3 px-2 text-slate-600">
+                                  {new Date(payment.paid_until).toLocaleDateString('es-NI')}
+                                </td>
+                                <td className="py-3 px-2 text-slate-600">{payment.payment_method || 'N/A'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-200">
+                    <Alert variant="info" title="ℹ️ Nota">
+                      Para registrar un pago y reactivar tu cuenta, contacta con el administrador o usa la opción de email arriba.
+                    </Alert>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No hay información de pago disponible</p>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          // When NOT suspended: show all settings sections
+          <>
         {/* Company Info Card */}
         <Card>
           <CardHeader>
@@ -451,87 +464,134 @@ export default function SettingsPage() {
         <ThemeFontSizeSettings />
 
         <div className="space-y-6">
-          {/* Plan and Module Management Card */}
+          {/* Payment Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Plan y Módulos Activos</CardTitle>
+              <CardTitle>Información de Pago y Suscripción</CardTitle>
             </CardHeader>
             <CardContent>
-              {featuresLoading || loadingSettings ? (
+              {featuresLoading || loadingSettings || loadingPayment ? (
                 <p className="text-sm text-slate-500">Cargando...</p>
               ) : (
-                <div className="flex flex-col h-full">
-                  <div className="space-y-6 flex-1">
-                    {/* Plan Badge Section */}
-                    {planInfo && (
-                      <div>
-                        <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
-                          <span className="text-base font-bold">{planInfo.label}</span>
-                          <span className="text-sm opacity-75">— {planInfo.description}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Module Management Section */}
-                    <div className="border-t border-slate-200 pt-6">
-                      <h3 className="font-semibold text-slate-900 mb-3">Módulos Disponibles</h3>
-                      <p className="text-sm text-slate-600 mb-4">
-                        Activa o desactiva los módulos según tu necesidad. Los módulos que desactives no aparecerán en el menú de navegación.
-                      </p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {(Object.keys(AVAILABLE_MODULES) as unknown[])
-                          .map(idx => AVAILABLE_MODULES[idx as number])
-                          .filter((m) => authorizedModules.has(m.id as ModuleKey) && m.id !== "settings")
-                          .map((m) => (
-                            <label
-                              key={m.id}
-                              className="flex items-center p-4 rounded-lg border border-slate-200 hover:border-slate-300 cursor-pointer transition-all"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={modules[m.id as ModuleKey] ?? true}
-                                onChange={() => handleModuleToggle(m.id as ModuleKey)}
-                                className="w-5 h-5 rounded border-slate-300 cursor-pointer"
-                              />
-                              <div className="ml-4 flex-1">
-                                <p className="font-medium text-slate-900">
-                                  {m.icon} {m.label}
-                                </p>
-                              </div>
-                              <div
-                                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                  modules[m.id as ModuleKey] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                                }`}
-                              >
-                                {modules[m.id as ModuleKey] ? "Activo" : "Inactivo"}
-                              </div>
-                            </label>
-                          ))}
+                <div className="space-y-6">
+                  {/* Plan Badge */}
+                  {planInfo && (
+                    <div>
+                      <p className="text-sm font-medium text-slate-600 mb-2">Plan Actual:</p>
+                      <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
+                        <span className="text-base font-bold">{planInfo.label}</span>
+                        <span className="text-sm opacity-75">— {planInfo.description}</span>
                       </div>
                     </div>
+                  )}
 
-                    <Alert variant="warning" title="📞 Información">
-                      Para cambiar de plan, aumentar límites o personalizar tu configuración, comunícate con el administrador del sistema.
-                    </Alert>
+                  {/* Payment Status */}
+                  {paymentInfo && (
+                    <div className="border-t border-slate-200 pt-6">
+                      <h3 className="font-semibold text-slate-900 mb-4">Estado de la Suscripción</h3>
+                      
+                      {paymentInfo.paid_until ? (
+                        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                          <p className="text-sm text-slate-600 mb-1">Válida hasta:</p>
+                          <p className="text-lg font-semibold text-slate-900">
+                            {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </p>
+                          <p className="text-xs text-slate-600 mt-2">
+                            {new Date(paymentInfo.paid_until) > new Date() 
+                              ? `✅ Activa (${Math.ceil((new Date(paymentInfo.paid_until).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} días restantes)`
+                              : `❌ Expirada`}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                          <p className="text-sm text-slate-600">No hay pago registrado actualmente</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* How to Pay Info */}
+                  <div className="border-t border-slate-200 pt-6">
+                    <h3 className="font-semibold text-slate-900 mb-4">💳 Métodos de Pago</h3>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <p className="font-medium text-slate-900 mb-2">Los pagos se realizan mediante:</p>
+                        <ul className="space-y-2 text-sm text-slate-700">
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-medium">Transferencia Bancaria</p>
+                              <p className="text-xs text-slate-600">Contacta con el administrador para los datos bancarios</p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-600 font-bold mt-0.5">✓</span>
+                            <div>
+                              <p className="font-medium">Efectivo</p>
+                              <p className="text-xs text-slate-600">Entrega directa en persona</p>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <Alert variant="info" title="📞 Contacta con el Administrador">
+                        Para procesar tu pago y renovar tu suscripción, por favor contacta directamente con el administrador del sistema:
+                        <div className="mt-3 space-y-1 text-sm">
+                          <p>📧 Email: <span className="font-mono">michelbourbeau@gmail.com</span></p>
+                          <p>📱 WhatsApp: (505) 5889 1314</p>
+                        </div>
+                      </Alert>
+                    </div>
                   </div>
 
-                  {/* Footer with Save Button */}
-                  <div className="flex justify-end pt-6 mt-6 border-t border-slate-200">
-                    <Button 
-                      onClick={handleSaveModules} 
-                      disabled={savingModules}
-                      variant="primary"
-                      loading={savingModules}
-                    >
-                      Guardar Cambios
-                    </Button>
-                  </div>
+                  {/* Payment History */}
+                  {paymentInfo?.history && paymentInfo.history.length > 0 && (
+                    <div className="border-t border-slate-200 pt-6">
+                      <h3 className="font-semibold text-slate-900 mb-3">📋 Historial de Pagos</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50">
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Fecha de Pago</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Plan</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Monto</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Válido Hasta</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Método</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paymentInfo.history.map((payment) => (
+                              <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="py-3 px-2 text-slate-900">
+                                  {new Date(payment.payment_date).toLocaleDateString('es-NI')}
+                                </td>
+                                <td className="py-3 px-2 font-medium capitalize text-slate-900">{payment.plan}</td>
+                                <td className="py-3 px-2 text-slate-900 font-semibold">C$ {payment.amount.toFixed(2)}</td>
+                                <td className="py-3 px-2 text-slate-600">
+                                  {new Date(payment.paid_until).toLocaleDateString('es-NI')}
+                                </td>
+                                <td className="py-3 px-2 text-slate-600">{payment.payment_method || 'N/A'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+          </>
+        )}
+          </>
+        )}
       </div>
     </Container>
   );

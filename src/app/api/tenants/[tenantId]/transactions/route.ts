@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { checkPlanStatus, respondWithExpiredPlan } from "@/lib/utils/planStatusCheck";
 import { CartItem, Transaction } from "@/lib/types";
 
 interface Tax {
@@ -82,6 +83,12 @@ export async function POST(
 ) {
   try {
     const { tenantId } = await params;
+    
+    // Check if plan is valid (not expired more than 3 days)
+    const planStatus = await checkPlanStatus(tenantId);
+    if (!planStatus.isValid) {
+      return respondWithExpiredPlan();
+    }
     
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();

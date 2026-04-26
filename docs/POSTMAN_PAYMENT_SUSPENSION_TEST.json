@@ -1,0 +1,247 @@
+{
+  "info": {
+    "name": "🧪 Payment Suspension Test",
+    "description": "Test collection for payment suspension and reactivation workflow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🔴 SUSPENSION WORKFLOW",
+      "item": [
+        {
+          "name": "1️⃣ Check Tenant Status (Before Suspension)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/tenants/{{TENANT_ID}}/payment",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tenants", "{{TENANT_ID}}", "payment"]
+            },
+            "description": "Get tenant payment status and history"
+          }
+        },
+        {
+          "name": "2️⃣ Execute Cron Job - Check Expirations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/superadmin/payment/check-expirations",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "superadmin", "payment", "check-expirations"]
+            },
+            "description": "Execute the cron job to suspend expired tenants (>3 days)",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "3️⃣ Try API After Suspension (Should Fail 403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{USER_TOKEN}}",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/tenants/{{TENANT_ID}}/transactions",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tenants", "{{TENANT_ID}}", "transactions"]
+            },
+            "description": "Try to create a transaction when suspended - should return 403 SUBSCRIPTION_SUSPENDED",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"paymentMethod\": \"CASH\",\n  \"description\": \"Test transaction\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ REACTIVATION WORKFLOW",
+      "item": [
+        {
+          "name": "1️⃣ Register Payment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/superadmin/tenants/{{TENANT_ID}}/payment",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "superadmin", "tenants", "{{TENANT_ID}}", "payment"]
+            },
+            "description": "Register a payment and auto-reactivate tenant",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500,\n  \"paid_until\": \"2026-06-30T00:00:00Z\",\n  \"payment_method\": \"CASH\",\n  \"notes\": \"Test reactivation\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2️⃣ Check Tenant Status (After Reactivation)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/tenants/{{TENANT_ID}}/payment",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tenants", "{{TENANT_ID}}", "payment"]
+            },
+            "description": "Get updated payment status - should show paid_until in future"
+          }
+        },
+        {
+          "name": "3️⃣ Test API After Reactivation (Should Work)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{USER_TOKEN}}",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/tenants/{{TENANT_ID}}/transactions",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tenants", "{{TENANT_ID}}", "transactions"]
+            },
+            "description": "Try to create a transaction after reactivation - should succeed",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100,\n  \"paymentMethod\": \"CASH\",\n  \"description\": \"Test transaction\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⏰ EXPIRATION ALERTS WORKFLOW",
+      "item": [
+        {
+          "name": "1️⃣ Check Payment Status (7 Days Before)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/tenants/{{TENANT_ID}}/payment",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tenants", "{{TENANT_ID}}", "payment"]
+            },
+            "description": "Should return warning: isExpiringWithin7Days = true"
+          }
+        },
+        {
+          "name": "2️⃣ Check Payment Status (Expired < 3 Days)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:3000/api/tenants/{{TENANT_ID}}/payment",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["api", "tenants", "{{TENANT_ID}}", "payment"]
+            },
+            "description": "Should return warning: isExpired = true but modules still active"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "TENANT_ID",
+      "value": "YOUR_TEST_TENANT_ID_HERE",
+      "type": "string"
+    },
+    {
+      "key": "USER_TOKEN",
+      "value": "YOUR_USER_TOKEN_HERE",
+      "type": "string"
+    }
+  ]
+}
