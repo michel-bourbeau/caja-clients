@@ -11,79 +11,65 @@
 
 import { DEFAULT_ROLES, permissionsForRole } from "@/lib/types/roles";
 
-// Mock API responses
+// Mock API responses - keyed by "METHOD /path"
 const mockApiEndpoints: Record<
   string,
-  { requiredPerms: string[]; method: "GET" | "POST" | "PUT" | "DELETE"; description: string }
+  { requiredPerms: string[]; description: string }
 > = {
-  "/api/tenants/:tenantId/employees": {
+  "GET /api/tenants/:tenantId/employees": {
     requiredPerms: ["employees.view"],
-    method: "GET",
     description: "List all employees",
   },
-  "/api/tenants/:tenantId/employees": {
+  "POST /api/tenants/:tenantId/employees": {
     requiredPerms: ["employees.create"],
-    method: "POST",
     description: "Create employee",
   },
-  "/api/tenants/:tenantId/employees/:id": {
+  "PUT /api/tenants/:tenantId/employees/:id": {
     requiredPerms: ["employees.edit"],
-    method: "PUT",
     description: "Edit employee",
   },
-  "/api/tenants/:tenantId/employees/:id": {
+  "DELETE /api/tenants/:tenantId/employees/:id": {
     requiredPerms: ["employees.delete"],
-    method: "DELETE",
     description: "Delete employee",
   },
-  "/api/tenants/:tenantId/payroll": {
+  "GET /api/tenants/:tenantId/payroll": {
     requiredPerms: ["payroll.view"],
-    method: "GET",
     description: "View payroll",
   },
-  "/api/tenants/:tenantId/payroll": {
+  "POST /api/tenants/:tenantId/payroll": {
     requiredPerms: ["payroll.create"],
-    method: "POST",
     description: "Create payroll",
   },
-  "/api/tenants/:tenantId/payroll/:id/approve": {
+  "PUT /api/tenants/:tenantId/payroll/:id/approve": {
     requiredPerms: ["payroll.approve"],
-    method: "PUT",
     description: "Approve payroll",
   },
-  "/api/tenants/:tenantId/roles": {
+  "GET /api/tenants/:tenantId/roles": {
     requiredPerms: ["settings.manage_roles"],
-    method: "GET",
     description: "List roles",
   },
-  "/api/tenants/:tenantId/roles": {
+  "POST /api/tenants/:tenantId/roles": {
     requiredPerms: ["settings.manage_roles"],
-    method: "POST",
     description: "Create role",
   },
-  "/api/tenants/:tenantId/settings": {
+  "GET /api/tenants/:tenantId/settings": {
     requiredPerms: ["settings.view"],
-    method: "GET",
     description: "View settings",
   },
-  "/api/tenants/:tenantId/settings": {
+  "PUT /api/tenants/:tenantId/settings": {
     requiredPerms: ["settings.edit"],
-    method: "PUT",
     description: "Edit settings",
   },
-  "/api/tenants/:tenantId/inventory": {
+  "GET /api/tenants/:tenantId/inventory": {
     requiredPerms: ["inventory.view"],
-    method: "GET",
     description: "View inventory",
   },
-  "/api/tenants/:tenantId/pos": {
+  "GET /api/tenants/:tenantId/pos": {
     requiredPerms: ["pos.view"],
-    method: "GET",
     description: "View POS transactions",
   },
-  "/api/tenants/:tenantId/pos": {
+  "POST /api/tenants/:tenantId/pos": {
     requiredPerms: ["pos.create"],
-    method: "POST",
     description: "Create POS transaction",
   },
 };
