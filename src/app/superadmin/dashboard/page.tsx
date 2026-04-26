@@ -103,6 +103,9 @@ export default function SuperAdminDashboard() {
   const [paymentFormData, setPaymentFormData] = useState({ amount: "", paid_until: "", payment_method: "", notes: "" });
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [loadingPaymentHistory, setLoadingPaymentHistory] = useState(false);
+  const [showQuickPaymentModal, setShowQuickPaymentModal] = useState(false);
+  const [quickPaymentTenant, setQuickPaymentTenant] = useState<Tenant | null>(null);
+  const [quickPaymentFormData, setQuickPaymentFormData] = useState({ paid_until: "", payment_method: "" });
 
   // Generate dynamic plan description based on enabled modules
   const getPlanDescription = (planId: string): string => {
@@ -405,6 +408,77 @@ export default function SuperAdminDashboard() {
         const updated = await response.json();
         setTenants(tenants.map((t) => (t.id === updated.id ? updated : t)));
         setMessage(`✅ ${tenant.name} marqué comme payé`);
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        const error = await response.json();
+        setMessage(`❌ ${error.message}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
+    }
+  };
+
+  const openQuickPaymentModal = (tenant: Tenant & { paid_until?: string | Date | null }) => {
+    setQuickPaymentTenant(tenant as any);
+    setQuickPaymentFormData({ 
+      paid_until: (tenant.paid_until) ? new Date(tenant.paid_until).toISOString().split('T')[0] : "",
+      payment_method: ""
+    });
+    setShowQuickPaymentModal(true);
+  };
+
+  const handleRecordQuickPayment = async () => {
+    if (!quickPaymentTenant || !quickPaymentFormData.paid_until) {
+      setMessage("❌ Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${quickPaymentTenant.id}/payment`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: quickPaymentTenant.plan,
+          amount: PLAN_PRICES[quickPaymentTenant.plan] || 0,
+          paid_until: quickPaymentFormData.paid_until,
+          payment_method: quickPaymentFormData.payment_method,
+          notes: "",
+        }),
+      });
+
+      if (res.ok) {
+        setMessage("✅ Paiement enregistré avec succès");
+        setTimeout(() => setMessage(""), 3000);
+        setShowQuickPaymentModal(false);
+        fetchTenants();
+      } else {
+        const error = await res.json();
+        setMessage(`❌ Erreur: ${error.error || "Impossible d'enregistrer"}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Erreur: ${error instanceof Error ? error.message : "Erreur serveur"}`);
+    }
+  };
+
+  const handleCancelPayment = async (tenant: Tenant) => {
+    if (!confirm(`Êtes-vous sûr de vouloir annuler le paiement de ${tenant.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_paid: false,
+          paid_until: null,
+        }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setTenants(tenants.map((t) => (t.id === updated.id ? updated : t)));
+        setMessage(`✅ Paiement annulé pour ${tenant.name}`);
         setTimeout(() => setMessage(""), 3000);
       } else {
         const error = await response.json();
@@ -761,10 +835,18 @@ export default function SuperAdminDashboard() {
                         </button>
                         {!tenant.is_paid && (
                           <button
-                            onClick={() => markAsPaid(tenant)}
+                            onClick={() => openQuickPaymentModal(tenant)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
                           >
                             ✅ Payer
+                          </button>
+                        )}
+                        {tenant.is_paid && (
+                          <button
+                            onClick={() => handleCancelPayment(tenant)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                          >
+                            ❌ Annuler paiement
                           </button>
                         )}
                         <button
@@ -1057,6 +1139,82 @@ export default function SuperAdminDashboard() {
                   className="flex-1 bg-slate-500 hover:bg-slate-600"
                 >
                   ❌ Fermer
+                </Button>
+                {paymentModalTenant?.is_paid && (
+                  <Button
+                    onClick={() => handleCancelPayment(paymentModalTenant)}
+                    className="flex-1 bg-red-600 hover:bg-red-700"
+                  >
+                    🗑️ Annuler paiement
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Quick Payment Modal */}
+      {showQuickPaymentModal && quickPaymentTenant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4 bg-white">
+            <div className="sticky top-0 bg-gradient-to-r from-green-50 to-emerald-50 border-b-2 border-green-300 p-6 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-green-900">✅ Enregistrer un paiement</h2>
+              <button
+                onClick={() => setShowQuickPaymentModal(false)}
+                className="text-3xl text-slate-500 hover:text-slate-700 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Tenant Info */}
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <p className="text-sm text-slate-600"><strong>Client:</strong> {quickPaymentTenant.name}</p>
+                <p className="text-sm text-slate-600"><strong>Plan:</strong> {PLAN_LABELS[quickPaymentTenant.plan]?.label}</p>
+                <p className="text-sm text-slate-600"><strong>Montant:</strong> {PLAN_PRICES[quickPaymentTenant.plan] || 0} NIO/mois</p>
+              </div>
+
+              {/* Payment Form */}
+              <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Payé jusqu'au *</label>
+                    <input
+                      type="date"
+                      value={quickPaymentFormData.paid_until}
+                      onChange={(e) => setQuickPaymentFormData({ ...quickPaymentFormData, paid_until: e.target.value })}
+                      className="w-full px-3 py-2 border border-green-300 rounded-lg text-slate-900 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">Méthode de paiement</label>
+                    <input
+                      type="text"
+                      value={quickPaymentFormData.payment_method}
+                      onChange={(e) => setQuickPaymentFormData({ ...quickPaymentFormData, payment_method: e.target.value })}
+                      className="w-full px-3 py-2 border border-green-300 rounded-lg text-slate-900 bg-white"
+                      placeholder="ex: Virement, PayPal, Carte..."
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleRecordQuickPayment}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
+                  >
+                    💾 Enregistrer
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowQuickPaymentModal(false)}
+                  className="flex-1 bg-slate-500 hover:bg-slate-600"
+                >
+                  ❌ Annuler
                 </Button>
               </div>
             </div>

@@ -12,24 +12,41 @@ const supabase = createClient(
  */
 export async function GET(
   request: Request,
-  { params }: { params: { tenantId: string } }
+  { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const tenantId = params.tenantId;
+    const { tenantId } = await params;
 
-    // Get tenant payment info
-    const { data: tenant, error: tenantError } = await supabase
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: "tenantId manquant" },
+        { status: 400 }
+      );
+    }
+
+    // Get tenant payment info - start with basic columns only
+    const { data: tenants, error: tenantError } = await supabase
       .from("tenants")
-      .select("id, name, plan, is_paid, paid_until, trial_ends_at, current_plan_price")
-      .eq("id", tenantId)
-      .single();
+      .select("*")
+      .eq("id", tenantId);
 
     if (tenantError) {
+      console.error("Tenant lookup error:", tenantError, "tenantId:", tenantId);
       return NextResponse.json(
-        { error: "Tenant non trouvé" },
+        { error: `Erreur BD: ${tenantError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!tenants || tenants.length === 0) {
+      console.error("Tenant not found:", tenantId);
+      return NextResponse.json(
+        { error: `Tenant non trouvé (id: ${tenantId})` },
         { status: 404 }
       );
     }
+
+    const tenant = tenants[0];
 
     // Get payment history
     const { data: history, error: historyError } = await supabase
@@ -39,8 +56,9 @@ export async function GET(
       .order("payment_date", { ascending: false });
 
     if (historyError) {
+      console.error("Payment history error:", historyError);
       return NextResponse.json(
-        { error: "Erreur lors de la récupération" },
+        { error: `Erreur historique: ${historyError.message}` },
         { status: 500 }
       );
     }
@@ -50,8 +68,9 @@ export async function GET(
       history: history || [],
     });
   } catch (error) {
+    console.error("GET payment error:", error);
     return NextResponse.json(
-      { error: "Erreur serveur" },
+      { error: `Erreur serveur: ${error instanceof Error ? error.message : "unknown"}` },
       { status: 500 }
     );
   }
@@ -63,10 +82,10 @@ export async function GET(
  */
 export async function PUT(
   request: Request,
-  { params }: { params: { tenantId: string } }
+  { params }: { params: Promise<{ tenantId: string }> }
 ) {
   try {
-    const tenantId = params.tenantId;
+    const { tenantId } = await params;
     const body = await request.json();
     const {
       plan,
@@ -76,6 +95,13 @@ export async function PUT(
       notes,
     } = body;
 
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: "tenantId manquant" },
+        { status: 400 }
+      );
+    }
+
     if (!plan || !amount || !paid_until) {
       return NextResponse.json(
         { error: "Paramètres manquants (plan, amount, paid_until)" },
@@ -83,19 +109,29 @@ export async function PUT(
       );
     }
 
-    // Get tenant's current plan price
-    const { data: tenant, error: tenantError } = await supabase
+    // Get tenant's current info - use select all to avoid column not found errors
+    const { data: tenants, error: tenantError } = await supabase
       .from("tenants")
-      .select("id, plan, current_plan_price")
-      .eq("id", tenantId)
-      .single();
+      .select("*")
+      .eq("id", tenantId);
 
     if (tenantError) {
+      console.error("Tenant lookup error in PUT:", tenantError, "tenantId:", tenantId);
       return NextResponse.json(
-        { error: "Tenant non trouvé" },
+        { error: `Erreur BD: ${tenantError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!tenants || tenants.length === 0) {
+      console.error("Tenant not found in PUT:", tenantId);
+      return NextResponse.json(
+        { error: `Tenant non trouvé (id: ${tenantId})` },
         { status: 404 }
       );
     }
+
+    const tenant = tenants[0];
 
     // Create payment history entry
     const { data: paymentData, error: paymentError } = await supabase
@@ -112,26 +148,36 @@ export async function PUT(
       .select();
 
     if (paymentError) {
+      console.error("Payment insertion error:", paymentError);
       return NextResponse.json(
-        { error: `Erreur: ${paymentError.message}` },
+        { error: `Erreur paiement: ${paymentError.message}` },
         { status: 500 }
       );
     }
 
-    // Update tenant's payment status
+    // Update tenant's payment status - only update columns that exist
+    const updateData: any = {
+      is_paid: true,
+    };
+    
+    // Try to add optional columns if they should exist
+    if ('paid_until' in tenant) {
+      updateData.paid_until = new Date(paid_until).toISOString();
+    }
+    if ('current_plan_price' in tenant) {
+      updateData.current_plan_price = Number(amount);
+    }
+
     const { data: updatedTenant, error: updateError } = await supabase
       .from("tenants")
-      .update({
-        paid_until: new Date(paid_until).toISOString(),
-        is_paid: true,
-        current_plan_price: Number(amount),
-      })
+      .update(updateData)
       .eq("id", tenantId)
       .select();
 
     if (updateError) {
+      console.error("Tenant update error:", updateError);
       return NextResponse.json(
-        { error: `Erreur: ${updateError.message}` },
+        { error: `Erreur mise à jour: ${updateError.message}` },
         { status: 500 }
       );
     }
@@ -142,8 +188,9 @@ export async function PUT(
       tenant: updatedTenant?.[0],
     });
   } catch (error) {
+    console.error("PUT payment error:", error);
     return NextResponse.json(
-      { error: "Erreur serveur" },
+      { error: `Erreur serveur: ${error instanceof Error ? error.message : "unknown"}` },
       { status: 500 }
     );
   }
