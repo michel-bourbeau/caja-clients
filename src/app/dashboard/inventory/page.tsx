@@ -15,6 +15,7 @@ interface ProductVariant {
   label: string;
   sku: string;
   price: number;
+  cost_price: number;
   stock_quantity: number;
   min_stock?: number;
   sort_order?: number;
@@ -25,6 +26,7 @@ interface Product {
   name: string;
   sku: string;
   price: number;
+  cost_price: number;
   quantity: number;
   category_id?: string;
   description?: string;
@@ -61,6 +63,21 @@ function generateSKU(name: string): string {
   return `${prefix}-${timestamp}`;
 }
 
+/**
+ * Calculate profit margin percentage
+ */
+function calculateMarginPercent(price: number, cost: number): number {
+  if (!price || !cost || price <= 0) return 0;
+  return ((price - cost) / price) * 100;
+}
+
+/**
+ * Calculate profit per unit
+ */
+function calculateProfitPerUnit(price: number, cost: number): number {
+  return price - cost;
+}
+
 export default function InventoryPage() {
   const { user } = useAuth();
   const { tenantId } = useTenant();
@@ -90,6 +107,15 @@ export default function InventoryPage() {
   const [editingModalVariantMinStock, setEditingModalVariantMinStock] = useState<string>("");
   const [editingModalVariantQtyId, setEditingModalVariantQtyId] = useState<string | null>(null);
   const [editingModalVariantQty, setEditingModalVariantQty] = useState<string>("");
+  // State for full variant editing
+  const [editingVariantData, setEditingVariantData] = useState<{
+    productId: string;
+    variantId: string;
+    label: string;
+    sku: string;
+    price: string;
+    cost_price: string;
+  } | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   // Edit product modal
@@ -98,6 +124,7 @@ export default function InventoryPage() {
     name: "",
     sku: "",
     price: "",
+    cost_price: "",
     quantity: "",
     min_stock: "",
     category_id: "",
@@ -113,6 +140,7 @@ export default function InventoryPage() {
     name: "",
     sku: "",
     price: "",
+    cost_price: "",
     quantity: "",
     min_stock: "",
     category_id: "",
@@ -124,8 +152,8 @@ export default function InventoryPage() {
 
   // Multi-format / variants state for add-product form
   const [isMultiFormat, setIsMultiFormat] = useState(false);
-  const [variantRows, setVariantRows] = useState<{ label: string; price: string; quantity: string }[]>([
-    { label: "", price: "", quantity: "" },
+  const [variantRows, setVariantRows] = useState<{ label: string; price: string; cost_price: string; quantity: string }[]>([
+    { label: "", price: "", cost_price: "", quantity: "" },
   ]);
 
   const [newCategory, setNewCategory] = useState({
@@ -307,6 +335,7 @@ export default function InventoryPage() {
         name: newProduct.name.trim(),
         sku: newProduct.sku.trim(),
         price: isMultiFormat ? 0 : parseFloat(newProduct.price as string),
+        cost_price: isMultiFormat ? 0 : (newProduct.cost_price ? parseFloat(newProduct.cost_price as string) : 0),
         quantity: isMultiFormat ? 0 : (newProduct.quantity ? parseInt(newProduct.quantity as string) : 0),
         min_stock: newProduct.min_stock ? parseInt(newProduct.min_stock as string) : 0,
         category_id: newProduct.category_id || null,
@@ -344,6 +373,7 @@ export default function InventoryPage() {
                 label: v.label.trim(),
                 sku: `${newProduct.sku.trim().toUpperCase()}-V${i + 1}`,
                 price: parseFloat(v.price),
+                cost_price: v.cost_price ? parseFloat(v.cost_price) : 0,
                 stock_quantity: v.quantity ? parseInt(v.quantity) : 0,
                 sort_order: i,
               }),
@@ -353,11 +383,11 @@ export default function InventoryPage() {
       }
 
       setMessage("Producto creado con éxito");
-      setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" });
+      setNewProduct({ name: "", sku: "", price: "", cost_price: "", quantity: "", min_stock: "", category_id: "", description: "" });
       setProductImage(null);
       setProductImagePreview("");
       setIsMultiFormat(false);
-      setVariantRows([{ label: "", price: "", quantity: "" }]);
+      setVariantRows([{ label: "", price: "", cost_price: "", quantity: "" }]);
       setShowAddProduct(false);
       await fetchData();
     } catch (error) {
@@ -501,6 +531,40 @@ export default function InventoryPage() {
     }
   };
 
+  const handleUpdateVariantProperties = async () => {
+    if (!editingVariantData) return;
+    
+    const { productId, variantId, label, sku, price, cost_price } = editingVariantData;
+    
+    if (!label || !price || isNaN(parseFloat(price))) {
+      setMessage("Veuillez remplir tous les champs requis");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          sku,
+          price: parseFloat(price),
+          cost_price: cost_price ? parseFloat(cost_price) : 0,
+        }),
+      });
+      if (res.ok) {
+        setMessage("Format mis à jour");
+        setEditingVariantData(null);
+        setEditProductModal(null);
+        await fetchData();
+      } else {
+        setMessage("Erreur lors de la mise à jour");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Erreur réseau");
+    }
+  };
+
   const handleReorderVariant = async (productId: string, variantId: string, direction: "up" | "down") => {
     const product = products.find(p => p.id === productId);
     if (!product?.variants) {
@@ -622,6 +686,7 @@ export default function InventoryPage() {
       name: product.name,
       sku: product.sku,
       price: String(product.price),
+      cost_price: String(product.cost_price),
       quantity: String(product.quantity),
       min_stock: String((product as any).min_stock ?? 0),
       category_id: product.category_id ?? "",
@@ -650,6 +715,7 @@ export default function InventoryPage() {
         name: editForm.name.trim(),
         sku: editForm.sku.trim(),
         price: parseFloat(editForm.price) || 0,
+        cost_price: parseFloat(editForm.cost_price) || 0,
         quantity: parseInt(editForm.quantity) || 0,
         min_stock: parseInt(editForm.min_stock) || 0,
         category_id: editForm.category_id || null,
@@ -774,7 +840,7 @@ export default function InventoryPage() {
             <Button
               onClick={handleEditProduct}
               disabled={editSaving || uploadingEditImage}
-              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+              className="bg-blue-600 hover:bg-blue-700 text-white truncate"
             >
               {editSaving || uploadingEditImage ? "Guardando..." : "Guardar cambios"}
             </Button>
@@ -811,6 +877,33 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Costo de compra</label>
+                  <input
+                    type="number"
+                    value={editForm.cost_price}
+                    onChange={(e) => setEditForm({ ...editForm, cost_price: e.target.value })}
+                    placeholder="Costo de adquisición"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              {/* Profit margin display in edit mode */}
+              {editForm.price && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-slate-600">Ganancia por unidad</p>
+                      <p className="font-bold text-green-700">{fmt(calculateProfitPerUnit(parseFloat(editForm.price) || 0, parseFloat(editForm.cost_price) || 0))}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-600">Margen de ganancia</p>
+                      <p className="font-bold text-green-700">{calculateMarginPercent(parseFloat(editForm.price) || 0, parseFloat(editForm.cost_price) || 0).toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
                   <select
                     value={editForm.category_id}
@@ -835,20 +928,20 @@ export default function InventoryPage() {
                     />
                   </div>
                 )}
-                {editProductModal && !(editProductModal as any).has_variants && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
-                    <input
-                      type="number"
-                      value={editForm.min_stock}
-                      onChange={(e) => setEditForm({ ...editForm, min_stock: e.target.value })}
-                      placeholder="Alerta bajo inventario"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
-                  </div>
-                )}
               </div>
+              {editProductModal && !(editProductModal as any).has_variants && (
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
+                  <input
+                    type="number"
+                    value={editForm.min_stock}
+                    onChange={(e) => setEditForm({ ...editForm, min_stock: e.target.value })}
+                    placeholder="Alerta bajo inventario"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
                 <input
@@ -863,19 +956,92 @@ export default function InventoryPage() {
               {editProductModal && (editProductModal as any).has_variants && (editProductModal as any).variants && (editProductModal as any).variants.length > 0 && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h3 className="text-sm font-semibold text-slate-900 mb-3">Gestionar Formatos</h3>
+                  
+                  {/* Editing a variant's properties */}
+                  {editingVariantData && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm font-semibold text-slate-900 mb-3">Editar Formato</p>
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Etiqueta</label>
+                          <input
+                            type="text"
+                            value={editingVariantData.label}
+                            onChange={(e) => setEditingVariantData({ ...editingVariantData, label: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
+                            placeholder="Ej: Pequeño"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Precio Venta</label>
+                          <input
+                            type="number"
+                            value={editingVariantData.price}
+                            onChange={(e) => setEditingVariantData({ ...editingVariantData, price: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
+                            placeholder="0.00"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">Costo Compra</label>
+                          <input
+                            type="number"
+                            value={editingVariantData.cost_price}
+                            onChange={(e) => setEditingVariantData({ ...editingVariantData, cost_price: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
+                            placeholder="0.00"
+                            step="0.01"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleUpdateVariantProperties}
+                          className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          onClick={() => setEditingVariantData(null)}
+                          className="flex-1 px-3 py-1 bg-slate-300 text-slate-700 text-xs font-semibold rounded"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="space-y-2">
                     {((editProductModal as any).variants as ProductVariant[])
                       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                       .map((variant: ProductVariant, idx: number, sortedArray: ProductVariant[]) => (
-                      <div key={variant.id} className="bg-white border border-purple-100 rounded p-3 flex items-center justify-between gap-2">
+                      <div key={variant.id} className="bg-white border border-purple-100 rounded p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="flex-1">
                           <p className="text-sm font-medium text-slate-900">{variant.label}</p>
-                          <p className="text-xs text-slate-500">SKU: {variant.sku} · ${variant.price}</p>
+                          <p className="text-xs text-slate-500">Venta: ${variant.price} · Costo: ${variant.cost_price || 0}</p>
                           <p className="text-xs text-slate-600 mt-1">
                             Stock: <span className={`font-semibold ${variant.stock_quantity <= 0 ? 'text-red-600' : 'text-green-600'}`}>{variant.stock_quantity}</span>
+                            {variant.price && <span className="ml-2 text-green-600 font-semibold">Margen: {calculateMarginPercent(variant.price, variant.cost_price || 0).toFixed(0)}%</span>}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 flex-wrap justify-end">
+                        <div className="flex items-center gap-1 flex-wrap justify-start sm:justify-end">
+                          {/* Edit properties button */}
+                          <button
+                            onClick={() => setEditingVariantData({
+                              productId: (editProductModal as any).id,
+                              variantId: variant.id,
+                              label: variant.label,
+                              sku: variant.sku || "",
+                              price: variant.price.toString(),
+                              cost_price: (variant.cost_price || 0).toString(),
+                            })}
+                            className="px-2 py-1 bg-amber-100 hover:bg-amber-600 hover:text-white text-amber-600 text-xs font-semibold rounded"
+                            title="Editar propiedades"
+                          >
+                            Propiedades
+                          </button>
+                          
                           {/* Stock actual */}
                           {editingModalVariantQtyId === variant.id ? (
                             <div className="flex gap-1">
@@ -902,7 +1068,7 @@ export default function InventoryPage() {
                               title="Editar stock"
                               className="px-2 py-1 bg-purple-100 hover:bg-purple-600 hover:text-white text-purple-600 text-xs font-semibold rounded"
                             >
-                              Editar
+                              Stock
                             </button>
                           )}
                           
@@ -1202,7 +1368,7 @@ export default function InventoryPage() {
         scrollable={true}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="whitespace-nowrap">Cancelar</Button>
+            <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", cost_price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", cost_price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="whitespace-nowrap">Cancelar</Button>
             <Button variant="primary" onClick={handleAddProduct} disabled={uploadingImage} className="whitespace-nowrap">{uploadingImage ? "Subiendo..." : "Agregar"}</Button>
           </div>
         }
@@ -1301,7 +1467,7 @@ export default function InventoryPage() {
                   checked={isMultiFormat}
                   onChange={(e) => {
                     setIsMultiFormat(e.target.checked);
-                    setVariantRows([{ label: "", price: "", quantity: "" }]);
+                    setVariantRows([{ label: "", price: "", cost_price: "", quantity: "" }]);
                   }}
                   className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -1342,6 +1508,20 @@ export default function InventoryPage() {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+                    <div className="w-28">
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Costo" : ""}</label>
+                      <input
+                        type="number"
+                        placeholder="Costo"
+                        value={v.cost_price}
+                        onChange={(e) => {
+                          const copy = [...variantRows];
+                          copy[i] = { ...copy[i], cost_price: e.target.value };
+                          setVariantRows(copy);
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
                     <div className="w-24">
                       <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Stock" : ""}</label>
                       <input
@@ -1356,6 +1536,12 @@ export default function InventoryPage() {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+                    {/* Margin display for each variant */}
+                    {v.price && (
+                      <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded whitespace-nowrap font-semibold">
+                        {calculateMarginPercent(parseFloat(v.price) || 0, parseFloat(v.cost_price) || 0).toFixed(0)}%
+                      </div>
+                    )}
                     {variantRows.length > 1 && (
                       <button
                         onClick={() => setVariantRows(variantRows.filter((_, idx) => idx !== i))}
@@ -1366,7 +1552,7 @@ export default function InventoryPage() {
                   </div>
                 ))}
                 <button
-                  onClick={() => setVariantRows([...variantRows, { label: "", price: "", quantity: "" }])}
+                  onClick={() => setVariantRows([...variantRows, { label: "", price: "", cost_price: "", quantity: "" }])}
                   className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-semibold"
                 >+ Agregar formato</button>
               </div>
@@ -1384,6 +1570,33 @@ export default function InventoryPage() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Costo de compra</label>
+                    <input
+                      type="number"
+                      placeholder="Costo de adquisición"
+                      value={newProduct.cost_price}
+                      onChange={(e) => setNewProduct({ ...newProduct, cost_price: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                {/* Profit margin display for single product */}
+                {!isMultiFormat && newProduct.price && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-slate-600">Ganancia por unidad</p>
+                        <p className="text-lg font-bold text-green-700">{fmt(calculateProfitPerUnit(parseFloat(newProduct.price) || 0, parseFloat(newProduct.cost_price) || 0))}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-600">Margen de ganancia</p>
+                        <p className="text-lg font-bold text-green-700">{calculateMarginPercent(parseFloat(newProduct.price) || 0, parseFloat(newProduct.cost_price) || 0).toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Stock inicial</label>
                     <input
                       type="number"
@@ -1393,17 +1606,17 @@ export default function InventoryPage() {
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Stock mínimo</label>
-                  <input
-                    type="number"
-                    placeholder="Alerta bajo inventario"
-                    value={newProduct.min_stock}
-                    onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-slate-500 mt-2">Se alertará cuando el stock llegue a este número</p>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Stock mínimo</label>
+                    <input
+                      type="number"
+                      placeholder="Alerta bajo inventario"
+                      value={newProduct.min_stock}
+                      onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-slate-500 mt-2">Se alertará cuando el stock llegue a este número</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1432,8 +1645,8 @@ export default function InventoryPage() {
                 .filter((p) => !p.category_id)
                 .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                 .map((product, idx, arr) => (
-                  <div key={product.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-50 hover:bg-slate-50">
-                    <div className="flex flex-col gap-0.5">
+                  <div key={product.id} className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-50 hover:bg-slate-50 min-w-0">
+                    <div className="flex flex-col gap-0.5 flex-shrink-0">
                       <button
                         disabled={idx === 0}
                         onClick={() => moveProduct(product.id, undefined, -1)}
@@ -1445,8 +1658,8 @@ export default function InventoryPage() {
                         className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
                       >▼</button>
                     </div>
-                    <span className="text-sm font-medium text-slate-800 flex-1">{product.name}</span>
-                    <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-800 flex-1 truncate">{product.name}</span>
+                    <span className="text-xs text-slate-400 font-mono flex-shrink-0 hidden sm:inline">{product.sku}</span>
                   </div>
                 ))}
             </div>
@@ -1478,8 +1691,8 @@ export default function InventoryPage() {
                 </div>
                 {/* Products in this category */}
                 {catProducts.map((product, pIdx) => (
-                  <div key={product.id} className="flex items-center gap-3 px-4 py-2.5 pl-12 border-b border-slate-50 hover:bg-slate-50">
-                    <div className="flex flex-col gap-0.5">
+                  <div key={product.id} className="flex items-center gap-2 px-4 py-2.5 pl-12 border-b border-slate-50 hover:bg-slate-50 min-w-0">
+                    <div className="flex flex-col gap-0.5 flex-shrink-0">
                       <button
                         disabled={pIdx === 0}
                         onClick={() => moveProduct(product.id, cat.id, -1)}
@@ -1491,8 +1704,8 @@ export default function InventoryPage() {
                         className="p-0.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-20"
                       >▼</button>
                     </div>
-                    <span className="text-sm font-medium text-slate-800 flex-1">{product.name}</span>
-                    <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
+                    <span className="text-xs sm:text-sm font-medium text-slate-800 flex-1 truncate">{product.name}</span>
+                    <span className="text-xs text-slate-400 font-mono flex-shrink-0 hidden sm:inline">{product.sku}</span>
                   </div>
                 ))}
                 {catProducts.length === 0 && (
@@ -1718,7 +1931,6 @@ export default function InventoryPage() {
                         <tr key={variant.id} className="bg-purple-50 border-b border-purple-100">
                           <td className="px-4 py-2 pl-12">
                             <span className="text-sm font-medium text-purple-800">{variant.label}</span>
-                            <span className="ml-2 font-mono text-xs text-slate-400 bg-slate-100 px-1 rounded">{variant.sku}</span>
                           </td>
                           <td className="px-4 py-2 hidden md:table-cell"></td>
                           <td className="px-4 py-2 hidden lg:table-cell"></td>
@@ -1932,7 +2144,6 @@ export default function InventoryPage() {
                               </div>
                             </div>
                             <div className="flex justify-between text-slate-600 text-xs mb-1">
-                              <span className="font-mono">{variant.sku}</span>
                               <span className="font-semibold text-purple-700">{fmt(variant.price)}</span>
                             </div>
                           </div>

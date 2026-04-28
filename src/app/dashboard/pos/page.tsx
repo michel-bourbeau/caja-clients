@@ -26,6 +26,7 @@ interface ProductVariant {
   label: string;
   sku: string;
   price: number;
+  cost_price?: number;
   stock_quantity: number;
   min_stock?: number;
   sort_order?: number;
@@ -171,26 +172,40 @@ export default function POSPage() {
       const discountAmount = Math.min(discountInNio, baseTotal.subtotal);
       const subtotalAfterDiscount = baseTotal.subtotal - discountAmount;
       
+      // Calculate cost of goods sold (COGS)
+      const costOfGoodsSold = cart.reduce((sum, item) => {
+        const itemCost = item.cost_price || 0;
+        return sum + (itemCost * item.quantity);
+      }, 0);
+
       if (taxes.length === 0) {
+        const totalAmount = subtotalAfterDiscount;
+        const profit = totalAmount - costOfGoodsSold;
         return { 
           subtotal: baseTotal.subtotal,
           discount: discountAmount,
           subtotalAfterDiscount,
           tax: 0, 
           total: subtotalAfterDiscount, 
-          taxes: {} 
+          taxes: {},
+          costOfGoodsSold: Math.round(costOfGoodsSold * 100) / 100,
+          profit: Math.round(profit * 100) / 100,
         };
       }
       const taxCalculations = TaxService.calculateTaxes(subtotalAfterDiscount, taxes);
+      const totalAmount = taxCalculations.total;
+      const profit = totalAmount - costOfGoodsSold;
       return {
         subtotal: baseTotal.subtotal,
         discount: discountAmount,
         subtotalAfterDiscount,
         tax: 0,
-        total: taxCalculations.total,
+        total: totalAmount,
         taxes: Object.fromEntries(
           taxes.map((tax) => [tax.name, taxCalculations[tax.name] || 0])
         ),
+        costOfGoodsSold: Math.round(costOfGoodsSold * 100) / 100,
+        profit: Math.round(profit * 100) / 100,
       };
     },
     [cart, taxes, discount, selectedCurrency, usdExchangeRate]
@@ -317,6 +332,7 @@ export default function POSPage() {
       : productName;
     
     const itemPrice = variant ? variant.price : product.price;
+    const itemCost = variant ? (variant.cost_price || 0) : (product.cost_price || 0);
     const itemStock = variant ? variant.stock_quantity : product.quantity;
 
     setCart((current) => {
@@ -342,6 +358,7 @@ export default function POSPage() {
           name: itemName,
           quantity: 1,
           price: itemPrice,
+          cost_price: itemCost,
           total: Number(itemPrice.toFixed(2)),
         },
       ];
@@ -545,7 +562,7 @@ export default function POSPage() {
           {/* Cart toggle button — hidden on lg (cart always visible) */}
           <button
             onClick={() => setIsCartOpen(true)}
-            className="btn-primary lg:hidden relative flex items-center gap-2"
+            className="btn-primary 2xl:hidden relative flex items-center gap-2"
             aria-label="Abrir carrito"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -587,7 +604,7 @@ export default function POSPage() {
         ) : null}
 
         {/* Products + Cart side-by-side on lg */}
-        <div className="lg:flex lg:gap-6 lg:items-start lg:overflow-hidden">
+        <div className="2xl:flex 2xl:gap-6 2xl:items-start">
 
         {/* Products */}
         <div className="flex-1 min-w-0 overflow-hidden">
@@ -635,31 +652,20 @@ export default function POSPage() {
                 </div>
               </div>
 
-              {/* Line 2: Category filter — pill buttons */}
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  onClick={() => setSelectedCategory(null)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                    selectedCategory === null
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
-                  }`}
+              {/* Line 2: Category filter — dropdown */}
+              <div className="flex gap-2">
+                <select
+                  value={selectedCategory || ""}
+                  onChange={(e) => setSelectedCategory(e.target.value || null)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  Todas
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                      selectedCategory === cat.id
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-slate-600 border-slate-300 hover:border-blue-400 hover:text-blue-600"
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+                  <option value="">Todas las categorías</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -667,7 +673,7 @@ export default function POSPage() {
             <div className="p-4">
 
             {productsLoading ? (
-              <div className={viewMode === "card" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" : "w-full"}>
+              <div className={viewMode === "card" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3" : "w-full"}>
                 {viewMode === "card" ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="bg-slate-200 rounded-lg h-48 animate-pulse" />
@@ -693,7 +699,7 @@ export default function POSPage() {
             ) : viewMode === "card" ? (
               // CARD VIEW
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 auto-rows-max">
               {displayedProducts.map((product) => {
                 const inCart = cart.find((i) => !i.variantId && i.productId === product.id);
                 const category = categories.find((c) => c.id === (product as any).category_id);
@@ -710,7 +716,7 @@ export default function POSPage() {
                     }`}
                   >
                     {/* Image placeholder */}
-                    <div className="w-full h-40 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative group flex-shrink-0">
+                    <div className="w-full aspect-square bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center relative group flex-shrink-0">
                       {(product as any).image ? (
                         <img
                           src={(product as any).image}
@@ -728,12 +734,12 @@ export default function POSPage() {
                     </div>
 
                     {/* Card content */}
-                    <div className="p-2.5 bg-white space-y-2 flex-1 flex flex-col">
+                    <div className="p-1.5 sm:p-2.5 bg-white space-y-2 flex-1 flex flex-col">
                       {/* Product name */}
-                      <div>
-                        <p className="font-medium text-slate-900 text-sm line-clamp-2">{product.name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-900 text-xs sm:text-sm line-clamp-2">{product.name}</p>
                         {category && (
-                          <p className="text-xs text-slate-500">{category.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{category.name}</p>
                         )}
                       </div>
 
@@ -753,7 +759,7 @@ export default function POSPage() {
                                 key={variant.id}
                                 disabled={vOut}
                                 onClick={() => !vOut && handleAddProduct(product, variant)}
-                                className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                className={`py-1 px-1.5 rounded-lg text-xs font-semibold transition-colors truncate ${
                                   vOut
                                     ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                     : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -789,13 +795,13 @@ export default function POSPage() {
         ) : (
           // LIST VIEW
           <>
-            <table className="w-full text-sm">
+            <table className="w-full text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left text-white">Producto</th>
-                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">Categoría</th>
+                <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs sm:text-sm font-semibold uppercase tracking-wide">
+                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left text-white">Producto</th>
+                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left hidden md:table-cell text-white">Categoría</th>
                   <th className="w-full"></th>
-                  <th className="px-4 py-2.5 text-right"></th>
+                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-right"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -803,7 +809,7 @@ export default function POSPage() {
                   if (row.type === "header") {
                     return (
                       <tr key={`header-${row.catId}`} className="bg-slate-100 border-t-2 border-slate-200">
-                        <td colSpan={4} className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <td colSpan={4} className="px-2 sm:px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
                           {row.catName}
                         </td>
                       </tr>
@@ -819,15 +825,15 @@ export default function POSPage() {
                   return (
                     <tr
                       key={product.id}
-                      className={`group transition-colors ${outOfStock && !hasVariants ? "opacity-50" : "hover:bg-blue-50"}`}
+                      className={`group transition-colors text-xs sm:text-sm ${outOfStock && !hasVariants ? "opacity-50" : "hover:bg-blue-50"}`}
                     >
-                      <td className="px-4 py-2.5">
-                        <p className="font-medium text-slate-900 whitespace-nowrap">{product.name}</p>
+                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 min-w-0 max-w-0 overflow-hidden">
+                        <p className="font-medium text-slate-900 truncate text-xs sm:text-sm">{product.name}</p>
                         {product.description && (
-                          <p className="text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
+                          <p className="text-xs sm:text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 hidden md:table-cell">
+                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 hidden md:table-cell">
                         {category ? (
                           <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-lg bg-blue-100 text-blue-700">
                             {category.name}
@@ -837,10 +843,10 @@ export default function POSPage() {
                         )}
                       </td>
                       <td className="w-full"></td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 text-right min-w-0">
                         {hasVariants ? (
                           /* Inline format buttons — price + stock visible */
-                          <div className="flex flex-col gap-1.5 items-stretch">
+                          <div className="flex flex-col gap-1 sm:gap-1.5 items-stretch">
                             {variants.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((variant) => {
                               const inCartV = cart.find((i) => i.variantId === variant.id);
                               const vOut = variant.stock_quantity <= 0;
@@ -849,7 +855,7 @@ export default function POSPage() {
                                   key={variant.id}
                                   disabled={vOut}
                                   onClick={() => !vOut && handleAddProduct(product, variant)}
-                                  className={`inline-flex flex-col items-center px-2.5 py-1 rounded-lg transition-colors ${
+                                  className={`flex items-center justify-center px-1.5 sm:px-2 py-1 rounded-lg transition-colors text-xs sm:text-sm truncate ${
                                     vOut
                                       ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                       : inCartV
@@ -857,7 +863,7 @@ export default function POSPage() {
                                       : "bg-purple-100 text-purple-800 hover:bg-purple-600 hover:text-white"
                                   }`}
                                 >
-                                  <span className="text-sm font-semibold leading-tight">
+                                  <span className="font-semibold leading-tight truncate">
                                     {inCartV ? `${inCartV.quantity}× ` : ""}{variant.label} ({fmt(variant.price)})
                                   </span>
                                 </button>
@@ -865,18 +871,18 @@ export default function POSPage() {
                             })}
                           </div>
                         ) : outOfStock ? (
-                          <span className="text-sm text-slate-400 font-medium">Agotado</span>
+                          <span className="text-xs sm:text-sm text-slate-400 font-medium">Agotado</span>
                         ) : stockReached ? (
-                          <span className="text-sm text-amber-600 font-medium">Máx. {product.quantity}</span>
+                          <span className="text-xs sm:text-sm text-amber-600 font-medium">Máx. {product.quantity}</span>
                         ) : (
                           <button
                             onClick={() => handleAddProduct(product)}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-colors"
+                            className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-semibold rounded-lg transition-colors truncate"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            {inCart ? `${inCart.quantity}×` : fmt(product.price)}
+                            <span className="truncate">{inCart ? `${inCart.quantity}×` : fmt(product.price)}</span>
                           </button>
                         )}
                       </td>
@@ -885,7 +891,7 @@ export default function POSPage() {
                 })}
               </tbody>
             </table>
-            <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
+            <div className="px-2 sm:px-4 py-2 border-t border-slate-100 text-xs sm:text-sm text-slate-400 bg-slate-50">
               {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
             </div>
           </>
@@ -895,12 +901,12 @@ export default function POSPage() {
         </div>
 
         {/* Cart — drawer on < lg, always visible on lg */}
-        <div className="lg:flex-shrink-0 lg:sticky lg:top-4 lg:w-full lg:max-w-lg">
+        <div className="2xl:flex-shrink-0 2xl:sticky 2xl:top-0 2xl:w-full 2xl:max-w-sm">
 
           {/* Backdrop — mobile only */}
           {isCartOpen && (
             <div
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              className="fixed inset-0 z-40 bg-black/50 2xl:hidden"
               onClick={() => setIsCartOpen(false)}
             />
           )}
@@ -908,7 +914,7 @@ export default function POSPage() {
           {/* Cart panel */}
           <Card className={`fixed right-0 top-0 h-screen z-50 transform transition-transform duration-300 ease-in-out flex flex-col
             w-[90vw] max-w-md
-            lg:relative lg:top-auto lg:h-auto lg:translate-x-0 lg:rounded-lg lg:z-auto lg:flex lg:flex-col lg:overflow-hidden
+            2xl:relative 2xl:top-0 2xl:h-screen 2xl:translate-x-0 2xl:rounded-lg 2xl:z-auto 2xl:flex 2xl:flex-col 2xl:overflow-hidden
             ${
               isCartOpen ? "translate-x-0" : "translate-x-full"
             }`}
@@ -935,7 +941,7 @@ export default function POSPage() {
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
-            className="p-1.5 rounded hover:bg-white/10 transition-colors lg:hidden"
+            className="p-1.5 rounded hover:bg-white/10 transition-colors 2xl:hidden"
             aria-label="Cerrar carrito"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1039,6 +1045,23 @@ export default function POSPage() {
                 <span>Total</span>
                 <span>{fmtCurrency(cartTotal.total)}</span>
               </div>
+
+              {/* Profit Summary */}
+              {(cartTotal as any).costOfGoodsSold !== undefined && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-2">
+                  <div className="text-xs text-slate-600 mb-1 font-semibold">Análisis de ganancia:</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-slate-600">Costo total</p>
+                      <p className="font-bold text-slate-900">{fmtCurrency((cartTotal as any).costOfGoodsSold)}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-600">Ganancia</p>
+                      <p className="font-bold text-green-700">{fmtCurrency((cartTotal as any).profit)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Loyal Customer Selection — only if module is enabled */}

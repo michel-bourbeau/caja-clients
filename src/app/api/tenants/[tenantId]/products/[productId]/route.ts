@@ -11,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const { tenantId, productId } = await params;
-    const { name, sku, price, quantity, category_id, description, min_stock, image } = await request.json();
+    const { name, sku, price, cost_price, quantity, category_id, description, min_stock, image } = await request.json();
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -19,6 +19,7 @@ export async function PUT(
     if (name !== undefined) updates.name = name.trim();
     if (sku !== undefined) updates.sku = sku.trim().toUpperCase();
     if (price !== undefined) updates.price = parseFloat(price);
+    if (cost_price !== undefined) updates.cost_price = parseFloat(cost_price);
     if (quantity !== undefined) updates.stock_quantity = parseInt(quantity);
     if (category_id !== undefined) updates.category_id = category_id;
     if (description !== undefined) updates.description = description?.trim() || null;
@@ -75,6 +76,7 @@ export async function PATCH(
     if (body.name !== undefined) updates.name = body.name.trim();
     if (body.sku !== undefined) updates.sku = body.sku.trim().toUpperCase();
     if (body.price !== undefined) updates.price = parseFloat(body.price);
+    if (body.cost_price !== undefined) updates.cost_price = parseFloat(body.cost_price);
     if (body.stock_quantity !== undefined) updates.stock_quantity = parseInt(body.stock_quantity);
     if (body.quantity !== undefined) updates.stock_quantity = parseInt(body.quantity);
     if (body.category_id !== undefined) updates.category_id = body.category_id;

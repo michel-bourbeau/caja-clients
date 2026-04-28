@@ -236,6 +236,16 @@ export default function DashboardPage() {
       show: features.inventory && hasPermission("inventory.view"),
     },
     {
+      id: "profits",
+      title: "Ganancias",
+      icon: TrendingUp,
+      description: "Análisis de ganancias por período",
+      href: "/dashboard/profits",
+      color: "bg-emerald-50 border-emerald-200 text-emerald-800",
+      iconBg: "bg-emerald-100",
+      show: features.reports && hasPermission("settings.manage_roles"),
+    },
+    {
       id: "employees",
       title: "Empleados",
       icon: Users,

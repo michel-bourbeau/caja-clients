@@ -16,6 +16,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (body.label !== undefined) updates.label = body.label.trim();
   if (body.sku !== undefined) updates.sku = body.sku.trim().toUpperCase();
   if (body.price !== undefined) updates.price = parseFloat(body.price);
+  if (body.cost_price !== undefined) updates.cost_price = parseFloat(body.cost_price);
   if (body.stock_quantity !== undefined) updates.stock_quantity = parseInt(body.stock_quantity);
   if (body.min_stock !== undefined) updates.min_stock = parseInt(body.min_stock);
   if (body.sort_order !== undefined) updates.sort_order = body.sort_order;
@@ -47,6 +48,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.label !== undefined) updates.label = body.label.trim();
   if (body.sku !== undefined) updates.sku = body.sku.trim().toUpperCase();
   if (body.price !== undefined) updates.price = parseFloat(body.price);
+  if (body.cost_price !== undefined) updates.cost_price = parseFloat(body.cost_price);
   if (body.stock_quantity !== undefined) updates.stock_quantity = parseInt(body.stock_quantity);
   if (body.min_stock !== undefined) updates.min_stock = parseInt(body.min_stock);
   if (body.sort_order !== undefined) updates.sort_order = body.sort_order;

@@ -131,7 +131,7 @@ export async function POST(
     if (productIds.length > 0) {
       const { data: products, error: productsError } = await supabaseAdmin
         .from("products")
-        .select("id, stock_quantity, price")
+        .select("id, stock_quantity, price, cost_price")
         .in("id", productIds)
         .eq("tenant_id", tenantId);
 
@@ -149,7 +149,7 @@ export async function POST(
     if (variantIds.length > 0) {
       const { data: variants, error: variantsError } = await supabaseAdmin
         .from("product_variants")
-        .select("id, product_id, stock_quantity, price")
+        .select("id, product_id, stock_quantity, price, cost_price")
         .in("id", variantIds)
         .eq("tenant_id", tenantId);
 
@@ -199,6 +199,24 @@ export async function POST(
     const { subtotal, discount: discountAmount, subtotalAfterDiscount, tax, taxBreakdown, total } = calculateTotals(items, configuredTaxes, discount);
     const change = paymentMethod === "CASH" ? amountReceived - total : 0;
 
+    // Calculate cost of goods sold (COGS) and profit
+    let costOfGoodsSold = 0;
+    const itemsWithCost: CartItem[] = items.map((item) => {
+      let cost_price = 0;
+      if (item.variantId) {
+        const variant = variantMap.get(item.variantId);
+        cost_price = variant?.cost_price || 0;
+      } else {
+        const product = productMap.get(item.productId);
+        cost_price = product?.cost_price || 0;
+      }
+      costOfGoodsSold += cost_price * item.quantity;
+      return { ...item, cost_price };
+    });
+
+    // Calculate profit (total - COGS)
+    const profitAmount = total - costOfGoodsSold;
+
     const { data, error } = await supabaseAdmin
       .from("transactions")
       .insert([
@@ -207,12 +225,14 @@ export async function POST(
           tenant_id: tenantId,
           cashier_id: cashierId,
           cashier_name: cashierName,
-          items,
+          items: itemsWithCost,
           subtotal,
           discount: discountAmount,
           tax,
           tax_breakdown: taxBreakdown,
           total,
+          cost_of_goods_sold: Math.round(costOfGoodsSold * 100) / 100,
+          profit: Math.round(profitAmount * 100) / 100,
           payment_method: paymentMethod,
           amount_received: amountReceived,
           change: change,

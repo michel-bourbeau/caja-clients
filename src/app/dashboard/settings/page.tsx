@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
@@ -242,6 +243,19 @@ export default function SettingsPage() {
           title="Configuración General"
           description="Gestiona tu información de empresa, plan y módulos activos"
         />
+
+        {/* Acceso rápido a módulos */}
+        <Card>
+          <CardHeader>
+            <CardTitle>⚙️ Gestión de Módulos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600 mb-4">Activa o desactiva los módulos disponibles según tu plan</p>
+            <Link href="/dashboard/settings/modules">
+              <Button variant="primary">Ir a Módulos →</Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         {/* LOADING SCREEN - Show while payment status is loading */}
         {paymentLoading ? (

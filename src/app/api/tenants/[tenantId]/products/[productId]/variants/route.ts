@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function POST(req: NextRequest, { params }: Params) {
   const { tenantId, productId } = await params;
   const body = await req.json();
-  const { label, sku, price, stock_quantity, min_stock, sort_order } = body;
+  const { label, sku, price, cost_price, stock_quantity, min_stock, sort_order } = body;
 
   if (!label?.trim() || !sku?.trim() || price === undefined) {
     return NextResponse.json({ error: "label, sku et price sont requis" }, { status: 400 });
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         label: label.trim(),
         sku: sku.trim().toUpperCase(),
         price: parseFloat(price),
+        cost_price: cost_price !== undefined ? parseFloat(cost_price) : 0,
         stock_quantity: stock_quantity ? parseInt(stock_quantity) : 0,
         min_stock: min_stock ? parseInt(min_stock) : 0,
         sort_order: nextSortOrder,

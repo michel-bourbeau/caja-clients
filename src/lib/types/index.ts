@@ -6,6 +6,7 @@ export interface Product {
   name: string;
   sku: string;
   price: number;
+  cost_price: number;
   quantity: number;
   category: string;
   description?: string;
@@ -41,6 +42,7 @@ export interface CartItem {
   quantity: number;
   price: number;
   total: number;
+  cost_price?: number;      // cost of the product, for profit calculation
 }
 
 export interface Transaction {
@@ -62,6 +64,8 @@ export interface Transaction {
   usd_amount_received?: number;
   usd_exchange_rate?: number;
   cash_closing_id?: string; // ID of the cash closing this transaction is linked to (if any)
+  cost_of_goods_sold?: number; // Sum of cost_price × quantity for all items
+  profit?: number; // Gross profit = total - cost_of_goods_sold
 }
 
 // ========== Employees ==========

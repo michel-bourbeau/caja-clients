@@ -108,7 +108,10 @@ export const Sidebar: React.FC = () => {
 
         {/* Reports - Direct links */}
         {hasPermission("reports.view") && (
-          <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" />
+          <>
+            <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" />
+            <NavLink href="/dashboard/profits" label="Análisis de Ganancias" iconType="reports" />
+          </>
         )}
 
         {/* Loyalty - Direct links */}

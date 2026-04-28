@@ -55,7 +55,7 @@ export async function POST(
     const { tenantId } = await params;
     const body = await request.json();
     
-    const { name, sku, price, quantity, category_id, description, min_stock, image } = body;
+    const { name, sku, price, cost_price, quantity, category_id, description, min_stock, image } = body;
 
     if (!name?.trim() || !sku?.trim() || price === undefined) {
       return NextResponse.json(
@@ -71,6 +71,7 @@ export async function POST(
       name: name.trim(),
       sku: sku.trim().toUpperCase(),
       price: parseFloat(price),
+      cost_price: cost_price !== undefined ? parseFloat(cost_price) : 0,
       stock_quantity: quantity ? parseInt(quantity) : 0,
       category_id: category_id || null,
       description: description?.trim() || null,
