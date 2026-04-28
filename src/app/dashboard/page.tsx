@@ -203,6 +203,7 @@ export default function DashboardPage() {
       href: "/dashboard/pos",
       color: "bg-blue-50 border-blue-200 text-blue-800",
       iconBg: "bg-blue-100",
+      group: "ventas",
       show: features.pos && hasPermission("pos.create"),
     },
     {
@@ -213,6 +214,7 @@ export default function DashboardPage() {
       href: "/dashboard/transactions",
       color: "bg-slate-50 border-slate-200 text-slate-800",
       iconBg: "bg-slate-100",
+      group: "ventas",
       show: features.pos && hasPermission("pos.view"),
     },
     {
@@ -223,6 +225,7 @@ export default function DashboardPage() {
       href: "/dashboard/pos/cierre",
       color: "bg-orange-50 border-orange-200 text-orange-800",
       iconBg: "bg-orange-100",
+      group: "ventas",
       show: features.pos && (hasPermission("pos.cierre") || hasPermission("pos.cierre_review")),
     },
     {
@@ -233,7 +236,19 @@ export default function DashboardPage() {
       href: "/dashboard/inventory",
       color: "bg-green-50 border-green-200 text-green-800",
       iconBg: "bg-green-100",
+      group: "ventas",
       show: features.inventory && hasPermission("inventory.view"),
+    },
+    {
+      id: "loyalty",
+      title: "Clientes Fieles",
+      icon: CreditCard,
+      description: "Programa de fidelización",
+      href: "/dashboard/loyalty",
+      color: "bg-rose-50 border-rose-200 text-rose-800",
+      iconBg: "bg-rose-100",
+      group: "ventas",
+      show: hasPermission("loyalty.view"),
     },
     {
       id: "profits",
@@ -243,7 +258,30 @@ export default function DashboardPage() {
       href: "/dashboard/profits",
       color: "bg-emerald-50 border-emerald-200 text-emerald-800",
       iconBg: "bg-emerald-100",
+      group: "finanzas",
       show: features.reports && hasPermission("settings.manage_roles"),
+    },
+    {
+      id: "reports",
+      title: "Reportes",
+      icon: TrendingUp,
+      description: "Análisis y reportes de ventas",
+      href: "/dashboard/reports",
+      color: "bg-cyan-50 border-cyan-200 text-cyan-800",
+      iconBg: "bg-cyan-100",
+      group: "finanzas",
+      show: features.reports && hasPermission("reports.view"),
+    },
+    {
+      id: "expenses",
+      title: "Gastos",
+      icon: DollarSign,
+      description: "Registro de gastos y proveedores",
+      href: "/dashboard/expenses",
+      color: "bg-yellow-50 border-yellow-200 text-yellow-800",
+      iconBg: "bg-yellow-100",
+      group: "finanzas",
+      show: features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all")),
     },
     {
       id: "employees",
@@ -253,6 +291,7 @@ export default function DashboardPage() {
       href: "/dashboard/employees",
       color: "bg-purple-50 border-purple-200 text-purple-800",
       iconBg: "bg-purple-100",
+      group: "rrhh",
       show: features.employees && hasPermission("employees.view"),
     },
     {
@@ -263,6 +302,7 @@ export default function DashboardPage() {
       href: "/dashboard/schedules",
       color: "bg-amber-50 border-amber-200 text-amber-800",
       iconBg: "bg-amber-100",
+      group: "rrhh",
       show: features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin")),
     },
     {
@@ -273,6 +313,7 @@ export default function DashboardPage() {
       href: "/dashboard/payroll/periods",
       color: "bg-emerald-50 border-emerald-200 text-emerald-800",
       iconBg: "bg-emerald-100",
+      group: "rrhh",
       show: features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")),
     },
     {
@@ -283,37 +324,8 @@ export default function DashboardPage() {
       href: "/dashboard/payroll/receipts",
       color: "bg-lime-50 border-lime-200 text-lime-800",
       iconBg: "bg-lime-100",
+      group: "rrhh",
       show: features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")),
-    },
-    {
-      id: "reports",
-      title: "Reportes",
-      icon: TrendingUp,
-      description: "Análisis y reportes de ventas",
-      href: "/dashboard/reports",
-      color: "bg-cyan-50 border-cyan-200 text-cyan-800",
-      iconBg: "bg-cyan-100",
-      show: features.reports && hasPermission("reports.view"),
-    },
-    {
-      id: "loyalty",
-      title: "Clientes Fieles",
-      icon: CreditCard,
-      description: "Programa de fidelización",
-      href: "/dashboard/loyalty",
-      color: "bg-rose-50 border-rose-200 text-rose-800",
-      iconBg: "bg-rose-100",
-      show: hasPermission("loyalty.view"),
-    },
-    {
-      id: "expenses",
-      title: "Gastos",
-      icon: DollarSign,
-      description: "Registro de gastos y proveedores",
-      href: "/dashboard/expenses",
-      color: "bg-yellow-50 border-yellow-200 text-yellow-800",
-      iconBg: "bg-yellow-100",
-      show: features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all")),
     },
     {
       id: "contacts",
@@ -323,6 +335,7 @@ export default function DashboardPage() {
       href: "/dashboard/contacts",
       color: "bg-indigo-50 border-indigo-200 text-indigo-800",
       iconBg: "bg-indigo-100",
+      group: "admin",
       show: features.contacts && hasPermission("contacts.view"),
     },
     {
@@ -333,6 +346,7 @@ export default function DashboardPage() {
       href: "/dashboard/settings/taxes",
       color: "bg-red-50 border-red-200 text-red-800",
       iconBg: "bg-red-100",
+      group: "admin",
       show: features.taxes && (canManageRoles || canManageModules),
     },
     {
@@ -343,6 +357,7 @@ export default function DashboardPage() {
       href: "/dashboard/admin/roles",
       color: "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-800",
       iconBg: "bg-fuchsia-100",
+      group: "admin",
       show: features.employees && hasPermission("settings.manage_roles"),
     },
     {
@@ -353,8 +368,16 @@ export default function DashboardPage() {
       href: "/dashboard/settings",
       color: "bg-indigo-50 border-indigo-200 text-indigo-800",
       iconBg: "bg-indigo-100",
+      group: "admin",
       show: hasPermission("settings.view"),
     },
+  ];
+
+  const moduleGroups = [
+    { id: "ventas",   label: "Ventas" },
+    { id: "finanzas", label: "Finanzas & Reportes" },
+    { id: "rrhh",     label: "Nómina & RRHH" },
+    { id: "admin",    label: "Administración" },
   ];
 
   const visibleCards = statCards.filter((c) => c.show);
@@ -378,8 +401,7 @@ export default function DashboardPage() {
         subtitle={`${roleName} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
       />
 
-      {/* Modules Grid */}
-        {/* Module cards grid */}
+      {/* Modules — grouped by category */}
         {visibleCards.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
@@ -389,25 +411,38 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {visibleCards.map((card) => {
-              const IconComponent = card.icon;
+          <div className="space-y-8">
+            {moduleGroups.map((group) => {
+              const cards = visibleCards.filter((c) => c.group === group.id);
+              if (cards.length === 0) return null;
               return (
-                <Link key={card.id} href={card.href} className="block">
-                  <Card className="h-full hover:shadow-lg transition-shadow">
-                    <CardContent>
-                      <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-lg ${card.iconBg}`}>
-                          <IconComponent className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-slate-900 text-base">{card.title}</h3>
-                          <p className="text-sm text-slate-600 mt-1">{card.description}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <div key={group.id}>
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3 px-1">
+                    {group.label}
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+                    {cards.map((card) => {
+                      const IconComponent = card.icon;
+                      return (
+                        <Link key={card.id} href={card.href} className="block">
+                          <Card className="h-full hover:shadow-lg transition-shadow">
+                            <CardContent>
+                              <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-lg ${card.iconBg}`}>
+                                  <IconComponent className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-slate-900 text-base">{card.title}</h3>
+                                  <p className="text-sm text-slate-600 mt-1">{card.description}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>

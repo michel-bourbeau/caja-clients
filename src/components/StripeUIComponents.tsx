@@ -298,7 +298,7 @@ export const Section: React.FC<SectionProps> = ({
   children,
   ...props
 }) => (
-  <section className={`space-y-6 mb-12 h-full flex flex-col ${className || ''}`} {...props}>
+  <section className={`mb-12 h-full flex flex-col ${className || ''}`} {...props}>
     {title && (
       <div>
         <h2 className="text-2xl font-bold text-gray-900">{title}</h2>

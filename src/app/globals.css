@@ -783,30 +783,6 @@ html[data-scroll-behavior="smooth"] {
     @apply !text-gray-700;
   }
 
-  svg.text-slate-300 {
-    @apply !text-slate-600;
-  }
-
-  svg.text-slate-400 {
-    @apply !text-slate-700;
-  }
-
-  svg.text-slate-500 {
-    @apply !text-slate-700;
-  }
-
-  svg.text-gray-300 {
-    @apply !text-gray-600;
-  }
-
-  svg.text-gray-400 {
-    @apply !text-gray-700;
-  }
-
-  svg.text-gray-500 {
-    @apply !text-gray-700;
-  }
-
   label {
     @apply !text-slate-900;
   }
@@ -815,6 +791,14 @@ html[data-scroll-behavior="smooth"] {
     @apply !text-slate-600 !opacity-100;
   }
 }
+
+/* SVG color overrides — plain CSS to avoid Tailwind variant generation bugs with compound selectors */
+svg.text-slate-300 { color: rgb(71 85 105) !important; }  /* slate-600 */
+svg.text-slate-400 { color: rgb(51 65 85) !important; }   /* slate-700 */
+svg.text-slate-500 { color: rgb(51 65 85) !important; }   /* slate-700 */
+svg.text-gray-300  { color: rgb(75 85 99) !important; }   /* gray-600 */
+svg.text-gray-400  { color: rgb(55 65 81) !important; }   /* gray-700 */
+svg.text-gray-500  { color: rgb(55 65 81) !important; }   /* gray-700 */
 
 /* Interactive hover states for buttons with SVG icons */
 button:has(> svg):hover svg,
