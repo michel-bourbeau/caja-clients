@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button as UIButton } from "@/components/ui";
-import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter } from "@/components";
+import { Button, Container, Section } from "@/components/StripeUIComponents";
+import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter, FlashMessage, useFlash, EmptyState, DeleteConfirmDialog } from "@/components";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { LoyalCustomer } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -19,8 +19,7 @@ export default function LoyaltyPage() {
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
+  const { flash, showFlash, clearFlash } = useFlash();
 
   // Form state for new customer
   const [formData, setFormData] = useState({
@@ -60,8 +59,7 @@ export default function LoyaltyPage() {
     }
 
     if (attempts >= maxAttempts) {
-      setMessage('⚠️ Could not generate unique card number, please try again');
-      setMessageType('error');
+      showFlash('error', '⚠️ Could not generate unique card number, please try again');
       return null;
     }
 
@@ -95,8 +93,7 @@ export default function LoyaltyPage() {
       setCustomers(data);
     } catch (error) {
       console.error("Error loading customers:", error);
-      setMessage("Error cargando clientes fideles");
-      setMessageType("error");
+      showFlash("error", "Error cargando clientes fideles");
     } finally {
       setLoading(false);
     }
@@ -115,20 +112,13 @@ export default function LoyaltyPage() {
 
     try {
       await LoyaltyService.createCustomer(tenantId, formData);
-      setMessage("✓ Cliente fiel creado exitosamente");
-      setMessageType("success");
+      showFlash("success", "✓ Cliente fiel creado exitosamente");
       setFormData({ card_number: "", name: "", phone: "", email: "" });
       setShowAddModal(false);
       await loadCustomers();
-
-      setTimeout(() => {
-        setMessage(null);
-        setMessageType(null);
-      }, 3000);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Error creando cliente";
-      setMessage(errorMsg);
-      setMessageType("error");
+      showFlash("error", errorMsg);
     }
   };
 
@@ -137,18 +127,11 @@ export default function LoyaltyPage() {
 
     try {
       await LoyaltyService.deleteCustomer(tenantId, customerId);
-      setMessage("✓ Cliente eliminado");
-      setMessageType("success");
+      showFlash("success", "✓ Cliente eliminado");
       setShowDeleteConfirm(null);
       await loadCustomers();
-
-      setTimeout(() => {
-        setMessage(null);
-        setMessageType(null);
-      }, 3000);
     } catch (error) {
-      setMessage("Error eliminando cliente");
-      setMessageType("error");
+      showFlash("error", "Error eliminando cliente");
     }
   };
 
@@ -166,11 +149,7 @@ export default function LoyaltyPage() {
             </Button>
           </DashboardHeader>
 
-          {message && (
-            <Alert variant={messageType === "success" ? "success" : "error"} title={messageType === "success" ? "Éxito" : "Error"}>
-              {message}
-            </Alert>
-          )}
+          <FlashMessage flash={flash} onDismiss={clearFlash} />
 
           {/* Search */}
           <SearchInput
@@ -183,11 +162,12 @@ export default function LoyaltyPage() {
           {/* Customers table */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Cargando...</div>
+              <EmptyState state="loading" />
             ) : customers.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                {search ? "No hay clientes que coincidan" : "No hay clientes fideles todavía"}
-              </div>
+              <EmptyState
+                state="empty"
+                message={search ? "No hay clientes que coincidan" : "No hay clientes fideles todavía"}
+              />
             ) : (
               <>
                 {/* Desktop Table */}
@@ -340,22 +320,13 @@ export default function LoyaltyPage() {
             </form>
           </Dialog>
 
-          {/* Delete Confirmation Modal */}
-          <Dialog
+          {/* Delete Confirmation */}
+          <DeleteConfirmDialog
             isOpen={!!showDeleteConfirm}
-            title="Confirmar eliminación"
-            onClose={() => setShowDeleteConfirm(null)}
-            maxWidth="sm"
-            footer={
-              <div className="flex justify-end">
-                <Button variant="danger" onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)} className="whitespace-nowrap">
-                  Eliminar
-                </Button>
-              </div>
-            }
-          >
-            <p className="text-slate-700">¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.</p>
-          </Dialog>
+            message="¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer."
+            onConfirm={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}
+            onCancel={() => setShowDeleteConfirm(null)}
+          />
         </Section>
       </Container>
     </FeatureGuard>

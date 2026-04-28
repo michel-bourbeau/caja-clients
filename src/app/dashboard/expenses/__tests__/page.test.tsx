@@ -32,6 +32,22 @@ jest.mock("@/components", () => ({
   SearchInput:  ({ value, onChange, placeholder }: any) => (
     <input data-testid="search-input" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
   ),
+  FlashMessage: ({ flash }: any) => flash ? <div role="alert">{flash.message}</div> : null,
+  useFlash:     () => {
+    const [flash, setFlash] = React.useState<any>(null);
+    return {
+      flash,
+      showFlash: (variant: string, message: string) => setFlash({ variant, message }),
+      clearFlash: () => setFlash(null),
+    };
+  },
+  EmptyState:   ({ message }: any) => <div>{message}</div>,
+  DeleteConfirmDialog: ({ isOpen, onConfirm, onCancel }: any) => isOpen ? (
+    <div role="dialog">
+      <button onClick={onConfirm}>Confirmar</button>
+      <button onClick={onCancel}>Cancelar</button>
+    </div>
+  ) : null,
 }));
 
 jest.mock("@/components/StripeUIComponents", () => ({

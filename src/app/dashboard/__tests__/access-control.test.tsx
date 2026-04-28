@@ -14,7 +14,7 @@
  */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act } from "@testing-library/react";
 import DashboardPage from "../page";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -105,7 +105,7 @@ const ALL_FEATURES = {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-function renderDashboard(
+async function renderDashboard(
   permissions: string[],
   features: Record<string, boolean> = ALL_FEATURES,
   loading = false,
@@ -120,7 +120,9 @@ function renderDashboard(
   (useRoleName as jest.Mock).mockReturnValue({ roleName: "Test Role", isLoading: false });
   global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => [] });
 
-  render(<DashboardPage />);
+  await act(async () => {
+    render(<DashboardPage />);
+  });
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -131,8 +133,8 @@ describe("DashboardPage — Access Control", () => {
   // 1. État de chargement
   // ══════════════════════════════════════════════════════════════════
   describe("État de chargement", () => {
-    it("affiche 'Cargando...' pendant le chargement des features", () => {
-      renderDashboard(ADMIN_PERMISSIONS, ALL_FEATURES, true);
+    it("affiche 'Cargando...' pendant le chargement des features", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, ALL_FEATURES, true);
       expect(screen.getByText("Cargando...")).toBeInTheDocument();
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
     });
@@ -232,20 +234,20 @@ describe("DashboardPage — Access Control", () => {
   // 5. Rôle inconnu — aucune permission
   // ══════════════════════════════════════════════════════════════════
   describe("Rôle inconnu / aucune permission", () => {
-    it("affiche 'Sin acceso a módulos'", () => {
-      renderDashboard([]);
+    it("affiche 'Sin acceso a módulos'", async () => {
+      await renderDashboard([]);
       expect(screen.getByText("Sin acceso a módulos")).toBeInTheDocument();
     });
 
-    it("n'affiche aucune carte de module", () => {
-      renderDashboard([]);
+    it("n'affiche aucune carte de module", async () => {
+      await renderDashboard([]);
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
       expect(screen.queryByText("Reportes")).not.toBeInTheDocument();
       expect(screen.queryByText("Empleados")).not.toBeInTheDocument();
     });
 
-    it("indique de contacter l'administrateur", () => {
-      renderDashboard([]);
+    it("indique de contacter l'administrateur", async () => {
+      await renderDashboard([]);
       expect(screen.getByText(/Contacta con tu administrador/)).toBeInTheDocument();
     });
   });
@@ -254,58 +256,58 @@ describe("DashboardPage — Access Control", () => {
   // 6. Fonctionnalités désactivées par le tenant
   // ══════════════════════════════════════════════════════════════════
   describe("Fonctionnalités désactivées par le tenant", () => {
-    it("POS désactivé → Caja, Transacciones et Cierre de Caja cachés", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, pos: false });
+    it("POS désactivé → Caja, Transacciones et Cierre de Caja cachés", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, pos: false });
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
       expect(screen.queryByText("Transacciones")).not.toBeInTheDocument();
       expect(screen.queryByText("Cierre de Caja")).not.toBeInTheDocument();
     });
 
-    it("POS désactivé → Inventario reste visible (feature séparée)", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, pos: false });
+    it("POS désactivé → Inventario reste visible (feature séparée)", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, pos: false });
       expect(screen.getByText("Inventario")).toBeInTheDocument();
     });
 
-    it("Inventario désactivé → Inventario caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, inventory: false });
+    it("Inventario désactivé → Inventario caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, inventory: false });
       expect(screen.queryByText("Inventario")).not.toBeInTheDocument();
     });
 
-    it("Reportes désactivé → Ganancias et Reportes cachés", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, reports: false });
+    it("Reportes désactivé → Ganancias et Reportes cachés", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, reports: false });
       expect(screen.queryByText("Ganancias")).not.toBeInTheDocument();
       expect(screen.queryByText("Reportes")).not.toBeInTheDocument();
     });
 
-    it("Employees désactivé → Empleados et Gestionar Roles cachés", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, employees: false });
+    it("Employees désactivé → Empleados et Gestionar Roles cachés", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, employees: false });
       expect(screen.queryByText("Empleados")).not.toBeInTheDocument();
       expect(screen.queryByText("Gestionar Roles")).not.toBeInTheDocument();
     });
 
-    it("Schedules désactivé → Asistencia caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, schedules: false });
+    it("Schedules désactivé → Asistencia caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, schedules: false });
       expect(screen.queryByText("Asistencia")).not.toBeInTheDocument();
     });
 
-    it("Payroll désactivé → Períodos et Recibos cachés", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, payroll: false });
+    it("Payroll désactivé → Períodos et Recibos cachés", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, payroll: false });
       expect(screen.queryByText("Períodos")).not.toBeInTheDocument();
       expect(screen.queryByText("Recibos")).not.toBeInTheDocument();
     });
 
-    it("Expenses désactivé → Gastos caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, expenses: false });
+    it("Expenses désactivé → Gastos caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, expenses: false });
       expect(screen.queryByText("Gastos")).not.toBeInTheDocument();
     });
 
-    it("Contacts désactivé → Contactos caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, contacts: false });
+    it("Contacts désactivé → Contactos caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, contacts: false });
       expect(screen.queryByText("Contactos")).not.toBeInTheDocument();
     });
 
-    it("Taxes désactivé → Impuestos caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, taxes: false });
+    it("Taxes désactivé → Impuestos caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, taxes: false });
       expect(screen.queryByText("Impuestos")).not.toBeInTheDocument();
     });
   });
@@ -315,58 +317,58 @@ describe("DashboardPage — Access Control", () => {
   //    et permission présente mais feature désactivée
   // ══════════════════════════════════════════════════════════════════
   describe("Feature active + permission manquante → caché", () => {
-    it("Caja : feature POS on, mais pas pos.create → caché", () => {
-      renderDashboard(["pos.view"], { ...ALL_FEATURES, pos: true });
+    it("Caja : feature POS on, mais pas pos.create → caché", async () => {
+      await renderDashboard(["pos.view"], { ...ALL_FEATURES, pos: true });
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
     });
 
-    it("Inventario : feature inventory on, mais pas inventory.view → caché", () => {
-      renderDashboard(["pos.create"], { ...ALL_FEATURES, inventory: true });
+    it("Inventario : feature inventory on, mais pas inventory.view → caché", async () => {
+      await renderDashboard(["pos.create"], { ...ALL_FEATURES, inventory: true });
       expect(screen.queryByText("Inventario")).not.toBeInTheDocument();
     });
 
-    it("Empleados : feature employees on, mais pas employees.view → caché", () => {
-      renderDashboard(["pos.create"], { ...ALL_FEATURES, employees: true });
+    it("Empleados : feature employees on, mais pas employees.view → caché", async () => {
+      await renderDashboard(["pos.create"], { ...ALL_FEATURES, employees: true });
       expect(screen.queryByText("Empleados")).not.toBeInTheDocument();
     });
 
-    it("Reportes : feature reports on, mais pas reports.view → caché", () => {
-      renderDashboard(["pos.create"], { ...ALL_FEATURES, reports: true });
+    it("Reportes : feature reports on, mais pas reports.view → caché", async () => {
+      await renderDashboard(["pos.create"], { ...ALL_FEATURES, reports: true });
       expect(screen.queryByText("Reportes")).not.toBeInTheDocument();
     });
 
-    it("Gastos : feature expenses on, mais pas expenses.create ni view_all → caché", () => {
-      renderDashboard(["expenses.view_own"], { ...ALL_FEATURES, expenses: true });
+    it("Gastos : feature expenses on, mais pas expenses.create ni view_all → caché", async () => {
+      await renderDashboard(["expenses.view_own"], { ...ALL_FEATURES, expenses: true });
       expect(screen.queryByText("Gastos")).not.toBeInTheDocument();
     });
   });
 
   describe("Permission présente + feature désactivée → caché", () => {
-    it("Caja : pos.create présent, mais feature POS off → caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, pos: false });
+    it("Caja : pos.create présent, mais feature POS off → caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, pos: false });
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
     });
 
-    it("Empleados : employees.view présent, mais feature employees off → caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, employees: false });
+    it("Empleados : employees.view présent, mais feature employees off → caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, employees: false });
       expect(screen.queryByText("Empleados")).not.toBeInTheDocument();
     });
 
-    it("Períodos : payroll.view présent, mais feature payroll off → caché", () => {
-      renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, payroll: false });
+    it("Períodos : payroll.view présent, mais feature payroll off → caché", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS, { ...ALL_FEATURES, payroll: false });
       expect(screen.queryByText("Períodos")).not.toBeInTheDocument();
     });
   });
 
   describe("Modules sans feature flag — visibles si permission seule suffit", () => {
-    it("Clientes Fieles : visible avec seulement loyalty.view (pas de feature flag)", () => {
-      renderDashboard(["loyalty.view"], { ...ALL_FEATURES, loyalty: false });
+    it("Clientes Fieles : visible avec seulement loyalty.view (pas de feature flag)", async () => {
+      await renderDashboard(["loyalty.view"], { ...ALL_FEATURES, loyalty: false });
       // Pas de feature flag → visible si permission présente
       expect(screen.getByText("Clientes Fieles")).toBeInTheDocument();
     });
 
-    it("Configuración : visible avec seulement settings.view (pas de feature flag)", () => {
-      renderDashboard(["settings.view"], { ...ALL_FEATURES, settings: false });
+    it("Configuración : visible avec seulement settings.view (pas de feature flag)", async () => {
+      await renderDashboard(["settings.view"], { ...ALL_FEATURES, settings: false });
       expect(screen.getByText("Configuración")).toBeInTheDocument();
     });
   });
@@ -375,37 +377,37 @@ describe("DashboardPage — Access Control", () => {
   // 8. Sections (groupes) de modules
   // ══════════════════════════════════════════════════════════════════
   describe("Sections de modules", () => {
-    it("Admin voit les 4 sections", () => {
-      renderDashboard(ADMIN_PERMISSIONS);
+    it("Admin voit les 4 sections", async () => {
+      await renderDashboard(ADMIN_PERMISSIONS);
       expect(screen.getByText("Ventas")).toBeInTheDocument();
       expect(screen.getByText("Finanzas & Reportes")).toBeInTheDocument();
       expect(screen.getByText("Nómina & RRHH")).toBeInTheDocument();
       expect(screen.getByText("Administración")).toBeInTheDocument();
     });
 
-    it("Cashier voit seulement 'Ventas' et 'Nómina & RRHH'", () => {
-      renderDashboard(CASHIER_PERMISSIONS);
+    it("Cashier voit seulement 'Ventas' et 'Nómina & RRHH'", async () => {
+      await renderDashboard(CASHIER_PERMISSIONS);
       expect(screen.getByText("Ventas")).toBeInTheDocument();
       expect(screen.getByText("Nómina & RRHH")).toBeInTheDocument();
       expect(screen.queryByText("Finanzas & Reportes")).not.toBeInTheDocument();
       expect(screen.queryByText("Administración")).not.toBeInTheDocument();
     });
 
-    it("Manager ne voit pas la section 'Administración'", () => {
-      renderDashboard(MANAGER_PERMISSIONS);
+    it("Manager ne voit pas la section 'Administración'", async () => {
+      await renderDashboard(MANAGER_PERMISSIONS);
       expect(screen.queryByText("Administración")).not.toBeInTheDocument();
     });
 
-    it("Manager voit 'Ventas', 'Finanzas & Reportes' et 'Nómina & RRHH'", () => {
-      renderDashboard(MANAGER_PERMISSIONS);
+    it("Manager voit 'Ventas', 'Finanzas & Reportes' et 'Nómina & RRHH'", async () => {
+      await renderDashboard(MANAGER_PERMISSIONS);
       expect(screen.getByText("Ventas")).toBeInTheDocument();
       expect(screen.getByText("Finanzas & Reportes")).toBeInTheDocument();
       expect(screen.getByText("Nómina & RRHH")).toBeInTheDocument();
     });
 
-    it("Une section sans aucun module visible n'est pas affichée", () => {
+    it("Une section sans aucun module visible n'est pas affichée", async () => {
       // Seulement pos.create → section Ventas visible, autres absentes
-      renderDashboard(["pos.create"]);
+      await renderDashboard(["pos.create"]);
       expect(screen.getByText("Ventas")).toBeInTheDocument();
       expect(screen.queryByText("Finanzas & Reportes")).not.toBeInTheDocument();
       expect(screen.queryByText("Nómina & RRHH")).not.toBeInTheDocument();
@@ -417,46 +419,46 @@ describe("DashboardPage — Access Control", () => {
   // 9. Permissions personnalisées (rôle custom assigné par l'admin)
   // ══════════════════════════════════════════════════════════════════
   describe("Permissions personnalisées", () => {
-    it("Employé avec seulement expenses.create voit uniquement Gastos", () => {
-      renderDashboard(["expenses.create"]);
+    it("Employé avec seulement expenses.create voit uniquement Gastos", async () => {
+      await renderDashboard(["expenses.create"]);
       expect(screen.getByText("Gastos")).toBeInTheDocument();
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
       expect(screen.queryByText("Empleados")).not.toBeInTheDocument();
     });
 
-    it("Employé avec seulement loyalty.view voit uniquement Clientes Fieles", () => {
-      renderDashboard(["loyalty.view"]);
+    it("Employé avec seulement loyalty.view voit uniquement Clientes Fieles", async () => {
+      await renderDashboard(["loyalty.view"]);
       expect(screen.getByText("Clientes Fieles")).toBeInTheDocument();
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
     });
 
-    it("Employé avec expenses.view_all voit Gastos (permission alternative)", () => {
-      renderDashboard(["expenses.view_all"]);
+    it("Employé avec expenses.view_all voit Gastos (permission alternative)", async () => {
+      await renderDashboard(["expenses.view_all"]);
       expect(screen.getByText("Gastos")).toBeInTheDocument();
     });
 
-    it("Employé avec schedules.checkin seul voit Asistencia", () => {
-      renderDashboard(["schedules.checkin"]);
+    it("Employé avec schedules.checkin seul voit Asistencia", async () => {
+      await renderDashboard(["schedules.checkin"]);
       expect(screen.getByText("Asistencia")).toBeInTheDocument();
     });
 
-    it("Employé avec schedules.view seul voit Asistencia", () => {
-      renderDashboard(["schedules.view"]);
+    it("Employé avec schedules.view seul voit Asistencia", async () => {
+      await renderDashboard(["schedules.view"]);
       expect(screen.getByText("Asistencia")).toBeInTheDocument();
     });
 
-    it("Impuestos accessible avec settings.manage_modules (sans manage_roles)", () => {
-      renderDashboard(["settings.manage_modules"]);
+    it("Impuestos accessible avec settings.manage_modules (sans manage_roles)", async () => {
+      await renderDashboard(["settings.manage_modules"]);
       expect(screen.getByText("Impuestos")).toBeInTheDocument();
     });
 
-    it("Impuestos accessible avec settings.manage_roles (sans manage_modules)", () => {
-      renderDashboard(["settings.manage_roles"]);
+    it("Impuestos accessible avec settings.manage_roles (sans manage_modules)", async () => {
+      await renderDashboard(["settings.manage_roles"]);
       expect(screen.getByText("Impuestos")).toBeInTheDocument();
     });
 
-    it("Cierre de Caja accessible avec seulement pos.cierre_review", () => {
-      renderDashboard(["pos.cierre_review"]);
+    it("Cierre de Caja accessible avec seulement pos.cierre_review", async () => {
+      await renderDashboard(["pos.cierre_review"]);
       expect(screen.getByText("Cierre de Caja")).toBeInTheDocument();
     });
   });

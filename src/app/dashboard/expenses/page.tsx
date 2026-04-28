@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { Expense, Supplier, ExpenseCategory } from "@/lib/types";
-import { Dialog, DialogFooter } from "@/components";
+import { Dialog, DialogFooter, FlashMessage, useFlash, EmptyState, DeleteConfirmDialog } from "@/components";
 
 export default function ExpensesPage() {
   const { user, hasPermission } = useAuth();
@@ -16,8 +16,9 @@ export default function ExpensesPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const { flash, showFlash, clearFlash } = useFlash();
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
 
   // Form states
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -96,7 +97,6 @@ export default function ExpensesPage() {
     if (!tenantId) return;
     try {
       setIsLoading(true);
-      setError(null);
 
       const headers = { "x-user-id": user?.id || "" };
       const [expensesRes, suppliersRes, categoriesRes] = await Promise.all([
@@ -122,7 +122,7 @@ export default function ExpensesPage() {
       setSuppliers(suppliersData);
       setCategories(categoriesData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error loading data");
+      showFlash("error", err instanceof Error ? err.message : "Error loading data");
     } finally {
       setIsLoading(false);
     }
@@ -135,12 +135,11 @@ export default function ExpensesPage() {
   // Handle create/edit expense
   const handleSaveExpense = async () => {
     if (!tenantId || formData.amount <= 0) {
-      setError("Monto debe ser mayor a 0");
+      showFlash("error", "Monto debe ser mayor a 0");
       return;
     }
 
     try {
-      setError(null);
       const headers = {
         "Content-Type": "application/json",
         "x-user-id": user?.id || "",
@@ -179,28 +178,25 @@ export default function ExpensesPage() {
       const result = await response.json();
 
 
-      setMessage(editingExpense ? "Gasto actualizado" : "Gasto registrado");
+      showFlash("success", editingExpense ? "Gasto actualizado" : "Gasto registrado");
       setShowExpenseForm(false);
       setEditingExpense(null);
       resetExpenseForm();
       await loadData();
-
-      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Error saving expense";
       console.error("Exception in handleSaveExpense:", errorMsg);
-      setError(errorMsg);
+      showFlash("error", errorMsg);
     }
   };
 
   const handleCreateSupplier = async () => {
     if (!tenantId || !supplierForm.name.trim()) {
-      setError("Nombre del proveedor es requerido");
+      showFlash("error", "Nombre del proveedor es requerido");
       return;
     }
 
     try {
-      setError(null);
       const response = await fetch(`/api/tenants/${tenantId}/suppliers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -209,19 +205,23 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to create supplier");
 
-      setMessage("Proveedor creado");
+      showFlash("success", "Proveedor creado");
       setShowSupplierForm(false);
       setSupplierForm({ name: "", description: "", contact: "" });
       await loadData();
-
-      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error creating supplier");
+      showFlash("error", err instanceof Error ? err.message : "Error creating supplier");
     }
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
-    if (!window.confirm("¿Eliminar este gasto?")) return;
+    setDeletingExpenseId(expenseId);
+  };
+
+  const executeDeleteExpense = async () => {
+    if (!deletingExpenseId) return;
+    const expenseId = deletingExpenseId;
+    setDeletingExpenseId(null);
 
     try {
       const response = await fetch(
@@ -234,11 +234,10 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to delete");
 
-      setMessage("Gasto eliminado");
+      showFlash("success", "Gasto eliminado");
       await loadData();
-      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error deleting expense");
+      showFlash("error", err instanceof Error ? err.message : "Error deleting expense");
     }
   };
 
@@ -278,12 +277,11 @@ export default function ExpensesPage() {
   // Handle manage categories
   const handleSaveCategory = async () => {
     if (!tenantId || !categoryForm.name.trim()) {
-      setError("El nombre de la categoría es requerido");
+      showFlash("error", "El nombre de la categoría es requerido");
       return;
     }
 
     try {
-      setError(null);
       const method = editingCategory ? "PUT" : "POST";
       const url = editingCategory
         ? `/api/tenants/${tenantId}/expense-categories/${editingCategory.id}`
@@ -300,20 +298,24 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to save category");
 
-      setMessage(editingCategory ? "Categoría actualizada" : "Categoría creada");
+      showFlash("success", editingCategory ? "Categoría actualizada" : "Categoría creada");
       setShowCategoryForm(false);
       setEditingCategory(null);
       setCategoryForm({ name: "", description: "" });
       await loadData();
-
-      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error saving category");
+      showFlash("error", err instanceof Error ? err.message : "Error saving category");
     }
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!window.confirm("¿Eliminar esta categoría?")) return;
+  const handleDeleteCategory = (categoryId: string) => {
+    setDeletingCategoryId(categoryId);
+  };
+
+  const executeDeleteCategory = async () => {
+    if (!deletingCategoryId) return;
+    const categoryId = deletingCategoryId;
+    setDeletingCategoryId(null);
 
     try {
       const response = await fetch(
@@ -323,11 +325,10 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to delete");
 
-      setMessage("Categoría eliminada");
+      showFlash("success", "Categoría eliminada");
       await loadData();
-      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error deleting category");
+      showFlash("error", err instanceof Error ? err.message : "Error deleting category");
     }
   };
 
@@ -517,16 +518,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Messages */}
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
-          {message}
-        </div>
-      )}
+      <FlashMessage flash={flash} onDismiss={clearFlash} />
 
       {/* View Mode Selector with Navigation */}
       <div className="space-y-3">
@@ -645,9 +637,9 @@ export default function ExpensesPage() {
       {/* Expenses List */}
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         {isLoading ? (
-          <p className="text-center py-12 text-gray-700">Cargando gastos...</p>
+          <EmptyState state="loading" message="Cargando gastos..." />
         ) : filteredExpenses.length === 0 ? (
-          <p className="text-center py-12 text-gray-700">No hay gastos registrados.</p>
+          <EmptyState state="empty" message="No hay gastos registrados." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1072,6 +1064,22 @@ export default function ExpensesPage() {
           </div>
         )}
       </Dialog>
+
+      {/* Delete Expense Confirmation */}
+      <DeleteConfirmDialog
+        isOpen={!!deletingExpenseId}
+        message="¿Eliminar este gasto? Esta acción no se puede deshacer."
+        onConfirm={executeDeleteExpense}
+        onCancel={() => setDeletingExpenseId(null)}
+      />
+
+      {/* Delete Category Confirmation */}
+      <DeleteConfirmDialog
+        isOpen={!!deletingCategoryId}
+        message="¿Eliminar esta categoría? Esta acción no se puede deshacer."
+        onConfirm={executeDeleteCategory}
+        onCancel={() => setDeletingCategoryId(null)}
+      />
     </div>
   );
 }

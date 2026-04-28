@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import DashboardPage from "../page";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
@@ -176,7 +176,9 @@ describe("DashboardPage - Module Cards", () => {
         loading: false, error: null,
       });
 
-      render(<DashboardPage />);
+      await act(async () => {
+        render(<DashboardPage />);
+      });
 
       const expectedHrefs = [
         "/dashboard/pos",
@@ -364,7 +366,9 @@ describe("DashboardPage - Module Cards", () => {
         loading: false, error: null,
       });
 
-      render(<DashboardPage />);
+      await act(async () => {
+        render(<DashboardPage />);
+      });
 
       await waitFor(() => {
         const link = screen.getByRole("link", { name: /Inventario/i });
@@ -643,7 +647,9 @@ describe("DashboardPage - Module Cards", () => {
         loading: false, error: null,
       });
 
-      render(<DashboardPage />);
+      await act(async () => {
+        render(<DashboardPage />);
+      });
 
       await waitFor(() => {
         const caja = screen.getByRole("link", { name: /^Caja/i });

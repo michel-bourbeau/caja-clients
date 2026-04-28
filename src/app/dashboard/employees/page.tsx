@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
-import { Button, Container, Section, Alert, Card } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
+import { Button, Container, Section, Card } from "@/components/StripeUIComponents";
+import { PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, FlashMessage, useFlash } from "@/components";
 
 interface Employee {
   id: string;
@@ -64,8 +64,7 @@ export default function EmployeesPage() {
   const [tenantRoles, setTenantRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { flash: flashState, showFlash, clearFlash } = useFlash();
 
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("");
@@ -118,7 +117,7 @@ export default function EmployeesPage() {
         const roleList = Array.isArray(roles) && roles.length > 0 ? roles : DEFAULT_ROLES;
         setTenantRoles(roleList);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => showFlash("error", e.message))
       .finally(() => setLoading(false));
   }, [tenantId]);
 
@@ -138,9 +137,7 @@ export default function EmployeesPage() {
   }, [employees, search, filterRole]);
 
   const flash = (msg: string, type: "success" | "error") => {
-    if (type === "success") setSuccess(msg);
-    else setError(msg);
-    setTimeout(() => { setSuccess(null); setError(null); }, 4000);
+    showFlash(type, msg);
   };
 
   const openAdd = () => {
@@ -513,8 +510,7 @@ export default function EmployeesPage() {
         </Button>
       </DashboardHeader>
 
-      {success && <Alert variant="success" title="Éxito">{success}</Alert>}
-      {error && <Alert variant="error" title="Error">{error}</Alert>}
+      {flashState && <FlashMessage flash={flashState} onDismiss={clearFlash} />}
 
       <Card>
         <div className="flex flex-col sm:flex-row gap-2 px-6 py-3 border-b border-slate-200 bg-slate-50">

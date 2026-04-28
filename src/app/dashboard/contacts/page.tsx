@@ -7,7 +7,7 @@ import { Contact, CreateContactInput } from "@/lib/types/contacts";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { Mail, Phone, MessageCircle, MapPin, Building2, Briefcase, Edit2, Trash2, Plus, X, Clock, User, CheckCircle, Image, FileText } from "lucide-react";
 import { Container, Section } from "@/components/StripeUIComponents";
-import { SearchInput, DashboardHeader } from "@/components";
+import { SearchInput, DashboardHeader, FlashMessage, useFlash, EmptyState } from "@/components";
 
 const EMPTY_FORM: CreateContactInput = {
   full_name: "",
@@ -38,7 +38,7 @@ export default function ContactsPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [flash, setFlash] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const { flash, showFlash, clearFlash } = useFlash();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   // Check permissions - Admins always have access
@@ -72,10 +72,7 @@ export default function ContactsPage() {
     }
   }, [tenantId, search]);
 
-  const showFlash = (type: "success" | "error", msg: string) => {
-    setFlash({ type, msg });
-    setTimeout(() => setFlash(null), 4000);
-  };
+
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,17 +219,7 @@ export default function ContactsPage() {
         </DashboardHeader>
 
         {/* Flash message */}
-        {flash && (
-          <div
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-4 text-sm font-medium ${
-              flash.type === "success"
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-red-50 text-red-700 border border-red-200"
-            }`}
-          >
-            {flash.type === "success" ? "✅" : "❌"} {flash.msg}
-          </div>
-        )}
+        <FlashMessage flash={flash} onDismiss={clearFlash} />
 
         {/* Search */}
         <div className="mb-6">
@@ -496,21 +483,17 @@ export default function ContactsPage() {
               </div>
               
               {loading ? (
-                <div className="p-8 text-center">
-                  <p className="text-slate-500">Cargando contactos...</p>
-                </div>
+                <EmptyState state="loading" message="Cargando contactos..." />
               ) : contacts.length === 0 ? (
-                <div className="p-8 text-center">
-                  <p className="text-slate-500 mb-4">No hay contactos</p>
-                  {(user?.roleId === "admin" || user?.hasPermission?.("contacts.create")) && (
-                    <button
-                      onClick={() => setShowForm(true)}
-                      className="text-purple-600 hover:text-purple-700 font-medium text-sm"
-                    >
-                      Crear el primer contacto
-                    </button>
-                  )}
-                </div>
+                <EmptyState
+                  state="empty"
+                  message="No hay contactos"
+                  action={
+                    (user?.roleId === "admin" || user?.hasPermission?.("contacts.create"))
+                      ? { label: "Crear el primer contacto", onClick: () => setShowForm(true) }
+                      : undefined
+                  }
+                />
               ) : (
                 <div className="divide-y divide-slate-200 max-h-[calc(100vh-300px)] overflow-y-auto">
                   {contacts.map((contact) => (
