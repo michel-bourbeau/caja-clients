@@ -34,19 +34,36 @@ export async function GET(
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
     const utcToDate = nextDay.toISOString();
 
-    // Fetch all transactions in the date range
-    const { data: transactions, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("status", "COMPLETED")
-      .gte("created_at", utcFromDate)
-      .lt("created_at", utcToDate)
-      .order("created_at", { ascending: true });
+    // Fetch all transactions in the date range using pagination
+    // (Supabase/PostgREST defaults to 1000 rows max per request)
+    const PAGE_SIZE = 1000;
+    let allTransactions: any[] = [];
+    let rangeFrom = 0;
+    let hasMore = true;
 
-    if (error) throw error;
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .eq("status", "COMPLETED")
+        .gte("created_at", utcFromDate)
+        .lt("created_at", utcToDate)
+        .order("created_at", { ascending: true })
+        .range(rangeFrom, rangeFrom + PAGE_SIZE - 1);
 
-    const txns = transactions || [];
+      if (error) throw error;
+
+      allTransactions = allTransactions.concat(data || []);
+
+      if (!data || data.length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        rangeFrom += PAGE_SIZE;
+      }
+    }
+
+    const txns = allTransactions;
 
     if (reportType === "SUMMARY") {
       return NextResponse.json(generateSummarySales(txns, utcFromDate, utcToDate));
