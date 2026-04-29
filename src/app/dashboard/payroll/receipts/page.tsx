@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
+import { useLanguage } from "@/context/LanguageContext";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { Button, Container, Section } from "@/components/StripeUIComponents";
 import { DashboardHeader } from "@/components";
@@ -68,6 +69,7 @@ function fmtHours(h: number): string {
 function PayrollContent() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
 
   const [config, setConfig]   = useState<PayrollConfig | null>(null);
   const [periods, setPeriods] = useState<PeriodInfo[]>([]);
@@ -86,7 +88,7 @@ function PayrollContent() {
     setLoadingPeriods(true);
     try {
       const res = await fetch(`/api/tenants/${tenantId}/payroll`);
-      if (!res.ok) throw new Error("Error cargando configuracion");
+      if (!res.ok) throw new Error(t("payroll.receipts.errorLoad"));
       const data = await res.json();
       setConfig(data.config);
       setPeriods(data.periods ?? []);
@@ -143,7 +145,7 @@ function PayrollContent() {
           hoursWorked: hoursToPayNow,
           hourlyRate:  emp.hourlyRate,
           amount:      amountToPayNow,
-          notes:       unpaidInfo.isPartial ? `Pago adicional de ${fmtHours(hoursToPayNow)} nuevas horas` : null,
+          notes: unpaidInfo.isPartial ? t("payroll.receipts.additionalPayNote", { hours: fmtHours(hoursToPayNow) }) : null,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -210,24 +212,32 @@ function PayrollContent() {
     }
   ).length;
 
+  const payrollSubtitle = config
+    ? `${
+        config.frequency === "weekly" ? t("payroll.freqWeekly") :
+        config.frequency === "biweekly" ? t("payroll.freqBiweekly") :
+        t("payroll.freqMonthly")
+      }${
+        (config.frequency === "weekly" || config.frequency === "biweekly")
+          ? ` \u00b7 ${t("payroll.receipts.startsOn")} ${t("payroll.weekDay" + config.weekStartDay)}`
+          : config.frequency === "monthly"
+          ? ` \u00b7 ${t("payroll.receipts.startsDay")} ${config.monthStartDay}`
+          : ""
+      }`
+    : "";
+
   return (
     <Container>
       <Section>
         {/* Header */}
         <DashboardHeader
           pageType="payroll"
-          title="Recibos"
-          subtitle={config ? `${FREQ_LABEL[config.frequency]}${
-            (config.frequency === "weekly" || config.frequency === "biweekly")
-              ? ` · inicia el ${WEEK_DAYS[config.weekStartDay]}`
-              : config.frequency === "monthly"
-              ? ` · inicia el día ${config.monthStartDay}`
-              : ""
-          }` : ""}
+          title={t("payroll.receipts.title")}
+          subtitle={payrollSubtitle}
         >
           <a href="/dashboard/settings">
             <Button variant="secondary">
-              ⚙️ Configurar frecuencia
+              {t("payroll.receipts.configBtn")}
             </Button>
           </a>
         </DashboardHeader>
@@ -255,7 +265,7 @@ function PayrollContent() {
               >
                 {periods.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label}{p.isCurrent ? " (actual)" : ""}
+                    {p.label}{p.isCurrent ? ` ${t("payroll.receipts.currentLabel")}` : ""}
                   </option>
                 ))}
               </select>
@@ -277,19 +287,19 @@ function PayrollContent() {
                 {!loadingSummary && summary.length > 0 && (
                   <div className="flex flex-wrap gap-6">
                     <div>
-                      <p className="text-xs text-slate-600">Total horas</p>
+                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsHours")}</p>
                       <p className="text-xl font-bold text-slate-900">{fmtHours(totalHours)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-600">Total a pagar</p>
+                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsDue")}</p>
                       <p className="text-xl font-bold text-slate-900">{fmt(totalSalaryDue)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-600">Pagado</p>
+                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsPaid")}</p>
                       <p className="text-xl font-bold text-emerald-600">{fmt(totalPaid)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-600">Pendiente</p>
+                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsPending")}</p>
                       <p className="text-xl font-bold text-amber-600">{fmt(totalUnpaid)}</p>
                     </div>
                   </div>
@@ -304,22 +314,22 @@ function PayrollContent() {
 
             {/* Employee table */}
             {loadingSummary ? (
-              <div className="py-10 text-center text-slate-400 text-sm">Calculando horas...</div>
+              <div className="py-10 text-center text-slate-400 text-sm">{t("payroll.receipts.loadingHours")}</div>
             ) : summary.length === 0 ? (
               <div className="py-10 text-center text-slate-400">
                 <p className="text-3xl mb-2">👥</p>
-                <p>No hay empleados activos</p>
+                <p>{t("payroll.receipts.noEmployees")}</p>
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-900 text-xs uppercase tracking-wide">
-                      <th className="px-5 py-3 text-left text-white font-semibold">Empleado</th>
-                      <th className="px-5 py-3 text-right text-white font-semibold">Horas</th>
-                      <th className="px-5 py-3 text-right text-white font-semibold">Tarifa/h</th>
-                      <th className="px-5 py-3 text-right font-bold text-white">A pagar</th>
-                      <th className="px-5 py-3 text-center text-white font-semibold">Estado</th>
+                      <th className="px-5 py-3 text-left text-white font-semibold">{t("payroll.receipts.colEmployee")}</th>
+                      <th className="px-5 py-3 text-right text-white font-semibold">{t("payroll.receipts.colHours")}</th>
+                      <th className="px-5 py-3 text-right text-white font-semibold">{t("payroll.receipts.colRate")}</th>
+                      <th className="px-5 py-3 text-right font-bold text-white">{t("payroll.receipts.colDue")}</th>
+                      <th className="px-5 py-3 text-center text-white font-semibold">{t("payroll.receipts.colStatus")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -340,14 +350,14 @@ function PayrollContent() {
                           <td className="px-5 py-3">
                             <span className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</span>
                             {emp.hasOpenShift && (
-                              <span className="ml-2 text-xs text-amber-600 font-medium">turno abierto</span>
+                              <span className="ml-2 text-xs text-amber-600 font-medium">{t("payroll.receipts.openShift")}</span>
                             )}
                             {payment?.notes && (
                               <p className="text-xs text-slate-400 mt-0.5">{payment.notes}</p>
                             )}
                             {isPartiallyPaid && (
                               <p className="text-xs text-amber-600 font-semibold mt-0.5">
-                                💡 +{fmtHours(unpaidInfo.unpaidHours)} nuevas horas por pagar
+                                {t("payroll.receipts.newHoursNote", { hours: fmtHours(unpaidInfo.unpaidHours) })}
                               </p>
                             )}
                           </td>
@@ -355,7 +365,7 @@ function PayrollContent() {
                             {emp.hoursWorked > 0 ? fmtHours(emp.hoursWorked) : <span className="text-slate-300">—</span>}
                           </td>
                           <td className="px-5 py-3 text-right text-slate-600">
-                            {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">Sin tarifa</span>}
+                              {emp.hourlyRate > 0 ? fmt(emp.hourlyRate) : <span className="text-red-400 text-xs">{t("payroll.receipts.noRate")}</span>}
                           </td>
                           <td className="px-5 py-3 text-right font-bold">
                             <div className="text-slate-900">{emp.salaryDue > 0 ? fmt(emp.salaryDue) : <span className="text-slate-300">—</span>}</div>
@@ -367,12 +377,12 @@ function PayrollContent() {
                             {isPaid ? (
                               <span className="inline-flex items-center gap-2">
                                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                                  ✓ Pagado
+                                  {t("payroll.receipts.paid")}
                                 </span>
                                 {deleteConfirm === payment.id ? (
                                   <span className="inline-flex gap-1">
-                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
-                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">{t("payroll.receipts.annul")}</button>
+                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">{t("payroll.receipts.no")}</button>
                                   </span>
                                 ) : (
                                   <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
@@ -381,15 +391,15 @@ function PayrollContent() {
                             ) : isPartiallyPaid && payment ? (
                               <span className="inline-flex items-center gap-2">
                                 <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
-                                  ⚠ Pago Parcial
+                                  {t("payroll.receipts.partialPay")}
                                 </span>
                                 <Button variant="secondary" size="sm" onClick={() => payEmployee(emp)} disabled={isPayingThis || payingAll}>
-                                  {isPayingThis ? "..." : `Pagar ${fmt(unpaidInfo.unpaidAmount)}`}
+                                  {isPayingThis ? t("payroll.receipts.loading2") : t("payroll.receipts.payAmount", { amount: fmt(unpaidInfo.unpaidAmount) })}
                                 </Button>
                                 {deleteConfirm === payment.id ? (
                                   <span className="inline-flex gap-1">
-                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
-                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">{t("payroll.receipts.annul")}</button>
+                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">{t("payroll.receipts.no")}</button>
                                   </span>
                                 ) : (
                                   <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
@@ -397,7 +407,7 @@ function PayrollContent() {
                               </span>
                             ) : emp.salaryDue > 0 ? (
                               <Button variant="primary" size="sm" onClick={() => payEmployee(emp)} disabled={isPayingThis || payingAll}>
-                                {isPayingThis ? "..." : "Pagar"}
+                                {isPayingThis ? t("payroll.receipts.loading2") : t("payroll.receipts.pay")}
                               </Button>
                             ) : (
                               <span className="text-xs text-slate-300">—</span>
@@ -410,15 +420,15 @@ function PayrollContent() {
                   {summary.length > 1 && (
                     <tfoot>
                       <tr className="bg-slate-50 border-t-2 border-slate-200">
-                        <td className="px-5 py-3 text-sm font-bold text-slate-900" colSpan={2}>Total</td>
+                        <td className="px-5 py-3 text-sm font-bold text-slate-900" colSpan={2}>{t("payroll.receipts.footerTotal")}</td>
                         <td></td>
                         <td className="px-5 py-3 text-right font-bold text-slate-900 text-base">
                           <div>{fmt(totalSalaryDue)}</div>
-                          {totalUnpaid > 0 && <div className="text-amber-600 text-sm font-bold">{fmt(totalUnpaid)} pendiente</div>}
+                          {totalUnpaid > 0 && <div className="text-amber-600 text-sm font-bold">{t("payroll.receipts.footerPending", { amount: fmt(totalUnpaid) })}</div>}
                         </td>
                         <td className="px-5 py-3 text-center text-xs text-emerald-700 font-semibold">
-                          {unpaidCount > 0 && <div className="text-amber-600 font-bold">{unpaidCount} con pagos pendientes</div>}
-                          {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e => e.salaryDue > 0).length} pagados`}
+                          {unpaidCount > 0 && <div className="text-amber-600 font-bold">{t("payroll.receipts.pendingCount", { n: unpaidCount })}</div>}
+                          {periodPayments.length > 0 && `${periodPayments.length}/${summary.filter(e => e.salaryDue > 0).length} ${t("payroll.receipts.statsPaid").toLowerCase()}`}
                         </td>
                       </tr>
                     </tfoot>
@@ -428,9 +438,7 @@ function PayrollContent() {
             )}
 
             <p className="text-xs text-slate-600">
-              * Cálculo basado en tarifa por hora × horas registradas en asistencia.
-              Las entradas sin hora de salida no se incluyen. Los pagos quedan registrados en el historial
-              de cada empleado y se usan para calcular vacaciones y 13° mes.
+              {t("payroll.receipts.legalNote")}
             </p>
           </div>
         )}
