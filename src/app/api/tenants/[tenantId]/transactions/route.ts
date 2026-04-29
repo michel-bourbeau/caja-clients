@@ -271,25 +271,61 @@ export async function POST(
       throw error;
     }
 
-    // Decrement stock for each sold item
+    // Decrement stock and record movements for each sold item
     await Promise.all(
-      items.map((item) => {
+      items.map(async (item) => {
         if (item.variantId) {
           const current = variantMap.get(item.variantId);
-          const newQty = (current?.stock_quantity ?? 0) - item.quantity;
-          return supabaseAdmin
+          const before = current?.stock_quantity ?? 0;
+          const newQty = Math.max(0, before - item.quantity);
+          await supabaseAdmin
             .from("product_variants")
-            .update({ stock_quantity: Math.max(0, newQty) })
+            .update({ stock_quantity: newQty })
             .eq("id", item.variantId)
             .eq("tenant_id", tenantId);
+          // Record movement (fire-and-forget — don't block on failure)
+          try {
+            supabaseAdmin.from("stock_movements").insert([{
+              tenant_id:       tenantId,
+              product_id:      item.productId,
+              variant_id:      item.variantId,
+              product_name:    item.name,
+              variant_label:   item.variantId ? (variantMap.get(item.variantId) as any)?.label ?? null : null,
+              movement_type:   "sale",
+              quantity_change: -item.quantity,
+              quantity_before: before,
+              quantity_after:  newQty,
+              reference_id:    transactionId,
+              notes:           null,
+              created_by:      cashierName || cashierId,
+            }]).then(() => {}).catch(() => {});
+          } catch { /* table may not exist yet */ }
         } else {
           const current = productMap.get(item.productId);
-          const newQty = (current?.stock_quantity ?? 0) - item.quantity;
-          return supabaseAdmin
+          const before = current?.stock_quantity ?? 0;
+          const newQty = Math.max(0, before - item.quantity);
+          await supabaseAdmin
             .from("products")
-            .update({ stock_quantity: Math.max(0, newQty) })
+            .update({ stock_quantity: newQty })
             .eq("id", item.productId)
             .eq("tenant_id", tenantId);
+          // Record movement
+          try {
+            supabaseAdmin.from("stock_movements").insert([{
+              tenant_id:       tenantId,
+              product_id:      item.productId,
+              variant_id:      null,
+              product_name:    item.name,
+              variant_label:   null,
+              movement_type:   "sale",
+              quantity_change: -item.quantity,
+              quantity_before: before,
+              quantity_after:  newQty,
+              reference_id:    transactionId,
+              notes:           null,
+              created_by:      cashierName || cashierId,
+            }]).then(() => {}).catch(() => {});
+          } catch { /* table may not exist yet */ }
         }
       })
     );

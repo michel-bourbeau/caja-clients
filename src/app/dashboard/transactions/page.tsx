@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Eye, Trash2, RefreshCw } from "lucide-react";
+import { Eye, Trash2, RefreshCw, RotateCcw } from "lucide-react";
 import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
@@ -42,6 +42,9 @@ export default function TransactionsPage() {
     change: 0,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  const [showRefundModal, setShowRefundModal] = useState<Transaction | null>(null);
+  const [refundReason, setRefundReason] = useState("");
 
   // Calculate date range based on period type
   const getDateRange = (date: Date, type: PeriodType): { from: string; to: string } => {
@@ -205,9 +208,11 @@ export default function TransactionsPage() {
   }, [filteredTransactions]);
 
   const totals = useMemo(() => ({
-    count: filteredTransactions.length,
+    count: filteredTransactions.filter((tx) => tx.status !== "REFUND").length,
     amount: filteredTransactions.reduce((s, tx) => s + tx.total, 0),
     taxes: filteredTransactions.reduce((s, tx) => s + (tx.tax || 0), 0),
+    refundCount: filteredTransactions.filter((tx) => tx.status === "REFUND").length,
+    refundAmount: filteredTransactions.filter((tx) => tx.status === "REFUND").reduce((s, tx) => s + Math.abs(tx.total), 0),
   }), [filteredTransactions]);
 
   const formatDateHeader = (dateString: string): string => {
@@ -274,6 +279,31 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleRefund = async (tx: Transaction) => {
+    if (!tenantId) return;
+    setRefundingId(tx.id);
+    try {
+      setError(null);
+      const res = await fetch(`/api/tenants/${tenantId}/transactions/${tx.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: refundReason }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setError(err.error || "Erreur lors du remboursement");
+        return;
+      }
+      setShowRefundModal(null);
+      setRefundReason("");
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau");
+    } finally {
+      setRefundingId(null);
+    }
+  };
+
   return (
     <Container>
       <Section>
@@ -302,13 +332,21 @@ export default function TransactionsPage() {
             {/* Period Summary - Total for selected period */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div>
                     <span className="text-sm text-blue-700 font-medium">
-                      Total {periodType === "WEEK" ? "de la semana" : periodType === "MONTH" ? "del mes" : "del año"}:
+                      Total net {periodType === "WEEK" ? "de la semaine" : periodType === "MONTH" ? "du mois" : "de l'année"}:
                     </span>
                     <div className="text-lg font-bold text-blue-900">{fmt(totals.amount)}</div>
                   </div>
+                  {totals.refundCount > 0 && (
+                    <div>
+                      <span className="text-sm text-red-600 font-medium">
+                        Remboursements ({totals.refundCount}):
+                      </span>
+                      <div className="text-lg font-bold text-red-600">-{fmt(totals.refundAmount)}</div>
+                    </div>
+                  )}
                   {isTaxModuleEnabled && (
                     <div>
                       <span className="text-sm text-blue-700 font-medium">
@@ -470,9 +508,13 @@ export default function TransactionsPage() {
                               <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
                             </td>
                             <td className="px-4 py-2.5 text-center hidden lg:table-cell">
-                              <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
-                                {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
-                              </Badge>
+                              {tx.status === "REFUND" ? (
+                                <Badge variant="error">Remboursé</Badge>
+                              ) : (
+                                <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
+                                  {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
+                                </Badge>
+                              )}
                             </td>
                             <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden lg:table-cell">
                               {fmt(tx.subtotal)}
@@ -487,8 +529,10 @@ export default function TransactionsPage() {
                             <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden lg:table-cell">
                               {(tx.tax || 0) > 0 ? fmt(tx.tax) : <span className="text-slate-300">—</span>}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                              {fmt(tx.total)}
+                            <td className="px-4 py-2.5 text-right font-bold whitespace-nowrap">
+                              <span className={tx.status === "REFUND" ? "text-red-600" : "text-slate-900"}>
+                                {tx.status === "REFUND" && "-"}{fmt(Math.abs(tx.total))}
+                              </span>
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               <div className="flex gap-1.5 justify-center">
@@ -499,6 +543,15 @@ export default function TransactionsPage() {
                                   onClick={() => handleOpenDetails(tx)}
                                   title="Ver detalles"
                                 />
+                                {tx.status === "COMPLETED" && (
+                                  <button
+                                    onClick={() => { setShowRefundModal(tx); setRefundReason(""); }}
+                                    title="Rembourser cette transaction"
+                                    className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                )}
                               <IconButton
                                 icon="delete"
                                 color="red"
@@ -519,13 +572,20 @@ export default function TransactionsPage() {
                   {/* Mobile: Card view */}
                   <div className="lg:hidden space-y-2 p-2">
                     {dayTxs.map((tx) => (
-                      <div key={tx.id} className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+                        <div key={tx.id} className={`bg-white border rounded-lg p-3 space-y-2 ${tx.status === "REFUND" ? "border-red-200 bg-red-50" : "border-slate-200"}`}>
                         {/* Time + Total */}
                         <div className="flex justify-between items-start">
-                          <span className="text-xs font-semibold text-slate-500">
-                            {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-slate-500">
+                              {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            {tx.status === "REFUND" && (
+                              <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">REMB.</span>
+                            )}
+                          </div>
+                          <span className={`text-lg font-bold ${tx.status === "REFUND" ? "text-red-600" : "text-slate-900"}`}>
+                            {tx.status === "REFUND" && "-"}{fmt(Math.abs(tx.total))}
                           </span>
-                          <span className="text-lg font-bold text-slate-900">{fmt(tx.total)}</span>
                         </div>
 
                         {/* Products */}
@@ -558,6 +618,15 @@ export default function TransactionsPage() {
                             <Eye size={14} />
                             Ver
                           </button>
+                          {tx.status === "COMPLETED" && (
+                            <button
+                              onClick={() => { setShowRefundModal(tx); setRefundReason(""); }}
+                              className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-amber-50 hover:bg-amber-100 rounded text-xs font-medium text-amber-700 transition-colors"
+                            >
+                              <RotateCcw size={14} />
+                              Rembourser
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteTransaction(tx.id)}
                             disabled={!!tx.cash_closing_id}
@@ -734,6 +803,66 @@ export default function TransactionsPage() {
               </>
         )}
       </Dialog>
+
+      {/* ── Refund Confirmation Modal ──────────────────────────────── */}
+      {showRefundModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-200 bg-amber-50">
+              <div className="p-2 rounded-lg bg-amber-100">
+                <RotateCcw className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Confirmer le remboursement</h2>
+                <p className="text-xs text-slate-500">{showRefundModal.id}</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                <p className="font-semibold mb-1">Cette action va :</p>
+                <ul className="list-disc list-inside space-y-0.5 text-xs">
+                  <li>Marquer la transaction originale comme <strong>REMBOURSÉE</strong></li>
+                  <li>Créer une transaction de remboursement de <strong className="text-red-600">-{fmt(showRefundModal.total)}</strong></li>
+                  <li>Remettre le stock des articles en inventaire</li>
+                  <li>Apparaître en déduction dans Rapports, Profits et Bilan</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Raison du remboursement <span className="font-normal text-slate-400">(optionnel)</span>
+                </label>
+                <input
+                  type="text"
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
+                  placeholder="Ex: produit défectueux, erreur de commande..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => { setShowRefundModal(null); setRefundReason(""); }}
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => handleRefund(showRefundModal)}
+                  disabled={refundingId === showRefundModal.id}
+                  className="flex-1"
+                >
+                  {refundingId === showRefundModal.id ? "En cours..." : `Rembourser ${fmt(showRefundModal.total)}`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </Container>
   );
 }

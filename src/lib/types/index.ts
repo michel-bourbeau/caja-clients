@@ -57,7 +57,8 @@ export interface Transaction {
   timestamp: Date;
   cashierId: string;
   cashierName?: string;
-  status: "COMPLETED" | "CANCELLED";
+  status: "COMPLETED" | "CANCELLED" | "REFUND";
+  reference_id?: string; // ID of original transaction (for REFUND type)
   amount_received?: number;
   change?: number;
   currency_paid?: "NIO" | "USD";

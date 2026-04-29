@@ -19,6 +19,8 @@ interface BilanSummary {
   cogs: number;
   grossProfit: number;
   txCount: number;
+  refundTotal?: number;
+  refundCount?: number;
 }
 
 export default function BilanPage() {
@@ -254,6 +256,11 @@ export default function BilanPage() {
           </div>
           <p className="text-2xl font-bold text-green-700">{fmt(salesSummary.grossProfit)}</p>
           <p className="text-xs text-green-600 mt-1">{salesSummary.txCount} ventas · {fmt(salesSummary.revenue)} ingresos</p>
+          {(salesSummary.refundCount ?? 0) > 0 && (
+            <p className="text-xs text-red-600 mt-0.5">
+              {salesSummary.refundCount} remboursement{(salesSummary.refundCount ?? 0) > 1 ? "s" : ""} : -{fmt(salesSummary.refundTotal ?? 0)}
+            </p>
+          )}
         </Card>
 
         <Card className="p-4 bg-orange-50 border border-orange-200">

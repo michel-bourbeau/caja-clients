@@ -76,35 +76,43 @@ export default function ProfitsPage() {
 
   const summaryData = useMemo(() => {
     const result = {
-      totalTransactions: transactions.length,
+      totalTransactions: transactions.filter((tx) => tx.status !== "REFUND").length,
       totalRevenue: 0,
       totalCOGS: 0,
       totalProfit: 0,
       avgProfit: 0,
       avgMargin: 0,
+      refundCount: 0,
+      refundAmount: 0,
       profitByPaymentMethod: {} as Record<string, { revenue: number; cogs: number; profit: number; count: number }>,
     };
     transactions.forEach((tx) => {
+      const isRefund = tx.status === "REFUND";
+      if (isRefund) result.refundCount += 1;
       let txRevenue = 0, txCOGS = 0;
       (tx.items || []).forEach((item) => {
         txRevenue += (item.price || 0) * (item.quantity || 1);
         txCOGS += (item.cost_price || 0) * (item.quantity || 1);
       });
+      if (isRefund) result.refundAmount += Math.abs(txRevenue);
       const txProfit = txRevenue - txCOGS;
       result.totalRevenue += txRevenue;
       result.totalCOGS += txCOGS;
       result.totalProfit += txProfit;
 
       const method = tx.paymentMethod || "CASH";
-      if (!result.profitByPaymentMethod[method]) {
-        result.profitByPaymentMethod[method] = { revenue: 0, cogs: 0, profit: 0, count: 0 };
+      if (!isRefund) {
+        if (!result.profitByPaymentMethod[method]) {
+          result.profitByPaymentMethod[method] = { revenue: 0, cogs: 0, profit: 0, count: 0 };
+        }
+        result.profitByPaymentMethod[method].revenue += txRevenue;
+        result.profitByPaymentMethod[method].cogs += txCOGS;
+        result.profitByPaymentMethod[method].profit += txProfit;
+        result.profitByPaymentMethod[method].count += 1;
       }
-      result.profitByPaymentMethod[method].revenue += txRevenue;
-      result.profitByPaymentMethod[method].cogs += txCOGS;
-      result.profitByPaymentMethod[method].profit += txProfit;
-      result.profitByPaymentMethod[method].count += 1;
     });
-    result.avgProfit = transactions.length > 0 ? result.totalProfit / transactions.length : 0;
+    const completedCount = result.totalTransactions;
+    result.avgProfit = completedCount > 0 ? result.totalProfit / completedCount : 0;
     result.avgMargin = result.totalRevenue > 0 ? (result.totalProfit / result.totalRevenue) * 100 : 0;
     return result;
   }, [transactions]);
@@ -308,6 +316,11 @@ export default function ProfitsPage() {
               <Card className="p-4 bg-green-50 border border-green-200">
                 <p className="text-xs text-green-700 font-semibold">Ganancia Total</p>
                 <p className="text-2xl font-bold text-green-700 mt-1">{fmt(summaryData.totalProfit)}</p>
+                {summaryData.refundCount > 0 && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {summaryData.refundCount} remb. : -{fmt(summaryData.refundAmount)}
+                  </p>
+                )}
               </Card>
             </div>
 

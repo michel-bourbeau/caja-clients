@@ -6,7 +6,7 @@ import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, EmptyState } from "@/components";
-import { Pencil, Package, Trash2 } from "lucide-react";
+import { Pencil, Package, Trash2, History, TrendingUp, TrendingDown, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
 interface ProductVariant {
@@ -161,6 +161,43 @@ export default function InventoryPage() {
     description: "",
   });
 
+  // ── Stock Movements ─────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"productos" | "movimientos">("productos");
+
+  interface StockMovement {
+    id: string;
+    product_id: string;
+    variant_id: string | null;
+    product_name: string;
+    variant_label: string | null;
+    movement_type: "sale" | "restock" | "adjustment" | "return" | "damage" | "initial";
+    quantity_change: number;
+    quantity_before: number;
+    quantity_after: number;
+    reference_id: string | null;
+    notes: string | null;
+    created_by: string | null;
+    created_at: string;
+  }
+
+  const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [movementsLoading, setMovementsLoading] = useState(false);
+  const [movementsTotal, setMovementsTotal] = useState(0);
+  const [movFilterProduct, setMovFilterProduct] = useState("");
+  const [movFilterType, setMovFilterType] = useState("");
+  const [movFilterFrom, setMovFilterFrom] = useState("");
+  const [movFilterTo, setMovFilterTo] = useState("");
+
+  // Adjustment modal
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({
+    product_id: "",
+    variant_id: "",
+    movement_type: "restock" as "restock" | "adjustment" | "damage" | "return",
+    quantity: "",
+    notes: "",
+  });
+
   useEffect(() => {
     if (!user) {
       router.push("/login");
@@ -225,6 +262,68 @@ export default function InventoryPage() {
       setLoading(false);
     }
   }, [tenantId]);
+
+  const fetchMovements = useCallback(async (params?: {
+    product_id?: string;
+    movement_type?: string;
+    from_date?: string;
+    to_date?: string;
+  }) => {
+    if (!tenantId) return;
+    setMovementsLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (params?.product_id)    qs.set("product_id",    params.product_id);
+      if (params?.movement_type) qs.set("movement_type", params.movement_type);
+      if (params?.from_date)     qs.set("from_date",     params.from_date);
+      if (params?.to_date)       qs.set("to_date",       params.to_date);
+      qs.set("limit", "200");
+
+      const res = await fetch(`/api/tenants/${tenantId}/stock-movements?${qs.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        setMovements(json.movements || []);
+        setMovementsTotal(json.total || 0);
+      }
+    } catch (error) {
+      console.error("Error loading movements:", error);
+    } finally {
+      setMovementsLoading(false);
+    }
+  }, [tenantId]);
+
+  const handleAdjustStock = async () => {
+    if (!adjustForm.product_id || !adjustForm.quantity || isNaN(parseInt(adjustForm.quantity))) {
+      setMessage("Veuillez sélectionner un produit et saisir une quantité valide");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/stock-movements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id:    adjustForm.product_id,
+          variant_id:    adjustForm.variant_id || undefined,
+          movement_type: adjustForm.movement_type,
+          quantity:      parseInt(adjustForm.quantity),
+          notes:         adjustForm.notes,
+          created_by:    user?.email || user?.id,
+        }),
+      });
+      if (res.ok) {
+        setMessage("Mouvement de stock enregistré");
+        setShowAdjustModal(false);
+        setAdjustForm({ product_id: "", variant_id: "", movement_type: "restock", quantity: "", notes: "" });
+        await fetchData();
+        await fetchMovements({ product_id: movFilterProduct || undefined, movement_type: movFilterType || undefined, from_date: movFilterFrom || undefined, to_date: movFilterTo || undefined });
+      } else {
+        const err = await res.json();
+        setMessage(err.error || "Erreur lors de l'ajustement");
+      }
+    } catch {
+      setMessage("Erreur réseau");
+    }
+  };
 
   const handleAddCategory = async () => {
     if (!newCategory.name.trim()) {
@@ -420,17 +519,41 @@ export default function InventoryPage() {
       return;
     }
 
+    const newQty = parseInt(newQuantity);
+    const product = products.find((p) => p.id === productId);
+    const oldQty  = product?.quantity ?? 0;
+
     try {
       const res = await fetch(`/api/tenants/${tenantId}/products/${productId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: parseInt(newQuantity) }),
+        body: JSON.stringify({ quantity: newQty }),
       });
 
       if (res.ok) {
         setMessage("Stock mis à jour avec succès");
         setEditingProductId(null);
         setEditingQuantity("");
+
+        // Record movement if quantity actually changed
+        if (newQty !== oldQty) {
+          const delta = newQty - oldQty;
+          const movement_type = delta > 0 ? "restock" : "adjustment";
+          try {
+            await fetch(`/api/tenants/${tenantId}/stock-movements`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                product_id:    productId,
+                movement_type,
+                quantity:      Math.abs(delta),
+                notes:         `Mise à jour manuelle (${oldQty} → ${newQty})`,
+                created_by:    user?.email || user?.id,
+              }),
+            });
+          } catch { /* fire-and-forget */ }
+        }
+
         await fetchData();
       } else {
         const error = await res.json();
@@ -471,16 +594,43 @@ export default function InventoryPage() {
       setMessage("Quantité invalide");
       return;
     }
+    const newQty = parseInt(qty);
+    const variant = products
+      .find((p) => p.id === productId)
+      ?.variants?.find((v) => v.id === variantId);
+    const oldQty = variant?.stock_quantity ?? 0;
+
     try {
       const res = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stock_quantity: parseInt(qty) }),
+        body: JSON.stringify({ stock_quantity: newQty }),
       });
       if (res.ok) {
         setMessage("Stock mis à jour");
         setEditingVariantId(null);
         setEditingVariantQty("");
+
+        // Record movement if quantity actually changed
+        if (newQty !== oldQty) {
+          const delta = newQty - oldQty;
+          const movement_type = delta > 0 ? "restock" : "adjustment";
+          try {
+            await fetch(`/api/tenants/${tenantId}/stock-movements`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                product_id:    productId,
+                variant_id:    variantId,
+                movement_type,
+                quantity:      Math.abs(delta),
+                notes:         `Mise à jour manuelle (${oldQty} → ${newQty})`,
+                created_by:    user?.email || user?.id,
+              }),
+            });
+          } catch { /* fire-and-forget */ }
+        }
+
         await fetchData();
       } else {
         setMessage("Erreur lors de la mise à jour");
@@ -1189,12 +1339,22 @@ export default function InventoryPage() {
         <Button variant="secondary" onClick={() => setShowCategoryManager((v) => !v)}>
           {showCategoryManager ? "✕ Categorías" : "🏷 Categorías"}
         </Button>
-        <Button variant="primary" onClick={() => setShowAddCategory(true)}>
-          + Categoría
-        </Button>
-        <Button variant="primary" onClick={() => setShowAddProduct(true)}>
-          + Producto
-        </Button>
+        {activeTab === "productos" && (
+          <>
+            <Button variant="primary" onClick={() => setShowAddCategory(true)}>
+              + Categoría
+            </Button>
+            <Button variant="primary" onClick={() => setShowAddProduct(true)}>
+              + Producto
+            </Button>
+          </>
+        )}
+        {activeTab === "movimientos" && user?.permissions?.includes("inventory.adjust") && (
+          <Button variant="primary" onClick={() => setShowAdjustModal(true)}>
+            <SlidersHorizontal className="w-4 h-4" />
+            Ajuster stock
+          </Button>
+        )}
       </DashboardHeader>
 
       {message && (
@@ -1202,6 +1362,44 @@ export default function InventoryPage() {
           {message}
         </Alert>
       )}
+
+      {/* Tab Navigation */}
+      <div className="flex gap-1 border-b border-slate-200 -mt-2">
+        <button
+          onClick={() => setActiveTab("productos")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "productos"
+              ? "text-blue-600 border-blue-600"
+              : "text-slate-500 border-transparent hover:text-slate-800"
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Productos
+          <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{products.length}</span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("movimientos");
+            fetchMovements({
+              product_id:    movFilterProduct || undefined,
+              movement_type: movFilterType || undefined,
+              from_date:     movFilterFrom || undefined,
+              to_date:       movFilterTo || undefined,
+            });
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "movimientos"
+              ? "text-blue-600 border-blue-600"
+              : "text-slate-500 border-transparent hover:text-slate-800"
+          }`}
+        >
+          <History className="w-4 h-4" />
+          Mouvements de stock
+        </button>
+      </div>
+
+      {/* ── PRODUCTS TAB ─────────────────────────────────────────── */}
+      {activeTab === "productos" && (<>
 
       {/* Category Manager Panel */}
       {showCategoryManager && (
@@ -2185,6 +2383,318 @@ export default function InventoryPage() {
         )}
       </Card>
       )}
+
+      {/* Close productos tab fragment */}
+      </>)}
+
+      {/* ── MOVEMENTS TAB ─────────────────────────────────────────── */}
+      {activeTab === "movimientos" && (
+        <div className="space-y-4">
+
+          {/* Filters */}
+          <Card>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Produit</label>
+                <select
+                  value={movFilterProduct}
+                  onChange={(e) => setMovFilterProduct(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
+                >
+                  <option value="">— Tous les produits —</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Type de mouvement</label>
+                <select
+                  value={movFilterType}
+                  onChange={(e) => setMovFilterType(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
+                >
+                  <option value="">— Tous les types —</option>
+                  <option value="sale">Vente</option>
+                  <option value="restock">Réapprovisionnement</option>
+                  <option value="adjustment">Ajustement</option>
+                  <option value="return">Retour</option>
+                  <option value="damage">Perte / Dommage</option>
+                  <option value="initial">Stock initial</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Du</label>
+                <input
+                  type="date"
+                  value={movFilterFrom}
+                  onChange={(e) => setMovFilterFrom(e.target.value)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Au</label>
+                <input
+                  type="date"
+                  value={movFilterTo}
+                  onChange={(e) => setMovFilterTo(e.target.value)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
+                />
+              </div>
+              <Button
+                onClick={() => fetchMovements({
+                  product_id:    movFilterProduct || undefined,
+                  movement_type: movFilterType || undefined,
+                  from_date:     movFilterFrom || undefined,
+                  to_date:       movFilterTo || undefined,
+                })}
+              >
+                <RotateCcw className="w-4 h-4" />
+                Filtrer
+              </Button>
+              {(movFilterProduct || movFilterType || movFilterFrom || movFilterTo) && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setMovFilterProduct("");
+                    setMovFilterType("");
+                    setMovFilterFrom("");
+                    setMovFilterTo("");
+                    fetchMovements();
+                  }}
+                >
+                  Effacer
+                </Button>
+              )}
+            </div>
+          </Card>
+
+          {/* Movements List */}
+          <Card>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-slate-500" />
+                <p className="text-sm font-bold text-slate-800">
+                  Historique des mouvements
+                  {movementsTotal > 0 && (
+                    <span className="ml-2 text-xs font-normal text-slate-500">({movementsTotal} au total)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {movementsLoading ? (
+              <div className="py-12 text-center text-slate-500 text-sm">Chargement...</div>
+            ) : movements.length === 0 ? (
+              <div className="py-12 text-center">
+                <History className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">Aucun mouvement enregistré</p>
+                <p className="text-slate-400 text-sm mt-1">
+                  Les mouvements apparaissent ici après chaque vente ou ajustement manuel.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {movements.map((mv) => {
+                  const isIn = mv.quantity_change > 0;
+                  const typeLabels: Record<string, { label: string; color: string }> = {
+                    sale:       { label: "Vente",               color: "bg-red-100 text-red-700" },
+                    restock:    { label: "Réappro.",            color: "bg-green-100 text-green-700" },
+                    adjustment: { label: "Ajustement",          color: "bg-blue-100 text-blue-700" },
+                    return:     { label: "Retour",              color: "bg-purple-100 text-purple-700" },
+                    damage:     { label: "Perte",               color: "bg-orange-100 text-orange-700" },
+                    initial:    { label: "Stock initial",       color: "bg-slate-100 text-slate-600" },
+                  };
+                  const typeInfo = typeLabels[mv.movement_type] ?? { label: mv.movement_type, color: "bg-slate-100 text-slate-600" };
+
+                  const dateStr = new Date(mv.created_at).toLocaleDateString("fr-FR", {
+                    day: "2-digit", month: "short", year: "numeric",
+                  });
+                  const timeStr = new Date(mv.created_at).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit", minute: "2-digit",
+                  });
+
+                  return (
+                    <div key={mv.id} className="px-4 py-3 hover:bg-slate-50 flex items-center gap-4">
+                      {/* Direction icon */}
+                      <div className={`p-1.5 rounded-lg flex-shrink-0 ${isIn ? "bg-green-100" : "bg-red-100"}`}>
+                        {isIn
+                          ? <TrendingUp className="w-4 h-4 text-green-600" />
+                          : <TrendingDown className="w-4 h-4 text-red-600" />
+                        }
+                      </div>
+
+                      {/* Product + variant */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {mv.product_name}
+                          {mv.variant_label && (
+                            <span className="ml-1.5 text-xs font-normal text-slate-500">({mv.variant_label})</span>
+                          )}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeInfo.color}`}>
+                            {typeInfo.label}
+                          </span>
+                          {mv.reference_id && (
+                            <span className="text-xs text-slate-400 font-mono">{mv.reference_id}</span>
+                          )}
+                          {mv.notes && (
+                            <span className="text-xs text-slate-500 italic truncate max-w-[200px]">"{mv.notes}"</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stock change */}
+                      <div className="text-right flex-shrink-0 space-y-0.5">
+                        <p className={`text-sm font-bold ${isIn ? "text-green-600" : "text-red-600"}`}>
+                          {isIn ? "+" : ""}{mv.quantity_change}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {mv.quantity_before} → {mv.quantity_after}
+                        </p>
+                      </div>
+
+                      {/* Date */}
+                      <div className="text-right flex-shrink-0 hidden sm:block">
+                        <p className="text-xs font-medium text-slate-600">{dateStr}</p>
+                        <p className="text-xs text-slate-400">{timeStr}</p>
+                        {mv.created_by && (
+                          <p className="text-xs text-slate-400 truncate max-w-[120px]">{mv.created_by}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* ── ADJUSTMENT MODAL ────────────────────────────────────────── */}
+      {showAdjustModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-white rounded-xl border border-slate-200 shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-100">
+                  <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                </div>
+                <h2 className="text-base font-bold text-slate-900">Ajuster le stock</h2>
+              </div>
+              <button
+                onClick={() => setShowAdjustModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Produit *</label>
+                <select
+                  value={adjustForm.product_id}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, product_id: e.target.value, variant_id: "" })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
+                >
+                  <option value="">— Sélectionner un produit —</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Show variant selector if product has variants */}
+              {adjustForm.product_id && products.find(p => p.id === adjustForm.product_id)?.has_variants && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Format / Variante *</label>
+                  <select
+                    value={adjustForm.variant_id}
+                    onChange={(e) => setAdjustForm({ ...adjustForm, variant_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
+                  >
+                    <option value="">— Sélectionner un format —</option>
+                    {products.find(p => p.id === adjustForm.product_id)?.variants?.map((v) => (
+                      <option key={v.id} value={v.id}>{v.label} (stock: {v.stock_quantity})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Type de mouvement *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { id: "restock",    label: "Réappro.",   desc: "Nouveau stock reçu",     color: "border-green-300 bg-green-50 text-green-700" },
+                    { id: "adjustment", label: "Ajustement", desc: "Correction d'inventaire", color: "border-blue-300 bg-blue-50 text-blue-700" },
+                    { id: "return",     label: "Retour",     desc: "Retour client",           color: "border-purple-300 bg-purple-50 text-purple-700" },
+                    { id: "damage",     label: "Perte",      desc: "Produit endommagé",       color: "border-orange-300 bg-orange-50 text-orange-700" },
+                  ] as { id: "restock" | "adjustment" | "return" | "damage"; label: string; desc: string; color: string }[]).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setAdjustForm({ ...adjustForm, movement_type: t.id })}
+                      className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                        adjustForm.movement_type === t.id
+                          ? t.color + " border-current"
+                          : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <p className="text-xs font-bold">{t.label}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Quantité *
+                  <span className="font-normal text-slate-400 ml-1">
+                    ({adjustForm.movement_type === "damage" ? "sera déduite" : "sera ajoutée"})
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={adjustForm.quantity}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, quantity: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm"
+                  placeholder="Ex: 50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Notes (optionnel)</label>
+                <textarea
+                  value={adjustForm.notes}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm h-16 resize-none"
+                  placeholder="Raison de l'ajustement..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowAdjustModal(false)}
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleAdjustStock}
+                  className="flex-1"
+                >
+                  Enregistrer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       </Section>
     </Container>
   );

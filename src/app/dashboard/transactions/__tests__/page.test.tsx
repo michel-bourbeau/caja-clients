@@ -34,6 +34,7 @@ jest.mock("lucide-react", () => ({
   Eye: () => <svg data-testid="icon-eye" />,
   Trash2: () => <svg data-testid="icon-trash" />,
   RefreshCw: () => <svg data-testid="icon-refresh" />,
+  RotateCcw: () => <svg data-testid="icon-rotatecc" />,
 }));
 
 jest.mock("@/lib/utils/formatters", () => ({

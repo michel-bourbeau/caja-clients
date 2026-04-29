@@ -46,7 +46,7 @@ export async function GET(
         .from("transactions")
         .select("*")
         .eq("tenant_id", tenantId)
-        .eq("status", "COMPLETED")
+        .in("status", ["COMPLETED", "REFUND"])
         .gte("created_at", utcFromDate)
         .lt("created_at", utcToDate)
         .order("created_at", { ascending: true })
@@ -112,6 +112,7 @@ function generateSummarySales(
   const hourUniqueTs = new Map<number, Set<string>>();
 
   txns.forEach((tx) => {
+    const isRefund = tx.status === "REFUND";
     const date = new Date(tx.created_at);
     // Convert UTC → Nicaragua local time (UTC-6) for display
     const localDate = new Date(date.getTime() - 6 * 60 * 60 * 1000);
@@ -120,17 +121,19 @@ function generateSummarySales(
     // Key to the second — same second = same client (handles imported data)
     const tsKey = tx.created_at.substring(0, 19);
 
-    totalSales += Number(tx.total);
+    totalSales += Number(tx.total);   // negative for refunds → auto-subtracted
     totalDiscount += Number(tx.discount || 0);
     totalTax += Number(tx.tax || 0);
 
-    // Track unique client timestamps per hour
-    if (!hourUniqueTs.has(hour)) hourUniqueTs.set(hour, new Set());
-    hourUniqueTs.get(hour)!.add(tsKey);
-    hourSales.set(hour, (hourSales.get(hour) || 0) + Number(tx.total));
-    const hourClientCount = hourUniqueTs.get(hour)!.size;
-    if (hourClientCount > bestHour.count) {
-      bestHour = { hour, count: hourClientCount };
+    // Don't count refunds as separate client visits for hourly traffic
+    if (!isRefund) {
+      if (!hourUniqueTs.has(hour)) hourUniqueTs.set(hour, new Set());
+      hourUniqueTs.get(hour)!.add(tsKey);
+      hourSales.set(hour, (hourSales.get(hour) || 0) + Number(tx.total));
+      const hourClientCount = hourUniqueTs.get(hour)!.size;
+      if (hourClientCount > bestHour.count) {
+        bestHour = { hour, count: hourClientCount };
+      }
     }
 
     // Aggregate by date
@@ -147,10 +150,11 @@ function generateSummarySales(
     }
 
     const daily = dailyMap.get(dateStr)!;
-    daily.sales += Number(tx.total);
+    daily.sales += Number(tx.total);   // negative for refunds → auto-subtracted
     daily.discount += Number(tx.discount || 0);
     daily.tax += Number(tx.tax || 0);
-    dailyUniqueTs.get(dateStr)!.add(tsKey);
+    // Only count non-refund transactions as unique visits
+    if (!isRefund) dailyUniqueTs.get(dateStr)!.add(tsKey);
     daily.transactions = dailyUniqueTs.get(dateStr)!.size;
     daily.payment[tx.payment_method] = (daily.payment[tx.payment_method] || 0) + Number(tx.total);
   });
@@ -169,9 +173,11 @@ function generateSummarySales(
     });
   }
 
-  // Total unique client timestamps across all days
+  // Total unique client timestamps across all days (exclude refunds)
   const allUniqueTs = new Set<string>();
-  txns.forEach((tx) => allUniqueTs.add(tx.created_at.substring(0, 19)));
+  txns.forEach((tx) => {
+    if (tx.status !== "REFUND") allUniqueTs.add(tx.created_at.substring(0, 19));
+  });
   const totalClients = allUniqueTs.size;
 
   return {
@@ -300,22 +306,29 @@ function generatePaymentReport(txns: any[]) {
 function generateBilanReport(txns: any[]) {
   let revenue = 0;
   let cogs = 0;
+  let refundTotal = 0;
+  let refundCount = 0;
 
   // Unique client timestamps (same second = same client)
   const uniqueTs = new Set<string>();
 
   txns.forEach((tx) => {
-    uniqueTs.add((tx.created_at as string).substring(0, 19));
+    const isRefund = tx.status === "REFUND";
+    if (!isRefund) uniqueTs.add((tx.created_at as string).substring(0, 19));
+    if (isRefund) {
+      refundTotal += Math.abs(Number(tx.total));
+      refundCount += 1;
+    }
     const items: any[] = tx.items || [];
     items.forEach((item) => {
       const qty = Number(item.quantity) || 1;
-      revenue += (Number(item.price) || 0) * qty;
-      cogs += (Number(item.cost_price) || 0) * qty;
+      revenue += (Number(item.price) || 0) * qty;   // negative for refund items
+      cogs    += (Number(item.cost_price) || 0) * qty;
     });
   });
 
   const txCount = uniqueTs.size;
   const grossProfit = revenue - cogs;
 
-  return { revenue, cogs, grossProfit, txCount };
+  return { revenue, cogs, grossProfit, txCount, refundTotal, refundCount };
 }
