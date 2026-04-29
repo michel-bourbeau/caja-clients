@@ -21,6 +21,9 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+
+  // POS page manages its own full-height layout — no outer padding or scroll
+  const isFullHeightPage = pathname === '/dashboard/pos';
   const { tenantName } = useTenantName();
   const { roleName } = useRoleName(user?.roleId);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -230,7 +233,7 @@ export default function DashboardLayout({
           )}
 
           {/* Top bar with burger button */}
-          <header className="sticky top-0 z-30 flex items-center gap-4 px-4 py-3 bg-white border-b border-slate-200 shadow-sm">
+          <header className="sticky top-0 z-30 flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 shadow-sm">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               aria-label="Abrir/cerrar menú"
@@ -257,7 +260,7 @@ export default function DashboardLayout({
             </span>
 
             {/* User info - right side */}
-            <div className="ml-auto flex items-center gap-4">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3">
               {/* Bouton Caja global */}
               <button
                 onClick={() => router.push('/dashboard/pos')}
@@ -285,7 +288,7 @@ export default function DashboardLayout({
             </div>
           </header>
 
-          <div className="p-6 flex-1 overflow-y-auto">
+          <div className={isFullHeightPage ? "flex-1 overflow-hidden" : "p-6 flex-1 overflow-y-auto"}>
             {children}
           </div>
         </main>

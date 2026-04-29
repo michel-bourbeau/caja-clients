@@ -16,16 +16,43 @@ export const Sidebar: React.FC = () => {
   const pathname = usePathname();
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    pos: true,
+    inventario: false,
+    personal: false,
+    finanzas: false,
+    clientes: false,
     admin: false,
   });
 
   const canManageRoles = hasPermission("settings.manage_roles");
   const canManageModules = hasPermission("settings.manage_modules");
 
-  // Refresh permissions on every navigation so role changes take effect without re-login
+  // Refresh permissions on every navigation + auto-open the relevant accordion
   useEffect(() => {
     refreshPermissions();
     console.log("[Sidebar] Navigation to", pathname, "- user permissions:", user?.permissions?.length ?? 0);
+
+    if (pathname.startsWith("/dashboard/pos") || pathname.startsWith("/dashboard/transactions")) {
+      setExpandedSections((prev) => ({ ...prev, pos: true }));
+    } else if (pathname.startsWith("/dashboard/inventory")) {
+      setExpandedSections((prev) => ({ ...prev, inventario: true }));
+    } else if (
+      pathname.startsWith("/dashboard/employees") ||
+      pathname.startsWith("/dashboard/schedules") ||
+      pathname.startsWith("/dashboard/payroll")
+    ) {
+      setExpandedSections((prev) => ({ ...prev, personal: true }));
+    } else if (
+      pathname.startsWith("/dashboard/reports") ||
+      pathname.startsWith("/dashboard/profits") ||
+      pathname.startsWith("/dashboard/expenses")
+    ) {
+      setExpandedSections((prev) => ({ ...prev, finanzas: true }));
+    } else if (pathname.startsWith("/dashboard/loyalty") || pathname.startsWith("/dashboard/contacts")) {
+      setExpandedSections((prev) => ({ ...prev, clientes: true }));
+    } else if (pathname.startsWith("/dashboard/admin") || pathname.startsWith("/dashboard/settings")) {
+      setExpandedSections((prev) => ({ ...prev, admin: true }));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -56,99 +83,127 @@ export const Sidebar: React.FC = () => {
         {/* Dashboard - Always visible */}
         <NavLink href={ROUTES.DASHBOARD} label="Dashboard" iconType="dashboard" />
 
-        {/* Quick Actions - Show if user has permissions (no need for features.pos) */}
+        <div className="sidebar-divider"></div>
+
+        {/* POS — Accordion, open by default */}
         {(hasPermission("pos.view") || hasPermission("pos.create")) && (
-          <>
+          <Accordion
+            label="Punto de Venta"
+            iconType="pos"
+            isOpen={expandedSections.pos}
+            onToggle={() => toggleSection("pos")}
+          >
             {hasPermission("pos.create") && (
-              <NavLink href={ROUTES.POS} label="Caja" iconType="pos" />
+              <NavLink href={ROUTES.POS} label="Caja" iconType="pos" isNested />
             )}
             {hasPermission("pos.view") && (
-              <NavLink href={ROUTES.TRANSACTIONS} label="Transacciones" iconType="transactions" />
+              <NavLink href={ROUTES.TRANSACTIONS} label="Transacciones" iconType="transactions" isNested />
             )}
             {(hasPermission("pos.cierre") || hasPermission("pos.cierre_review")) && (
-              <NavLink href={ROUTES.CIERRE} label="Cierre de Caja" iconType="cierre" />
+              <NavLink href={ROUTES.CIERRE} label="Cierre de Caja" iconType="cierre" isNested />
             )}
-          </>
+          </Accordion>
         )}
 
-        {/* Gestión de Productos - Show if user has permissions */}
+        {/* Inventario — Accordion */}
         {hasPermission("inventory.view") && (
-          <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" iconType="inventory" />
+          <Accordion
+            label="Inventario"
+            iconType="inventory"
+            isOpen={expandedSections.inventario}
+            onToggle={() => toggleSection("inventario")}
+          >
+            <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" iconType="inventory" isNested />
+          </Accordion>
         )}
 
-        {/* Divider */}
-        {(hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin") || hasPermission("payroll.view") || hasPermission("payroll.create") || hasPermission("reports.view") || hasPermission("loyalty.view") || hasPermission("expenses.create") || hasPermission("expenses.view_all") || hasPermission("expenses.view_own") || hasPermission("contacts.view")) && (
-          <div className="sidebar-divider"></div>
-        )}
-
-        {/* Personal - Direct links */}
-        {(hasPermission("employees.view") || hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
-          <>
+        {/* Personal — Accordion */}
+        {(hasPermission("employees.view") ||
+          hasPermission("schedules.view") ||
+          hasPermission("schedules.checkin") ||
+          hasPermission("payroll.view") ||
+          hasPermission("payroll.create")) && (
+          <Accordion
+            label="Personal"
+            iconType="employees"
+            isOpen={expandedSections.personal}
+            onToggle={() => toggleSection("personal")}
+          >
             {hasPermission("employees.view") && (
-              <NavLink href={ROUTES.EMPLOYEES} label="Empleados" iconType="employees" />
+              <NavLink href={ROUTES.EMPLOYEES} label="Empleados" iconType="employees" isNested />
             )}
             {(hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
-              <NavLink href={ROUTES.SCHEDULES} label="Asistencia" iconType="schedules" />
+              <NavLink href={ROUTES.SCHEDULES} label="Asistencia" iconType="schedules" isNested />
             )}
-          </>
-        )}
-
-        {/* Payroll - Accordion with both Períodos and Recibos */}
-        {(hasPermission("payroll.view") || hasPermission("payroll.create")) && (
-          <Accordion
-            label="Nómina"
-            iconType="payroll"
-            isOpen={expandedSections.payroll}
-            onToggle={() => toggleSection("payroll")}
-          >
-            <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
-            <NavLink href={ROUTES.PAYROLL} label="Recibos" iconType="payroll" isNested />
+            {(hasPermission("payroll.view") || hasPermission("payroll.create")) && (
+              <>
+                <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
+                <NavLink href={ROUTES.PAYROLL} label="Recibos de Nómina" iconType="payroll" isNested />
+              </>
+            )}
           </Accordion>
         )}
 
-        {/* Reports - Direct links */}
-        {hasPermission("reports.view") && (
+        {/* Finanzas — Accordion */}
+        {(hasPermission("reports.view") ||
+          hasPermission("expenses.create") ||
+          hasPermission("expenses.view_all") ||
+          hasPermission("expenses.view_own")) && (
+          <Accordion
+            label="Finanzas"
+            iconType="reports"
+            isOpen={expandedSections.finanzas}
+            onToggle={() => toggleSection("finanzas")}
+          >
+            {hasPermission("reports.view") && (
+              <>
+                <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" isNested />
+                <NavLink href="/dashboard/profits" label="Análisis de Ganancias" iconType="reports" isNested />
+              </>
+            )}
+            {(hasPermission("expenses.create") ||
+              hasPermission("expenses.view_all") ||
+              hasPermission("expenses.view_own")) && (
+              <NavLink href="/dashboard/expenses" label="Gastos" iconType="expenses" isNested />
+            )}
+          </Accordion>
+        )}
+
+        {/* Clientes — Accordion */}
+        {(hasPermission("loyalty.view") || hasPermission("contacts.view")) && (
+          <Accordion
+            label="Clientes"
+            iconType="loyalty"
+            isOpen={expandedSections.clientes}
+            onToggle={() => toggleSection("clientes")}
+          >
+            {hasPermission("loyalty.view") && (
+              <NavLink href="/dashboard/loyalty" label="Clientes Fieles" iconType="loyalty" isNested />
+            )}
+            {hasPermission("contacts.view") && (
+              <NavLink href="/dashboard/contacts" label="Contactos" iconType="contacts" isNested />
+            )}
+          </Accordion>
+        )}
+
+        {/* Admin — Accordion */}
+        {(canManageRoles || canManageModules) && (
           <>
-            <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" />
-            <NavLink href="/dashboard/profits" label="Análisis de Ganancias" iconType="reports" />
+            <div className="sidebar-divider"></div>
+            <Accordion
+              label="Admin"
+              iconType="admin"
+              isOpen={expandedSections.admin}
+              onToggle={() => toggleSection("admin")}
+            >
+              {canManageRoles && (
+                <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" iconType="roles" isNested />
+              )}
+              {(canManageRoles || canManageModules) && (
+                <NavLink href={ROUTES.SETTINGS} label="Configuración General" iconType="settings" isNested />
+              )}
+            </Accordion>
           </>
-        )}
-
-        {/* Loyalty - Direct links */}
-        {hasPermission("loyalty.view") && (
-          <NavLink href="/dashboard/loyalty" label="Clientes Fieles" iconType="loyalty" />
-        )}
-
-        {/* Expenses - Direct links */}
-        {(hasPermission("expenses.create") || hasPermission("expenses.view_all") || hasPermission("expenses.view_own")) && (
-          <NavLink href="/dashboard/expenses" label="Gastos" iconType="expenses" />
-        )}
-
-        {/* Contacts - Direct links */}
-        {hasPermission("contacts.view") && (
-          <NavLink href="/dashboard/contacts" label="Contactos" iconType="contacts" />
-        )}
-
-        {/* Divider before Admin */}
-        {(canManageRoles || canManageModules) && (
-          <div className="sidebar-divider"></div>
-        )}
-
-        {/* Admin - Accordion ONLY */}
-        {(canManageRoles || canManageModules) && (
-          <Accordion
-            label="Admin"
-            iconType="admin"
-            isOpen={expandedSections.admin}
-            onToggle={() => toggleSection("admin")}
-          >
-            {canManageRoles && (
-              <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" iconType="roles" isNested />
-            )}
-            {(canManageRoles || canManageModules) && (
-              <NavLink href={ROUTES.SETTINGS} label="Configuración General" iconType="settings" isNested />
-            )}
-          </Accordion>
         )}
       </nav>
     </aside>

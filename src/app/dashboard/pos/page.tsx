@@ -569,32 +569,43 @@ export default function POSPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Container>
-        <DashboardHeader
-          pageType="pos"
-          title="Caja"
-        >
-          {/* Cart toggle button — hidden on lg (cart always visible) */}
+    <div className="h-full flex flex-col overflow-hidden bg-slate-50">
+
+      {/* Mobile header — compact single row */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 xl:hidden">
+        <span className="text-base font-bold text-slate-900">Caja</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+            title="Recargar Caja"
+            aria-label="Recargar Caja"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
           <button
             onClick={() => setIsCartOpen(true)}
-            className="btn-primary 2xl:hidden relative flex items-center gap-2"
+            className="btn-primary relative flex items-center gap-1.5 px-3 py-1.5 text-sm"
             aria-label="Abrir carrito"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h12.8M7 13H5.4M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"
               />
             </svg>
-            <span className="text-sm font-semibold">Carrito</span>
+            <span className="font-semibold">Carrito</span>
             {cartItemCount > 0 && (
-              <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-sm font-bold bg-red-500 text-white rounded-full">
+              <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full">
                 {cartItemCount > 99 ? "99+" : cartItemCount}
               </span>
             )}
           </button>
+        </div>
+      </div>
 
-          {/* Refresh button to reload inventory values */}
+      {/* Desktop header — full DashboardHeader */}
+      <div className="flex-shrink-0 px-4 pt-4 hidden xl:block">
+        <DashboardHeader pageType="pos" title="Caja">
           <button
             onClick={() => window.location.reload()}
             className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center"
@@ -604,8 +615,9 @@ export default function POSPage() {
             <RefreshCw className="w-5 h-5" />
           </button>
         </DashboardHeader>
+      </div>
 
-        {message ? (
+      {message ? (
           <div className="fixed top-10 left-0 right-0 flex justify-center z-50 px-4 pointer-events-none">
             <div className="pointer-events-auto max-w-md w-full">
               <Alert
@@ -619,14 +631,13 @@ export default function POSPage() {
           </div>
         ) : null}
 
-        {/* Products + Cart side-by-side on lg */}
-        <div className="2xl:flex 2xl:gap-6 2xl:items-start">
+      {/* Main: products + cart */}
+      <div className="flex-1 min-h-0 flex gap-4 px-4 pb-4 overflow-hidden">
 
         {/* Products */}
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <Card>
-            {/* Toolbar */}
-            <div className="flex flex-col gap-2 p-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          {/* Toolbar — sticky */}
+          <div className="flex-shrink-0 flex flex-col gap-2 p-4 border-b border-slate-200 bg-slate-50 rounded-t-lg">
               {/* Line 1: Search + View Mode */}
               <div className="flex gap-2">
                 {/* Search */}
@@ -685,8 +696,8 @@ export default function POSPage() {
               </div>
             </div>
 
-            {/* Products content */}
-            <div className="p-4">
+            {/* Products — scrollable */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
 
             {productsLoading ? (
               <div className={viewMode === "card" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3" : "w-full"}>
@@ -913,28 +924,20 @@ export default function POSPage() {
           </>
         )}
             </div>
-          </Card>
         </div>
 
-        {/* Cart — drawer on < lg, always visible on lg */}
-        <div className="2xl:flex-shrink-0 2xl:sticky 2xl:top-0 2xl:w-full 2xl:max-w-sm">
-
-          {/* Backdrop — mobile only */}
-          {isCartOpen && (
-            <div
-              className="fixed inset-0 z-40 bg-black/50 2xl:hidden"
-              onClick={() => setIsCartOpen(false)}
-            />
-          )}
-
-          {/* Cart panel */}
-          <Card className={`fixed right-0 top-0 h-screen z-50 transform transition-transform duration-300 ease-in-out flex flex-col
-            w-[90vw] max-w-md
-            2xl:relative 2xl:top-0 2xl:h-screen 2xl:translate-x-0 2xl:rounded-lg 2xl:z-auto 2xl:flex 2xl:flex-col 2xl:overflow-hidden
-            ${
-              isCartOpen ? "translate-x-0" : "translate-x-full"
-            }`}
-          >
+        {/* Cart */}
+        {isCartOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 xl:hidden"
+            onClick={() => setIsCartOpen(false)}
+          />
+        )}
+        <div
+          className={`fixed right-0 top-0 bottom-0 z-50 flex flex-col w-[90vw] max-w-[360px] bg-white border-l border-slate-200 shadow-xl transform transition-transform duration-300 ease-in-out xl:relative xl:inset-auto xl:z-auto xl:w-80 xl:flex-shrink-0 xl:border xl:border-slate-200 xl:rounded-lg xl:shadow-sm xl:translate-x-0 ${
+            isCartOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
             {/* Drawer header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-t-lg lg:rounded-t-lg">
           <div className="flex items-center gap-3">
@@ -957,7 +960,7 @@ export default function POSPage() {
           </div>
           <button
             onClick={() => setIsCartOpen(false)}
-            className="p-1.5 rounded hover:bg-white/10 transition-colors 2xl:hidden"
+            className="p-1.5 rounded hover:bg-white/10 transition-colors xl:hidden"
             aria-label="Cerrar carrito"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -966,8 +969,8 @@ export default function POSPage() {
           </button>
         </div>
 
-        {/* Cart items — scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {/* Single scrollable content area — items + totals + payment */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
           {cart.length === 0 ? (
             <p className="text-sm text-slate-500 text-center mt-8">Carrito vacío</p>
           ) : (
@@ -996,8 +999,8 @@ export default function POSPage() {
             })
           )}
 
-          {/* Cart summary & actions — now inside scrollable area */}
-          <div className="pt-4 space-y-3 border-t border-slate-200">
+          {/* Separator before totals */}
+          <div className="border-t border-slate-200 mt-2 pt-3 space-y-3">
             <div className="space-y-1">
               <div className="flex justify-between text-sm text-slate-600">
                 <span>Subtotal</span>
@@ -1230,8 +1233,8 @@ export default function POSPage() {
                 <p className="text-sm text-slate-900 font-medium">{user.firstName} {user.lastName}</p>
               </div>
             )}
-          </div>
-        </div>
+          </div>{/* end totals */}
+        </div>{/* end single scroll area */}
 
         {/* Action buttons — fixed at bottom */}
         <div className="px-4 py-3 border-t border-slate-200 bg-white space-y-2 flex-shrink-0">
@@ -1255,9 +1258,8 @@ export default function POSPage() {
             Cancelar
           </Button>
         </div>
-          </Card>
         </div>
-        </div>
+      </div>
 
       {/* Loyal Customer Modal */}
       <Dialog
@@ -1421,7 +1423,6 @@ export default function POSPage() {
         settings={receiptSettings}
         fmt={fmt}
       />
-      </Container>
-      </div>
-    );
+    </div>
+  );
 }
