@@ -420,6 +420,106 @@
     }
   },
 
+  "transactions": {
+    "title": "Transactions",
+    "subtitle_one": "transaction",
+    "subtitle_other": "transactions",
+    "stats": {
+      "totalNet": "Total net {{period}}",
+      "periodWeek": "de la semaine",
+      "periodMonth": "du mois",
+      "periodYear": "de l'année",
+      "refunds": "Remboursements ({{count}}) :",
+      "taxes": "Total Impôts :"
+    },
+    "refresh": "Actualiser les données",
+    "search": "Rechercher par ID ou produit...",
+    "period": {
+      "week": "Semaine",
+      "month": "Mois",
+      "year": "Année"
+    },
+    "payment": {
+      "all": "Toutes les méthodes",
+      "cash": "Espèces",
+      "card": "Carte",
+      "transfer": "Virement"
+    },
+    "loading": "Chargement des transactions...",
+    "empty": "Aucune transaction disponible.",
+    "table": {
+      "time": "Heure",
+      "products": "Produits",
+      "cashier": "Caissier",
+      "method": "Méthode",
+      "subtotal": "Sous-total",
+      "discount": "Rems.",
+      "tax": "Imp.",
+      "total": "Total",
+      "noProducts": "Sans produits"
+    },
+    "sales_one": "vente",
+    "sales_other": "ventes",
+    "status": {
+      "refunded": "Remboursé",
+      "refundedShort": "REMB."
+    },
+    "actions": {
+      "view": "Voir",
+      "viewDetails": "Voir les détails",
+      "refund": "Rembourser",
+      "refundTitle": "Rembourser cette transaction",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer la transaction",
+      "deleteLocked": "Impossible de supprimer : cette transaction est liée à une clôture de caisse"
+    },
+    "filteredFrom": "· filtré de {{total}}",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.",
+    "detail": {
+      "title": "Détails de la Transaction",
+      "id": "ID",
+      "cashier": "Caissier",
+      "products": "Produits",
+      "subtotal": "Sous-total",
+      "discount": "Remise",
+      "tax": "Impôt",
+      "total": "Total",
+      "amountReceived": "Montant Reçu",
+      "change": "Monnaie",
+      "locked": "⚠ Cette transaction est liée à une clôture de caisse",
+      "lockedMsg": "Elle ne peut pas être modifiée ni supprimée une fois clôturée.",
+      "lockedSave": "Impossible de sauvegarder les modifications d'une transaction clôturée",
+      "paymentMethod": "Méthode de Paiement",
+      "dateTime": "Date / Heure",
+      "save": "Enregistrer",
+      "saving": "Enregistrement..."
+    },
+    "refundModal": {
+      "title": "Confirmer le remboursement",
+      "warning": "Cette action va :",
+      "effect1": "Marquer la transaction originale comme REMBOURSÉE",
+      "effect2": "Créer une transaction de remboursement de -{{amount}}",
+      "effect3": "Remettre le stock des articles en inventaire",
+      "effect4": "Apparaître en déduction dans Rapports, Profits et Bilan",
+      "reasonLabel": "Raison du remboursement",
+      "reasonOptional": "(optionnel)",
+      "reasonPlaceholder": "Ex : produit défectueux, erreur de commande...",
+      "cancel": "Annuler",
+      "confirm": "Rembourser {{amount}}",
+      "processing": "En cours..."
+    },
+    "error": {
+      "tenantNotFound": "ID du tenant introuvable",
+      "unknown": "Erreur inconnue",
+      "delete": "Erreur lors de la suppression de la transaction",
+      "save": "Erreur lors de la sauvegarde des modifications",
+      "refund": "Erreur lors du remboursement",
+      "network": "Erreur réseau",
+      "configError": "Erreur de Configuration",
+      "configMsg": "Échec du chargement de la configuration : {{error}}. Utilisation des paramètres par défaut."
+    }
+  },
+
   "pos": {
     "title": "Caisse",
     "reload": "Recharger la Caisse",

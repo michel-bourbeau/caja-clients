@@ -30,6 +30,40 @@ jest.mock("@/features/transactions/services", () => ({
 }));
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock("@/context/LanguageContext", () => ({
+  useLanguage: () => ({
+    t: (key: string, vars?: Record<string, string>) => {
+      const map: Record<string, string> = {
+        "transactions.title": "Transacciones",
+        "transactions.subtitle_one": "transacción",
+        "transactions.subtitle_other": "transacciones",
+        "transactions.period.week": "Semana",
+        "transactions.period.month": "Mes",
+        "transactions.period.year": "Año",
+        "transactions.payment.all": "Todos los métodos",
+        "transactions.payment.cash": "Efectivo",
+        "transactions.payment.card": "Tarjeta",
+        "transactions.payment.transfer": "Transferencia",
+        "transactions.loading": "Cargando transacciones...",
+        "transactions.empty": "No hay transacciones disponibles.",
+        "transactions.error.tenantNotFound": "Tenant ID no encontrado",
+        "transactions.error.unknown": "Error desconocido",
+        "transactions.error.delete": "Error al eliminar la transacción",
+        "transactions.error.save": "Error al guardar los cambios",
+        "transactions.error.refund": "Error al procesar el reembolso",
+        "transactions.error.network": "Error de red",
+        "transactions.error.configError": "Error de Configuración",
+      };
+      let result = map[key] ?? key;
+      if (vars) {
+        Object.entries(vars).forEach(([k, v]) => {
+          result = result.replace(`{{${k}}}`, v);
+        });
+      }
+      return result;
+    },
+  }),
+}));
 jest.mock("lucide-react", () => ({
   Eye: () => <svg data-testid="icon-eye" />,
   Trash2: () => <svg data-testid="icon-trash" />,

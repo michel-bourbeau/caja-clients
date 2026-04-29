@@ -420,6 +420,106 @@
     }
   },
 
+  "transactions": {
+    "title": "Transacciones",
+    "subtitle_one": "transacción",
+    "subtitle_other": "transacciones",
+    "stats": {
+      "totalNet": "Total neto {{period}}",
+      "periodWeek": "de la semana",
+      "periodMonth": "del mes",
+      "periodYear": "del año",
+      "refunds": "Reembolsos ({{count}}):",
+      "taxes": "Total Impuestos:"
+    },
+    "refresh": "Actualizar datos",
+    "search": "Buscar por ID o producto...",
+    "period": {
+      "week": "Semana",
+      "month": "Mes",
+      "year": "Año"
+    },
+    "payment": {
+      "all": "Todos los métodos",
+      "cash": "Efectivo",
+      "card": "Tarjeta",
+      "transfer": "Transferencia"
+    },
+    "loading": "Cargando transacciones...",
+    "empty": "No hay transacciones disponibles.",
+    "table": {
+      "time": "Hora",
+      "products": "Productos",
+      "cashier": "Cajero",
+      "method": "Método",
+      "subtotal": "Subtotal",
+      "discount": "Desc.",
+      "tax": "Imp.",
+      "total": "Total",
+      "noProducts": "Sin productos"
+    },
+    "sales_one": "venta",
+    "sales_other": "ventas",
+    "status": {
+      "refunded": "Reembolsado",
+      "refundedShort": "REMB."
+    },
+    "actions": {
+      "view": "Ver",
+      "viewDetails": "Ver detalles",
+      "refund": "Reembolsar",
+      "refundTitle": "Reembolsar esta transacción",
+      "delete": "Eliminar",
+      "deleteTitle": "Eliminar transacción",
+      "deleteLocked": "No se puede eliminar: esta transacción está vinculada a un cierre de caja"
+    },
+    "filteredFrom": "· filtrado de {{total}}",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer.",
+    "detail": {
+      "title": "Detalles de la Transacción",
+      "id": "ID",
+      "cashier": "Cajero",
+      "products": "Productos",
+      "subtotal": "Subtotal",
+      "discount": "Descuento",
+      "tax": "Impuesto",
+      "total": "Total",
+      "amountReceived": "Monto Recibido",
+      "change": "Cambio",
+      "locked": "⚠ Esta transacción está vinculada a un cierre de caja",
+      "lockedMsg": "No se puede modificar ni eliminar una vez que ha sido cerrada.",
+      "lockedSave": "No se puede guardar cambios en una transacción cerrada",
+      "paymentMethod": "Método de Pago",
+      "dateTime": "Fecha / Hora",
+      "save": "Guardar",
+      "saving": "Guardando..."
+    },
+    "refundModal": {
+      "title": "Confirmar reembolso",
+      "warning": "Esta acción va a:",
+      "effect1": "Marcar la transacción original como REEMBOLSADA",
+      "effect2": "Crear una transacción de reembolso de -{{amount}}",
+      "effect3": "Devolver el stock de los artículos al inventario",
+      "effect4": "Aparecer como deducción en Reportes, Ganancias y Balance",
+      "reasonLabel": "Motivo del reembolso",
+      "reasonOptional": "(opcional)",
+      "reasonPlaceholder": "Ej: producto defectuoso, error de pedido...",
+      "cancel": "Cancelar",
+      "confirm": "Reembolsar {{amount}}",
+      "processing": "Procesando..."
+    },
+    "error": {
+      "tenantNotFound": "Tenant ID no encontrado",
+      "unknown": "Error desconocido",
+      "delete": "Error al eliminar la transacción",
+      "save": "Error al guardar los cambios",
+      "refund": "Error al procesar el reembolso",
+      "network": "Error de red",
+      "configError": "Error de Configuración",
+      "configMsg": "Error al cargar la configuración: {{error}}. Usando configuración predeterminada."
+    }
+  },
+
   "pos": {
     "title": "Caja",
     "reload": "Recargar Caja",

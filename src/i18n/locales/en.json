@@ -419,7 +419,105 @@
       "manualUpdate": "Manual update ({{before}} \u2192 {{after}})"
     }
   },
-
+  "transactions": {
+    "title": "Transactions",
+    "subtitle_one": "transaction",
+    "subtitle_other": "transactions",
+    "stats": {
+      "totalNet": "Net total {{period}}",
+      "periodWeek": "for the week",
+      "periodMonth": "for the month",
+      "periodYear": "for the year",
+      "refunds": "Refunds ({{count}}):",
+      "taxes": "Total Taxes:"
+    },
+    "refresh": "Refresh data",
+    "search": "Search by ID or product...",
+    "period": {
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "payment": {
+      "all": "All methods",
+      "cash": "Cash",
+      "card": "Card",
+      "transfer": "Transfer"
+    },
+    "loading": "Loading transactions...",
+    "empty": "No transactions available.",
+    "table": {
+      "time": "Time",
+      "products": "Products",
+      "cashier": "Cashier",
+      "method": "Method",
+      "subtotal": "Subtotal",
+      "discount": "Disc.",
+      "tax": "Tax",
+      "total": "Total",
+      "noProducts": "No products"
+    },
+    "sales_one": "sale",
+    "sales_other": "sales",
+    "status": {
+      "refunded": "Refunded",
+      "refundedShort": "RFND."
+    },
+    "actions": {
+      "view": "View",
+      "viewDetails": "View details",
+      "refund": "Refund",
+      "refundTitle": "Refund this transaction",
+      "delete": "Delete",
+      "deleteTitle": "Delete transaction",
+      "deleteLocked": "Cannot delete: this transaction is linked to a cash closing"
+    },
+    "filteredFrom": "· filtered from {{total}}",
+    "confirmDelete": "Are you sure you want to delete this transaction? This action cannot be undone.",
+    "detail": {
+      "title": "Transaction Details",
+      "id": "ID",
+      "cashier": "Cashier",
+      "products": "Products",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "Tax",
+      "total": "Total",
+      "amountReceived": "Amount Received",
+      "change": "Change",
+      "locked": "⚠ This transaction is linked to a cash closing",
+      "lockedMsg": "It cannot be modified or deleted once it has been closed.",
+      "lockedSave": "Cannot save changes to a closed transaction",
+      "paymentMethod": "Payment Method",
+      "dateTime": "Date / Time",
+      "save": "Save",
+      "saving": "Saving..."
+    },
+    "refundModal": {
+      "title": "Confirm Refund",
+      "warning": "This action will:",
+      "effect1": "Mark the original transaction as REFUNDED",
+      "effect2": "Create a refund transaction of -{{amount}}",
+      "effect3": "Return the items' stock to inventory",
+      "effect4": "Appear as a deduction in Reports, Profits and Balance",
+      "reasonLabel": "Refund reason",
+      "reasonOptional": "(optional)",
+      "reasonPlaceholder": "E.g.: defective product, order error...",
+      "cancel": "Cancel",
+      "confirm": "Refund {{amount}}",
+      "processing": "Processing..."
+    },
+    "error": {
+      "tenantNotFound": "Tenant ID not found",
+      "unknown": "Unknown error",
+      "delete": "Error deleting transaction",
+      "save": "Error saving changes",
+      "refund": "Error processing refund",
+      "network": "Network error",
+      "configError": "Configuration Error",
+      "configMsg": "Failed to load tenant features: {{error}}. Using default settings."
+    }
+  },
   "pos": {
     "title": "Cash Register",
     "reload": "Reload POS",

@@ -6,22 +6,26 @@ import { Button, Card, Container, Section, Badge, Alert } from "@/components/Str
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
 import { TransactionService } from "@/features/transactions/services";
 
-const PAYMENT_LABEL: Record<string, string> = {
-  CASH: "Efectivo",
-  CARD: "Tarjeta",
-  TRANSFER: "Transferencia",
-};
+
 
 type PeriodType = "WEEK" | "MONTH" | "YEAR";
 
 export default function TransactionsPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
+
+  const PAYMENT_LABEL: Record<string, string> = {
+    CASH: t("transactions.payment.cash"),
+    CARD: t("transactions.payment.card"),
+    TRANSFER: t("transactions.payment.transfer"),
+  };
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -140,7 +144,7 @@ export default function TransactionsPage() {
 
   const loadData = async () => {
     if (!tenantId) {
-      setError("Tenant ID not found");
+      setError(t("transactions.error.tenantNotFound"));
       setIsLoading(false);
       return;
     }
@@ -155,7 +159,7 @@ export default function TransactionsPage() {
       );
       setTransactions(transactionsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t("transactions.error.unknown"));
     } finally {
       setIsLoading(false);
     }
@@ -228,14 +232,14 @@ export default function TransactionsPage() {
 
   const handleDeleteTransaction = async (transactionId: string) => {
     if (!tenantId) return;
-    if (!window.confirm("¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer."))
+    if (!window.confirm(t("transactions.confirmDelete")))
       return;
     try {
       setError(null);
       await TransactionService.deleteTransaction(tenantId, transactionId);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al eliminar la transacción");
+      setError(err instanceof Error ? err.message : t("transactions.error.delete"));
     }
   };
 
@@ -273,7 +277,7 @@ export default function TransactionsPage() {
       await loadData();
       setSelectedTransaction(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al guardar los cambios");
+      setError(err instanceof Error ? err.message : t("transactions.error.save"));
     } finally {
       setIsSaving(false);
     }
@@ -291,14 +295,14 @@ export default function TransactionsPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || "Erreur lors du remboursement");
+        setError(err.error || t("transactions.error.refund"));
         return;
       }
       setShowRefundModal(null);
       setRefundReason("");
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur réseau");
+      setError(err instanceof Error ? err.message : t("transactions.error.network"));
     } finally {
       setRefundingId(null);
     }
@@ -309,13 +313,13 @@ export default function TransactionsPage() {
       <Section>
         <DashboardHeader
           pageType="transactions"
-          title="Transacciones"
-          subtitle={`${totals.count} transacción${totals.count !== 1 ? "es" : ""}`}
+          title={t("transactions.title")}
+          subtitle={`${totals.count} ${totals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}`}
         />
 
         {featuresError && (
-          <Alert variant="error" title="Configuration Error" className="mb-6">
-            Failed to load tenant features: {featuresError}. Using default settings.
+          <Alert variant="error" title={t("transactions.error.configError")} className="mb-6">
+            {t("transactions.error.configMsg", { error: String(featuresError) })}
           </Alert>
         )}
 
@@ -335,14 +339,14 @@ export default function TransactionsPage() {
                 <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div>
                     <span className="text-sm text-blue-700 font-medium">
-                      Total net {periodType === "WEEK" ? "de la semaine" : periodType === "MONTH" ? "du mois" : "de l'année"}:
+                      {t("transactions.stats.totalNet", { period: periodType === "WEEK" ? t("transactions.stats.periodWeek") : periodType === "MONTH" ? t("transactions.stats.periodMonth") : t("transactions.stats.periodYear") })}:
                     </span>
                     <div className="text-lg font-bold text-blue-900">{fmt(totals.amount)}</div>
                   </div>
                   {totals.refundCount > 0 && (
                     <div>
                       <span className="text-sm text-red-600 font-medium">
-                        Remboursements ({totals.refundCount}):
+                        {t("transactions.stats.refunds", { count: String(totals.refundCount) })}
                       </span>
                       <div className="text-lg font-bold text-red-600">-{fmt(totals.refundAmount)}</div>
                     </div>
@@ -350,7 +354,7 @@ export default function TransactionsPage() {
                   {isTaxModuleEnabled && (
                     <div>
                       <span className="text-sm text-blue-700 font-medium">
-                        Total Impuestos:
+                        {t("transactions.stats.taxes")}
                       </span>
                       <div className="text-lg font-bold text-blue-900">{fmt(totals.taxes)}</div>
                     </div>
@@ -360,7 +364,7 @@ export default function TransactionsPage() {
                   onClick={loadData}
                   disabled={isLoading}
                   className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
-                  title="Actualizar datos"
+                  title={t("transactions.refresh")}
                 >
                   <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
                 </button>
@@ -370,7 +374,7 @@ export default function TransactionsPage() {
             <SearchInput
               value={filters.search}
               onChange={(value) => setFilters((f) => ({ ...f, search: value }))}
-              placeholder="Buscar por ID o producto..."
+              placeholder={t("transactions.search")}
               className="flex-1"
             />
             {/* Line 2: Period Filters + Payment Method */}
@@ -407,7 +411,7 @@ export default function TransactionsPage() {
                           : "bg-white text-slate-600 hover:bg-slate-100"
                       }`}
                     >
-                      {period === "WEEK" ? "Semana" : period === "MONTH" ? "Mes" : "Año"}
+                      {period === "WEEK" ? t("transactions.period.week") : period === "MONTH" ? t("transactions.period.month") : t("transactions.period.year")}
                     </button>
                   ))}
                 </div>
@@ -438,18 +442,18 @@ export default function TransactionsPage() {
                 onChange={(e) => setFilters((f) => ({ ...f, paymentMethod: e.target.value }))}
                 className="px-3 py-1.5 pr-10 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full lg:w-auto appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2224%22%20height=%2224%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22%23475569%22%20stroke-width=%222%22%3E%3Cpolyline%20points=%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-right bg-[length:24px] pr-12"
               >
-                <option value="ALL">Todos los métodos</option>
-                <option value="CASH">Efectivo</option>
-                <option value="CARD">Tarjeta</option>
-                <option value="TRANSFER">Transferencia</option>
+                <option value="ALL">{t("transactions.payment.all")}</option>
+                <option value="CASH">{t("transactions.payment.cash")}</option>
+                <option value="CARD">{t("transactions.payment.card")}</option>
+                <option value="TRANSFER">{t("transactions.payment.transfer")}</option>
               </select>
             </div>
           </div>
 
           {isLoading ? (
-            <p className="text-center py-12 text-slate-500">Cargando transacciones...</p>
+            <p className="text-center py-12 text-slate-500">{t("transactions.loading")}</p>
           ) : filteredTransactions.length === 0 ? (
-            <p className="text-center py-12 text-slate-400">No hay transacciones disponibles.</p>
+            <p className="text-center py-12 text-slate-400">{t("transactions.empty")}</p>
           ) : (
           <div className="overflow-x-auto">
             {Object.entries(groupedByDate).map(([dateKey, dayTxs]) => {
@@ -473,14 +477,14 @@ export default function TransactionsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
-                          <th className="px-4 py-2 text-left text-white">Hora</th>
-                          <th className="px-4 py-2 text-left text-white">Productos</th>
-                          <th className="px-4 py-2 text-left hidden lg:table-cell text-white">Cajero</th>
-                          <th className="px-4 py-2 text-center hidden lg:table-cell text-white">Método</th>
-                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">Subtotal</th>
-                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">Desc.</th>
-                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">Imp.</th>
-                          <th className="px-4 py-2 text-right font-bold text-white">Total</th>
+                          <th className="px-4 py-2 text-left text-white">{t("transactions.table.time")}</th>
+                          <th className="px-4 py-2 text-left text-white">{t("transactions.table.products")}</th>
+                          <th className="px-4 py-2 text-left hidden lg:table-cell text-white">{t("transactions.table.cashier")}</th>
+                          <th className="px-4 py-2 text-center hidden lg:table-cell text-white">{t("transactions.table.method")}</th>
+                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">{t("transactions.table.subtotal")}</th>
+                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">{t("transactions.table.discount")}</th>
+                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">{t("transactions.table.tax")}</th>
+                          <th className="px-4 py-2 text-right font-bold text-white">{t("transactions.table.total")}</th>
                           <th className="px-4 py-2 text-center w-24"></th>
                         </tr>
                       </thead>
@@ -501,7 +505,7 @@ export default function TransactionsPage() {
                                   ))}
                                 </div>
                               ) : (
-                                <span className="text-sm text-slate-400 italic">Sin productos</span>
+                                <span className="text-sm text-slate-400 italic">{t("transactions.table.noProducts")}</span>
                               )}
                             </td>
                             <td className="px-4 py-2.5 text-left hidden lg:table-cell">
@@ -509,7 +513,7 @@ export default function TransactionsPage() {
                             </td>
                             <td className="px-4 py-2.5 text-center hidden lg:table-cell">
                               {tx.status === "REFUND" ? (
-                                <Badge variant="error">Remboursé</Badge>
+                                <Badge variant="error">{t("transactions.status.refunded")}</Badge>
                               ) : (
                                 <Badge variant={tx.paymentMethod === "CASH" ? "success" : tx.paymentMethod === "CARD" ? "primary" : "default"}>
                                   {PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod}
@@ -541,12 +545,12 @@ export default function TransactionsPage() {
                                   color="slate"
                                   size="sm"
                                   onClick={() => handleOpenDetails(tx)}
-                                  title="Ver detalles"
+                                  title={t("transactions.actions.viewDetails")}
                                 />
                                 {tx.status === "COMPLETED" && (
                                   <button
                                     onClick={() => { setShowRefundModal(tx); setRefundReason(""); }}
-                                    title="Rembourser cette transaction"
+                                    title={t("transactions.actions.refundTitle")}
                                     className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 transition-colors"
                                   >
                                     <RotateCcw size={14} />
@@ -558,7 +562,7 @@ export default function TransactionsPage() {
                                 size="sm"
                                 disabled={!!tx.cash_closing_id}
                                 onClick={() => handleDeleteTransaction(tx.id)}
-                                title={tx.cash_closing_id ? "No se puede eliminar: esta transacción está vinculada a un cierre de caja" : "Eliminar transacción"}
+                                title={tx.cash_closing_id ? t("transactions.actions.deleteLocked") : t("transactions.actions.deleteTitle")}
                                 className={tx.cash_closing_id ? "opacity-50 cursor-not-allowed" : ""}
                               />
                             </div>
@@ -580,7 +584,7 @@ export default function TransactionsPage() {
                               {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                             </span>
                             {tx.status === "REFUND" && (
-                              <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">REMB.</span>
+                              <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">{t("transactions.status.refundedShort")}</span>
                             )}
                           </div>
                           <span className={`text-lg font-bold ${tx.status === "REFUND" ? "text-red-600" : "text-slate-900"}`}>
@@ -598,7 +602,7 @@ export default function TransactionsPage() {
                             ))}
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">Sin productos</span>
+                          <span className="text-xs text-slate-400 italic">{t("transactions.table.noProducts")}</span>
                         )}
 
                         {/* Payment method + Cashier */}
@@ -616,7 +620,7 @@ export default function TransactionsPage() {
                             className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium text-slate-700 transition-colors"
                           >
                             <Eye size={14} />
-                            Ver
+                            {t("transactions.actions.view")}
                           </button>
                           {tx.status === "COMPLETED" && (
                             <button
@@ -624,17 +628,17 @@ export default function TransactionsPage() {
                               className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-amber-50 hover:bg-amber-100 rounded text-xs font-medium text-amber-700 transition-colors"
                             >
                               <RotateCcw size={14} />
-                              Rembourser
+                              {t("transactions.actions.refund")}
                             </button>
                           )}
                           <button
                             onClick={() => handleDeleteTransaction(tx.id)}
                             disabled={!!tx.cash_closing_id}
-                            title={tx.cash_closing_id ? "No se puede eliminar: esta transacción está vinculada a un cierre de caja" : "Eliminar transacción"}
+                            title={tx.cash_closing_id ? t("transactions.actions.deleteLocked") : t("transactions.actions.deleteTitle")}
                             className={`flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-600 transition-colors ${tx.cash_closing_id ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             <Trash2 size={14} />
-                            Eliminar
+                            {t("transactions.actions.delete")}
                           </button>
                         </div>
                       </div>
@@ -644,9 +648,9 @@ export default function TransactionsPage() {
               );
             })}
             <div className="px-3 lg:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
-              {totals.count} transacción{totals.count !== 1 ? "es" : ""}
+              {totals.count} {totals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}
               {(filters.search || filters.paymentMethod !== "ALL") &&
-                ` · filtrado de ${transactions.length}`}
+                ` ${t("transactions.filteredFrom", { total: String(transactions.length) })}`}
             </div>
           </div>
           )}
@@ -657,7 +661,7 @@ export default function TransactionsPage() {
       {/* Detail / Edit Modal */}
       <Dialog
         isOpen={!!selectedTransaction}
-        title="Detalles de la Transacción"
+        title={t("transactions.detail.title")}
         onClose={() => setSelectedTransaction(null)}
         maxWidth="lg"
         footer={
@@ -666,10 +670,10 @@ export default function TransactionsPage() {
               variant="primary"
               onClick={handleSaveChanges}
               disabled={isSaving || !!selectedTransaction?.cash_closing_id}
-              title={selectedTransaction?.cash_closing_id ? "No se puede guardar cambios en una transacción cerrada" : ""}
+              title={selectedTransaction?.cash_closing_id ? t("transactions.detail.lockedSave") : ""}
               className="whitespace-nowrap"
             >
-              {isSaving ? "Guardando..." : "Guardar"}
+              {isSaving ? t("transactions.detail.saving") : t("transactions.detail.save")}
             </Button>
           </div>
         }
@@ -678,7 +682,7 @@ export default function TransactionsPage() {
               <>
               {/* ID */}
               <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">ID</p>
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">{t("transactions.detail.id")}</p>
                 <p className="font-mono text-sm text-slate-600 bg-slate-50 px-2 py-1 rounded border border-slate-200 break-all">
                   {selectedTransaction.id}
                 </p>
@@ -687,7 +691,7 @@ export default function TransactionsPage() {
               {/* Cashier */}
               {selectedTransaction.cashierName && (
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">Cajero</p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-0.5">{t("transactions.detail.cashier")}</p>
                   <p className="text-sm text-slate-700 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-200">
                     {selectedTransaction.cashierName}
                   </p>
@@ -697,7 +701,7 @@ export default function TransactionsPage() {
               {/* Products */}
               {selectedTransaction.items && selectedTransaction.items.length > 0 && (
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-1">Productos</p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-1">{t("transactions.detail.products")}</p>
                   <div className="bg-slate-50 rounded border border-slate-200 divide-y divide-slate-100">
                     {selectedTransaction.items.map((item: any, i: number) => (
                       <div key={i} className="flex justify-between items-center px-3 py-2 text-sm">
@@ -715,28 +719,28 @@ export default function TransactionsPage() {
               {/* Summary */}
               <div className="bg-slate-50 rounded border border-slate-200 divide-y divide-slate-100 text-sm">
                 <div className="flex justify-between px-3 py-2 text-slate-600">
-                  <span>Subtotal</span><span>{fmt(selectedTransaction.subtotal)}</span>
+                  <span>{t("transactions.detail.subtotal")}</span><span>{fmt(selectedTransaction.subtotal)}</span>
                 </div>
                 {(selectedTransaction.discount || 0) > 0 && (
                   <div className="flex justify-between px-3 py-2 text-amber-600">
-                    <span>Descuento</span><span>-{fmt(selectedTransaction.discount || 0)}</span>
+                    <span>{t("transactions.detail.discount")}</span><span>-{fmt(selectedTransaction.discount || 0)}</span>
                   </div>
                 )}
                 {(selectedTransaction.tax || 0) > 0 && (
                   <div className="flex justify-between px-3 py-2 text-slate-600">
-                    <span>Impuesto</span><span>{fmt(selectedTransaction.tax)}</span>
+                    <span>{t("transactions.detail.tax")}</span><span>{fmt(selectedTransaction.tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between px-3 py-2 font-bold text-slate-900">
-                  <span>Total</span><span>{fmt(selectedTransaction.total)}</span>
+                  <span>{t("transactions.detail.total")}</span><span>{fmt(selectedTransaction.total)}</span>
                 </div>
                 {selectedTransaction.paymentMethod === "CASH" && (
                   <>
                     <div className="flex justify-between px-3 py-2 bg-blue-50 text-blue-700 font-medium">
-                      <span>Monto Recibido</span><span>{fmt(selectedTransaction.amount_received || 0)}</span>
+                      <span>{t("transactions.detail.amountReceived")}</span><span>{fmt(selectedTransaction.amount_received || 0)}</span>
                     </div>
                     <div className="flex justify-between px-3 py-2 bg-green-50 text-green-700 font-bold">
-                      <span>Cambio</span><span>{fmt(selectedTransaction.change || 0)}</span>
+                      <span>{t("transactions.detail.change")}</span><span>{fmt(selectedTransaction.change || 0)}</span>
                     </div>
                   </>
                 )}
@@ -745,26 +749,26 @@ export default function TransactionsPage() {
               {/* Editable fields */}
               {selectedTransaction.cash_closing_id && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-                  <p className="font-semibold mb-1">⚠ Esta transacción está vinculada a un cierre de caja</p>
-                  <p className="text-xs">No se puede modificar ni eliminar una vez que ha sido cerrada.</p>
+                  <p className="font-semibold mb-1">{t("transactions.detail.locked")}</p>
+                  <p className="text-xs">{t("transactions.detail.lockedMsg")}</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Método de Pago</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">{t("transactions.detail.paymentMethod")}</label>
                   <select
                     disabled={!!selectedTransaction.cash_closing_id}
                     value={editForm.paymentMethod}
                     onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value as "CASH" | "CARD" | "TRANSFER" })}
                     className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="CASH">Efectivo</option>
-                    <option value="CARD">Tarjeta</option>
-                    <option value="TRANSFER">Transferencia</option>
+                    <option value="CASH">{t("transactions.payment.cash")}</option>
+                    <option value="CARD">{t("transactions.payment.card")}</option>
+                    <option value="TRANSFER">{t("transactions.payment.transfer")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-600 mb-1">Fecha / Hora</label>
+                  <label className="block text-sm font-semibold text-slate-600 mb-1">{t("transactions.detail.dateTime")}</label>
                   <input
                     disabled={!!selectedTransaction.cash_closing_id}
                     type="datetime-local"
@@ -779,7 +783,7 @@ export default function TransactionsPage() {
               {selectedTransaction.paymentMethod === "CASH" && (
                 <div className="grid grid-cols-2 gap-3 p-3 bg-blue-50 rounded border border-blue-200">
                   <div>
-                    <label className="block text-sm font-semibold text-blue-700 mb-1">Monto Recibido</label>
+                    <label className="block text-sm font-semibold text-blue-700 mb-1">{t("transactions.detail.amountReceived")}</label>
                     <input
                       disabled={!!selectedTransaction.cash_closing_id}
                       type="number"
@@ -789,7 +793,7 @@ export default function TransactionsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-green-700 mb-1">Cambio</label>
+                    <label className="block text-sm font-semibold text-green-700 mb-1">{t("transactions.detail.change")}</label>
                     <input
                       disabled={!!selectedTransaction.cash_closing_id}
                       type="number"
@@ -813,31 +817,31 @@ export default function TransactionsPage() {
                 <RotateCcw className="w-4 h-4 text-amber-600" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900">Confirmer le remboursement</h2>
+                <h2 className="text-base font-bold text-slate-900">{t("transactions.refundModal.title")}</h2>
                 <p className="text-xs text-slate-500">{showRefundModal.id}</p>
               </div>
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                <p className="font-semibold mb-1">Cette action va :</p>
+                <p className="font-semibold mb-1">{t("transactions.refundModal.warning")}</p>
                 <ul className="list-disc list-inside space-y-0.5 text-xs">
-                  <li>Marquer la transaction originale comme <strong>REMBOURSÉE</strong></li>
-                  <li>Créer une transaction de remboursement de <strong className="text-red-600">-{fmt(showRefundModal.total)}</strong></li>
-                  <li>Remettre le stock des articles en inventaire</li>
-                  <li>Apparaître en déduction dans Rapports, Profits et Bilan</li>
+                  <li dangerouslySetInnerHTML={{ __html: t("transactions.refundModal.effect1") }} />
+                  <li>{t("transactions.refundModal.effect2", { amount: fmt(showRefundModal.total) })}</li>
+                  <li>{t("transactions.refundModal.effect3")}</li>
+                  <li>{t("transactions.refundModal.effect4")}</li>
                 </ul>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Raison du remboursement <span className="font-normal text-slate-400">(optionnel)</span>
+                  {t("transactions.refundModal.reasonLabel")} <span className="font-normal text-slate-400">{t("transactions.refundModal.reasonOptional")}</span>
                 </label>
                 <input
                   type="text"
                   value={refundReason}
                   onChange={(e) => setRefundReason(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white"
-                  placeholder="Ex: produit défectueux, erreur de commande..."
+                  placeholder={t("transactions.refundModal.reasonPlaceholder")}
                 />
               </div>
 
@@ -847,7 +851,7 @@ export default function TransactionsPage() {
                   onClick={() => { setShowRefundModal(null); setRefundReason(""); }}
                   className="flex-1"
                 >
-                  Annuler
+                  {t("transactions.refundModal.cancel")}
                 </Button>
                 <Button
                   variant="danger"
@@ -855,7 +859,7 @@ export default function TransactionsPage() {
                   disabled={refundingId === showRefundModal.id}
                   className="flex-1"
                 >
-                  {refundingId === showRefundModal.id ? "En cours..." : `Rembourser ${fmt(showRefundModal.total)}`}
+                  {refundingId === showRefundModal.id ? t("transactions.refundModal.processing") : t("transactions.refundModal.confirm", { amount: fmt(showRefundModal.total) })}
                 </Button>
               </div>
             </div>
