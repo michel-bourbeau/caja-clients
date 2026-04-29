@@ -5,12 +5,12 @@ import { ShoppingCart, RefreshCw } from "lucide-react";
 import { POSService } from "@/features/pos/services";
 import { TaxService, type Tax } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
-import { CartItem, Product, LoyalCustomer, LoyalCustomerStats } from "@/lib/types";
+import { CartItem, Product, LoyalCustomer, LoyalCustomerStats, Transaction } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter } from "@/components";
+import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter, ReceiptModal, type ReceiptSettings } from "@/components";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 type Currency = "NIO" | "USD";
@@ -59,6 +59,11 @@ export default function POSPage() {
     return "list";
   });
   
+  // Receipt states
+  const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptSettings, setReceiptSettings] = useState<ReceiptSettings>({});
+
   // Currency states
   const [selectedCurrency, setSelectedCurrency] = useState<Currency>("NIO");
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(37.00);
@@ -104,13 +109,19 @@ export default function POSPage() {
       .then((settings) => setLoyaltyModuleEnabled(settings.loyalty_module_enabled))
       .catch(console.error);
 
-    // Load USD exchange rate from tenant settings
+    // Load tenant settings (exchange rate + receipt info)
     fetch(`/api/tenants/${tenantId}/settings`)
       .then((res) => res.json())
       .then((data) => {
         if (data.usdExchangeRate) {
           setUsdExchangeRate(data.usdExchangeRate);
         }
+        setReceiptSettings({
+          companyName: data.companyName || undefined,
+          companyPhone: data.companyPhone || undefined,
+          companyRuc: data.companyRuc || undefined,
+          logoUrl: data.logoUrl || undefined,
+        });
       })
       .catch(console.error);
   }, [tenantId]);
@@ -525,6 +536,11 @@ export default function POSPage() {
       setIsCartOpen(false); // Close cart drawer on mobile after successful sale
       setMessage("✓ ¡Venta registrada exitosamente!");
       setMessageType("success");
+
+      // Show receipt modal
+      setLastTransaction(transaction);
+      setShowReceipt(true);
+
       const refreshed = await POSService.fetchProducts(tenantId);
       setProducts(refreshed);
       
@@ -1396,6 +1412,15 @@ export default function POSPage() {
               </div>
             </form>
       </Dialog>
+
+      {/* Receipt Modal — shown after a successful sale */}
+      <ReceiptModal
+        isOpen={showReceipt}
+        onClose={() => setShowReceipt(false)}
+        transaction={lastTransaction}
+        settings={receiptSettings}
+        fmt={fmt}
+      />
       </Container>
       </div>
     );

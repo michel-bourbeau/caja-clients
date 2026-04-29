@@ -92,6 +92,12 @@ jest.mock("@/components", () => ({
       </div>
     ) : null,
   DialogFooter: ({ children }: any) => <div>{children}</div>,
+  ReceiptModal: ({ isOpen, onClose }: any) =>
+    isOpen ? (
+      <div data-testid="receipt-modal">
+        <button onClick={onClose}>Cerrar recibo</button>
+      </div>
+    ) : null,
 }));
 
 jest.mock("next/navigation", () => ({
