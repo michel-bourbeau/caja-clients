@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
+import { useLanguage } from "@/context/LanguageContext";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 import { Button, Container, Section, Card } from "@/components/StripeUIComponents";
 import { PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, FlashMessage, useFlash } from "@/components";
@@ -59,6 +60,7 @@ type ModalMode = "add" | "edit" | null;
 export default function EmployeesPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [tenantRoles, setTenantRoles] = useState<any[]>([]);
@@ -175,11 +177,11 @@ export default function EmployeesPage() {
     e.preventDefault();
     if (!tenantId) return;
     if (form.password && form.password !== form.confirmPassword) {
-      flash("Les mots de passe ne correspondent pas", "error");
+      flash(t("employees.flash.passwordMismatch"), "error");
       return;
     }
     if (form.password && form.password.length < 6) {
-      flash("Le mot de passe doit contenir au moins 6 caracteres", "error");
+      flash(t("employees.flash.passwordTooShort"), "error");
       return;
     }
     setSaving(true);
@@ -212,18 +214,18 @@ export default function EmployeesPage() {
       }
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Erreur serveur");
+      if (!response.ok) throw new Error(data.error || t("employees.flash.serverError"));
 
       if (modalMode === "add") {
         setEmployees((prev) => [...prev, data]);
-        flash("Employe cree avec succes", "success");
+        flash(t("employees.flash.created"), "success");
       } else {
         setEmployees((prev) => prev.map((emp) => (emp.id === editingId ? data : emp)));
-        flash("Employe mis a jour", "success");
+        flash(t("employees.flash.updated"), "success");
       }
       closeModal();
     } catch (err) {
-      flash(err instanceof Error ? err.message : "Erreur", "error");
+      flash(err instanceof Error ? err.message : t("employees.flash.error"), "error");
     } finally {
       setSaving(false);
     }
@@ -236,12 +238,12 @@ export default function EmployeesPage() {
       const response = await fetch(`/api/tenants/${tenantId}/employees/${id}`, { method: "DELETE" });
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Erreur suppression");
+        throw new Error(data.error || t("employees.flash.deleteError"));
       }
       setEmployees((prev) => prev.filter((e) => e.id !== id));
-      flash("Employe supprime", "success");
+      flash(t("employees.flash.deleted"), "success");
     } catch (err) {
-      flash(err instanceof Error ? err.message : "Erreur", "error");
+      flash(err instanceof Error ? err.message : t("employees.flash.error"), "error");
     } finally {
       setSaving(false);
       setDeleteConfirmId(null);
@@ -322,7 +324,7 @@ export default function EmployeesPage() {
       setFichaPayments((prev) => [newPay, ...prev]);
       setFichaPayingPeriod(null);
     } catch (e) {
-      flash(e instanceof Error ? e.message : "Error", "error");
+      flash(e instanceof Error ? e.message : t("employees.flash.error"), "error");
     } finally {
       setFichaPaySaving(false);
     }
@@ -344,7 +346,7 @@ export default function EmployeesPage() {
       setFichaAguinaldoData(data);
       setFichaAguinaldoHistory(data.history || []);
     } catch (e) {
-      flash(e instanceof Error ? e.message : "Error", "error");
+      flash(e instanceof Error ? e.message : t("employees.flash.error"), "error");
     }
   };
 
@@ -352,7 +354,7 @@ export default function EmployeesPage() {
   const saveBonusPayment = async () => {
     if (!tenantId || !fichaEmp || !fichaAguinaldoData) return;
     if (!bonusPayForm.paidAmount) {
-      flash("Ingresa el monto pagado", "error");
+      flash(t("employees.flashExtra.enterAmount"), "error");
       return;
     }
     setBonusPaySaving(true);
@@ -371,10 +373,10 @@ export default function EmployeesPage() {
       setFichaAguinaldoHistory((prev) => [newPayment, ...prev]);
       setShowBonusPayModal(false);
       setBonusPayForm({ paidAmount: "", notes: "" });
-      flash("Pago de aguinaldo registrado", "success");
+      flash(t("employees.flashExtra.bonusRegistered"), "success");
       await loadAguinaldoData();
     } catch (e) {
-      flash(e instanceof Error ? e.message : "Error", "error");
+      flash(e instanceof Error ? e.message : t("employees.flash.error"), "error");
     } finally {
       setBonusPaySaving(false);
     }
@@ -389,7 +391,7 @@ export default function EmployeesPage() {
       setFichaVacationData(data);
       setFichaVacationHistory(data.history || []);
     } catch (e) {
-      flash(e instanceof Error ? e.message : "Error", "error");
+      flash(e instanceof Error ? e.message : t("employees.flash.error"), "error");
     }
   };
 
@@ -397,14 +399,14 @@ export default function EmployeesPage() {
   const saveVacationPayment = async () => {
     if (!tenantId || !fichaEmp) return;
     if (!vacationPayForm.daysUsed || !vacationPayForm.startDate || !vacationPayForm.endDate) {
-      flash("Completa todos los campos requeridos", "error");
+      flash(t("employees.flashExtra.fillRequired"), "error");
       return;
     }
     setVacationPaySaving(true);
     try {
       const daysUsed = parseFloat(vacationPayForm.daysUsed);
       if (!fichaVacationData || fichaVacationData.daysRemaining < daysUsed) {
-        flash("Días de vacaciones insuficientes", "error");
+        flash(t("employees.flashExtra.insufficientDays"), "error");
         return;
       }
       const monetaryValue = daysUsed * fichaVacationData.dailyRate;
@@ -424,10 +426,10 @@ export default function EmployeesPage() {
       setFichaVacationHistory((prev) => [newPayment, ...prev]);
       setShowVacationPayModal(false);
       setVacationPayForm({ daysUsed: "", startDate: "", endDate: "", notes: "" });
-      flash("Período de vacaciones registrado", "success");
+      flash(t("employees.flashExtra.vacationRegistered"), "success");
       await loadVacationData();
     } catch (e) {
-      flash(e instanceof Error ? e.message : "Error", "error");
+      flash(e instanceof Error ? e.message : t("employees.flash.error"), "error");
     } finally {
       setVacationPaySaving(false);
     }
@@ -499,14 +501,14 @@ export default function EmployeesPage() {
       <Section>
       <DashboardHeader
         pageType="employees"
-        title="Empleados"
-        subtitle="Gestiona el personal, roles y accesos."
+        title={t("employees.title")}
+        subtitle={t("employees.subtitle")}
       >
         <Button variant="primary" onClick={openAdd}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Nuevo Empleado
+          {t("employees.addBtn")}
         </Button>
       </DashboardHeader>
 
@@ -518,7 +520,7 @@ export default function EmployeesPage() {
             <SearchInput
               value={search}
               onChange={(value) => setSearch(value)}
-              placeholder="Buscar empleado..."
+              placeholder={t("employees.search")}
             />
           </div>
           <select
@@ -526,7 +528,7 @@ export default function EmployeesPage() {
             onChange={(e) => setFilterRole(e.target.value)}
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Todos los roles</option>
+            <option value="">{t("employees.allRoles")}</option>
             {tenantRoles.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
@@ -550,7 +552,7 @@ export default function EmployeesPage() {
           </table>
         ) : displayed.length === 0 ? (
           <p className="text-slate-500 text-center py-12 text-sm">
-            {employees.length === 0 ? "No hay empleados registrados." : "Sin resultados."}
+            {employees.length === 0 ? t("employees.empty") : t("employees.noResults")}
           </p>
         ) : (
           <div className="space-y-4">
@@ -559,11 +561,11 @@ export default function EmployeesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left text-white">Empleado</th>
-                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">Email</th>
-                  <th className="px-4 py-2.5 text-left hidden sm:table-cell text-white">Rol</th>
-                  <th className="px-4 py-2.5 text-right hidden lg:table-cell text-white">Tarifa/h</th>
-                  <th className="px-4 py-2.5 text-center text-white">Estado</th>
+                  <th className="px-4 py-2.5 text-left text-white">{t("employees.colEmployee")}</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">{t("employees.colEmail")}</th>
+                  <th className="px-4 py-2.5 text-left hidden sm:table-cell text-white">{t("employees.colRole")}</th>
+                  <th className="px-4 py-2.5 text-right hidden lg:table-cell text-white">{t("employees.colRate")}</th>
+                  <th className="px-4 py-2.5 text-center text-white">{t("employees.colStatus")}</th>
                   <th className="px-4 py-2.5 text-center w-24 text-white"></th>
                 </tr>
               </thead>
@@ -593,22 +595,22 @@ export default function EmployeesPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block px-2 py-0.5 text-sm rounded-full font-semibold ${emp.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {emp.status === "ACTIVE" ? "Activo" : "Inactivo"}
+                          {emp.status === "ACTIVE" ? t("employees.active") : t("employees.inactive")}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => openFicha(emp)} title="Ficha" className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+                          <button onClick={() => openFicha(emp)} title={t("employees.fichaBtn")} className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                           </button>
-                          <button onClick={() => openEdit(emp)} title="Editar" className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                          <button onClick={() => openEdit(emp)} title={t("employees.editBtn")} className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button onClick={() => setDeleteConfirmId(emp.id)} title="Eliminar" className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                          <button onClick={() => setDeleteConfirmId(emp.id)} title={t("employees.deleteBtn")} className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -638,14 +640,14 @@ export default function EmployeesPage() {
                           ? "bg-green-100 text-green-700" 
                           : "bg-red-100 text-red-700"
                       }`}>
-                        {emp.status === "ACTIVE" ? "Activo" : "Inactivo"}
+                        {emp.status === "ACTIVE" ? t("employees.active") : t("employees.inactive")}
                       </span>
                     </div>
 
                     {/* Row 2: Email */}
                     <div className="text-xs space-y-1">
                       <div className="flex items-start gap-2">
-                        <span className="text-slate-500 flex-shrink-0 w-14">Email:</span>
+                        <span className="text-slate-500 flex-shrink-0 w-14">{t("employees.labelEmail")}</span>
                         <span className="text-slate-700 font-mono truncate flex-1">{emp.email}</span>
                       </div>
                     </div>
@@ -653,7 +655,7 @@ export default function EmployeesPage() {
                     {/* Row 3: Role */}
                     <div className="text-xs space-y-1">
                       <div className="flex items-start gap-2">
-                        <span className="text-slate-500 flex-shrink-0 w-14">Rol:</span>
+                        <span className="text-slate-500 flex-shrink-0 w-14">{t("employees.labelRole")}</span>
                         <span className="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 font-medium">
                           {role?.name ?? emp.role_id}
                         </span>
@@ -664,12 +666,12 @@ export default function EmployeesPage() {
                     <div className="text-xs space-y-1 border-t border-slate-100 pt-2">
                       {emp.phone && (
                         <div className="flex items-start gap-2">
-                          <span className="text-slate-500 flex-shrink-0 w-14">Tel:</span>
+                          <span className="text-slate-500 flex-shrink-0 w-14">{t("employees.labelPhone")}</span>
                           <span className="text-slate-700">{emp.phone}</span>
                         </div>
                       )}
                       <div className="flex items-start gap-2">
-                        <span className="text-slate-500 flex-shrink-0 w-14">Tarifa:</span>
+                        <span className="text-slate-500 flex-shrink-0 w-14">{t("employees.labelRate")}</span>
                         <span className="text-slate-900 font-semibold">{fmt(emp.salary)}</span>
                       </div>
                     </div>
@@ -683,7 +685,7 @@ export default function EmployeesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        Ficha
+                        {t("employees.fichaBtn")}
                       </button>
                       <button
                         onClick={() => openEdit(emp)}
@@ -692,7 +694,7 @@ export default function EmployeesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        Editar
+                        {t("employees.editBtn")}
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(emp.id)}
@@ -701,7 +703,7 @@ export default function EmployeesPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        Eliminar
+                        {t("employees.deleteBtn")}
                       </button>
                     </div>
                   </div>
@@ -713,7 +715,7 @@ export default function EmployeesPage() {
 
         {!loading && (
           <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
-            {displayed.length} empleado{displayed.length !== 1 ? "s" : ""}
+            {t("employees.footer", { count: displayed.length })}
           </div>
         )}
       </Card>
@@ -723,7 +725,7 @@ export default function EmployeesPage() {
           <div className="fixed inset-0 bg-black/50" onClick={closeModal} />
           <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl">
-              <h2 className="text-base font-semibold text-white">{modalMode === "add" ? "Nuevo Empleado" : "Editar Empleado"}</h2>
+              <h2 className="text-base font-semibold text-white">{modalMode === "add" ? t("employees.modal.addTitle") : t("employees.modal.editTitle")}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -734,36 +736,36 @@ export default function EmployeesPage() {
             <form onSubmit={handleSave} className="p-6 space-y-4">
               {editingIsSystemUser && (
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
-                  Compte administrateur — seuls le nom et le mot de passe peuvent être modifiés.
+                  {t("employees.modal.adminWarning")}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nombre *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.firstName")}</label>
                   <input type="text" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Apellido *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.lastName")}</label>
                   <input type="text" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email (login) *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.email")}</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required disabled={editingIsSystemUser} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500" />
               </div>
 
               {!editingIsSystemUser && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Telefono</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.phone")}</label>
                     <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Rol *</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.role")}</label>
                       <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                         {tenantRoles.map((r) => (
                           <option key={r.id} value={r.id}>{r.name}</option>
@@ -771,21 +773,21 @@ export default function EmployeesPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Salario *</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.salaryType")}</label>
                       <select value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value as "hourly" | "monthly" })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="hourly">Tarifa por hora</option>
-                        <option value="monthly">Salario mensual</option>
+                        <option value="hourly">{t("employees.modal.hourly")}</option>
+                        <option value="monthly">{t("employees.modal.monthly")}</option>
                       </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">{form.salaryType === "monthly" ? "Salario mensual" : "Tarifa por hora"} *</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{form.salaryType === "monthly" ? t("employees.modal.salaryMonthly") : t("employees.modal.salaryHourly")}</label>
                     <input type="number" min="0" step="0.01" value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de contratacion *</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.hireDate")}</label>
                     <input type="date" value={form.hireDate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </>
@@ -796,30 +798,30 @@ export default function EmployeesPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  {modalMode === "add" ? (showPassword ? "Ocultar acceso" : "Definir acceso (login/contrasena)") : (showPassword ? "Ocultar" : "Cambiar contrasena")}
+                  {modalMode === "add" ? (showPassword ? t("employees.modal.toggleHideAccess") : t("employees.modal.toggleDefineAccess")) : (showPassword ? t("employees.modal.toggleHide") : t("employees.modal.toggleChangePassword"))}
                 </button>
 
                 {showPassword && (
                   <div className="mt-3 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Contrasena {modalMode === "add" ? "" : "nueva"}</label>
-                        <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Min. 6 caracteres" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.passwordLabel")} {modalMode === "add" ? "" : t("employees.modal.passwordNew")}</label>
+                        <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={t("employees.modal.passwordPlaceholder")} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.passwordConfirm")}</label>
                         <input type="password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                     </div>
-                    <p className="text-sm text-slate-500">L email sert de login. Le mot de passe cree un compte Supabase Auth pour cet employe.</p>
+                    <p className="text-sm text-slate-500">{t("employees.modal.passwordNote")}</p>
                   </div>
                 )}
               </div>
 
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="secondary" onClick={closeModal}>Cancelar</Button>
+                <Button variant="secondary" onClick={closeModal}>{t("employees.modal.cancel")}</Button>
                 <Button variant="primary" disabled={saving} onClick={handleSave}>
-                  {saving ? "Guardando..." : modalMode === "add" ? "Crear Empleado" : "Guardar Cambios"}
+                  {saving ? t("employees.modal.saving") : modalMode === "add" ? t("employees.modal.create") : t("employees.modal.save")}
                 </Button>
               </div>
             </form>
@@ -838,14 +840,14 @@ export default function EmployeesPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-slate-900">Eliminar empleado</h3>
-                <p className="text-sm text-slate-500">Esta accion no se puede deshacer.</p>
+                <h3 className="font-semibold text-slate-900">{t("employees.deleteConfirm.title")}</h3>
+                <p className="text-sm text-slate-500">{t("employees.deleteConfirm.message")}</p>
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setDeleteConfirmId(null)}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => setDeleteConfirmId(null)}>{t("employees.deleteConfirm.cancel")}</Button>
               <Button variant="danger" disabled={saving} onClick={() => handleDelete(deleteConfirmId)}>
-                {saving ? "Eliminando..." : "Eliminar"}
+                {saving ? t("employees.deleteConfirm.deleting") : t("employees.deleteConfirm.delete")}
               </Button>
             </div>
           </div>
@@ -862,8 +864,8 @@ export default function EmployeesPage() {
               <div>
                 <h2 className="text-base font-semibold text-white">{fichaEmp.first_name} {fichaEmp.last_name}</h2>
                 <p className="text-xs text-slate-300">
-                  {fichaEmp.hire_date ? `Contratado el ${fmtDate(fichaEmp.hire_date)}` : "Sin fecha de contratacion"}
-                  {" · "}{fmt(fichaEmp.salary)}/h
+                  {fichaEmp.hire_date ? t("employees.ficha.hiredOn", { date: fmtDate(fichaEmp.hire_date) }) : t("employees.ficha.noHireDate")}
+                  {" · "}{fmt(fichaEmp.salary)}{t("employees.ficha.perHour")}
                 </p>
               </div>
               <button onClick={() => setFichaEmp(null)} className="text-slate-400 hover:text-white transition-colors">
@@ -873,12 +875,12 @@ export default function EmployeesPage() {
 
             {/* Tabs */}
             <div className="flex gap-1 px-4 pt-3 pb-0 bg-white border-b border-slate-200 shrink-0">
-              {(["payments", "aguinaldo", "vacaciones"] as const).map((t) => (
-                <button key={t} onClick={() => setFichaTab(t)}
+              {(["payments", "aguinaldo", "vacaciones"] as const).map((tab) => (
+                <button key={tab} onClick={() => setFichaTab(tab)}
                   className={`px-4 py-2 text-sm font-semibold rounded-t-md transition-colors ${
-                    fichaTab === t ? "bg-white border border-b-white border-slate-200 text-slate-900 -mb-px" : "text-slate-500 hover:text-slate-700"
+                    fichaTab === tab ? "bg-white border border-b-white border-slate-200 text-slate-900 -mb-px" : "text-slate-500 hover:text-slate-700"
                   }`}>
-                  {t === "payments" ? "Historial de Pagos" : t === "aguinaldo" ? "13° Mes" : "Vacaciones"}
+                  {tab === "payments" ? t("employees.ficha.tabPayments") : tab === "aguinaldo" ? t("employees.ficha.tabBonus") : t("employees.ficha.tabVacation")}
                 </button>
               ))}
             </div>
@@ -892,40 +894,40 @@ export default function EmployeesPage() {
                   {/* Confirmation panel when paying a period */}
                   {fichaPayingPeriod && (
                     <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 space-y-3">
-                      <p className="text-sm font-bold text-white">Confirmar pago — {fichaPayingPeriod.period.label}</p>
+                      <p className="text-sm font-bold text-white">{t("employees.payments.confirmTitle", { period: fichaPayingPeriod.period.label })}</p>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white border border-blue-200 rounded-lg p-3 text-center">
-                          <p className="text-xs text-slate-500 mb-0.5">Horas trabajadas</p>
+                          <p className="text-xs text-slate-500 mb-0.5">{t("employees.payments.hoursWorked")}</p>
                           <p className="text-2xl font-bold text-slate-900">{fichaPayingPeriod.hoursWorked}</p>
                         </div>
                         <div className="bg-white border border-blue-200 rounded-lg p-3 text-center">
-                          <p className="text-xs text-slate-500 mb-0.5">Monto a pagar</p>
+                          <p className="text-xs text-slate-500 mb-0.5">{t("employees.payments.amountToPay")}</p>
                           <p className="text-2xl font-bold text-blue-700">{fmt(fichaPayingPeriod.amount)}</p>
                           <p className="text-xs text-slate-400">{fichaPayingPeriod.hoursWorked}h × {fmt(fichaEmp!.salary)}/h</p>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Ajuster le monto (optionnel)</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">{t("employees.payments.adjustAmount")}</label>
                         <input type="number" min="0" step="0.01"
                           value={fichaPayingPeriod.amount}
                           onChange={(e) => setFichaPayingPeriod((p) => p ? { ...p, amount: parseFloat(e.target.value) || 0 } : p)}
                           className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Notas (optionnel)</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">{t("employees.payments.notes")}</label>
                         <input type="text" value={fichaPayingPeriod.notes}
                           onChange={(e) => setFichaPayingPeriod((p) => p ? { ...p, notes: e.target.value } : p)}
-                          placeholder="Bono, descuento..."
+                          placeholder={t("employees.payments.notesPlaceholder")}
                           className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div className="flex gap-2">
                         <button onClick={confirmPay} disabled={fichaPaySaving}
                           className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors">
-                          {fichaPaySaving ? "Guardando..." : "✓ Confirmar Pago"}
+                          {fichaPaySaving ? t("employees.payments.saving") : t("employees.payments.confirmBtn")}
                         </button>
                         <button onClick={() => setFichaPayingPeriod(null)}
                           className="px-4 py-2 text-sm text-slate-600 border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
-                          Cancelar
+                          {t("employees.payments.cancel")}
                         </button>
                       </div>
                     </div>
@@ -933,9 +935,9 @@ export default function EmployeesPage() {
 
                   {/* Period list */}
                   {fichaLoading ? (
-                    <p className="text-sm text-slate-400 text-center py-6">Cargando periodos...</p>
+                    <p className="text-sm text-slate-400 text-center py-6">{t("employees.payments.loading")}</p>
                   ) : fichaPeriods.length === 0 ? (
-                    <p className="text-sm text-slate-400 text-center py-4">Sin periodos de pago configurados.</p>
+                    <p className="text-sm text-slate-400 text-center py-4">{t("employees.payments.noPeriods")}</p>
                   ) : (
                     <div className="space-y-1.5">
                       {fichaPeriods.map((period) => {
@@ -952,7 +954,7 @@ export default function EmployeesPage() {
                             <div>
                               <p className={`text-sm font-semibold ${paid ? "text-emerald-800" : "text-slate-800"}`}>
                                 {period.label}
-                                {period.isCurrent && <span className="ml-2 text-xs font-normal text-amber-600">actual</span>}
+                                {period.isCurrent && <span className="ml-2 text-xs font-normal text-amber-600">{t("employees.payments.current")}</span>}
                               </p>
                               {paid && (
                                 <p className="text-xs text-emerald-600">
@@ -964,11 +966,11 @@ export default function EmployeesPage() {
                             <div className="flex items-center gap-2 shrink-0 ml-3">
                               {paid ? (
                                 <>
-                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Pagado</span>
+                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{t("employees.payments.paid")}</span>
                                   {fichaPayDelConfirm === paid.id ? (
                                     <span className="flex gap-1">
-                                      <button onClick={() => handleDeletePayment(paid.id)} className="text-xs text-red-600 font-semibold hover:underline">Anular</button>
-                                      <button onClick={() => setFichaPayDelConfirm(null)} className="text-xs text-slate-400 hover:underline">No</button>
+                                      <button onClick={() => handleDeletePayment(paid.id)} className="text-xs text-red-600 font-semibold hover:underline">{t("employees.payments.annul")}</button>
+                                      <button onClick={() => setFichaPayDelConfirm(null)} className="text-xs text-slate-400 hover:underline">{t("employees.payments.no")}</button>
                                     </span>
                                   ) : (
                                     <button onClick={() => setFichaPayDelConfirm(paid.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
@@ -979,7 +981,7 @@ export default function EmployeesPage() {
                                   onClick={() => !fichaPayingLoading && startPayPeriod(period)}
                                   disabled={fichaPayingLoading && !isConfirming}
                                   className="text-xs font-bold px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white rounded-lg transition-colors">
-                                  {fichaPayingLoading && isConfirming ? "..." : "Pagar"}
+                                  {fichaPayingLoading && isConfirming ? t("employees.payments.loading2") : t("employees.payments.pay")}
                                 </button>
                               )}
                             </div>
@@ -991,7 +993,7 @@ export default function EmployeesPage() {
 
                   {fichaPayments.length > 0 && (
                     <p className="text-xs text-slate-400 text-right pt-1 border-t border-slate-100">
-                      Total pagado: <span className="font-bold text-slate-700">{fmt(fichaPayments.reduce((s, p) => s + p.amount, 0))}</span>
+                      {t("employees.payments.totalPaid")} <span className="font-bold text-slate-700">{fmt(fichaPayments.reduce((s, p) => s + p.amount, 0))}</span>
                     </p>
                   )}
                 </div>
@@ -1001,12 +1003,12 @@ export default function EmployeesPage() {
               {fichaTab === "aguinaldo" && (
                 <div className="space-y-4">
                   {!fichaEmp.hire_date ? (
-                    <p className="text-sm text-amber-600">Agrega la fecha de contratacion para calcular el aguinaldo.</p>
+                    <p className="text-sm text-amber-600">{t("employees.aguinaldo.noHireDate")}</p>
                   ) : aguinaldoData && (
                     <>
                       {avgHoursPerMonth === 0 && (
                         <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          Registra pagos con horas trabajadas para calcular el aguinaldo basado en el promedio mensual.
+                          {t("employees.aguinaldo.noPayments")}
                         </p>
                       )}
                       
@@ -1015,51 +1017,51 @@ export default function EmployeesPage() {
                         <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
                           <span className="text-lg">⏰</span>
                           <p className="text-sm text-red-700">
-                            <span className="font-semibold">Pago vence el {fmtDate(new Date(new Date(fichaAguinaldoData.cycleEnd).getFullYear(), 11, 15).toISOString().split("T")[0])}</span>
-                            {" · Aguinaldo acumulado: "}<span className="font-bold">{fmt(fichaAguinaldoData.calculatedBonus)}</span>
+                            <span className="font-semibold">{t("employees.aguinaldo.deadlineAlert", { date: fmtDate(new Date(new Date(fichaAguinaldoData.cycleEnd).getFullYear(), 11, 15).toISOString().split("T")[0]) })}</span>
+                            {" · "}{t("employees.aguinaldo.accumulatedAlert", { amount: fmt(fichaAguinaldoData.calculatedBonus) })}
                           </p>
                         </div>
                       )}
                       
                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                        <p className="text-xs text-white font-semibold uppercase tracking-wide mb-2">Ciclo actual</p>
+                        <p className="text-xs text-white font-semibold uppercase tracking-wide mb-2">{t("employees.aguinaldo.currentCycle")}</p>
                         <p className="text-sm text-slate-700">
                           {fmtDate(fichaAguinaldoData?.cycleStart)} – {fmtDate(fichaAguinaldoData?.cycleEnd)}
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                          {Math.floor(fichaAguinaldoData?.monthsWorkedInCycle || 0)} mes{Math.floor(fichaAguinaldoData?.monthsWorkedInCycle || 0) !== 1 ? "es" : ""} trabajados en este ciclo
+                          {t("employees.aguinaldo.monthsWorked", { n: Math.floor(fichaAguinaldoData?.monthsWorkedInCycle || 0) })}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white border border-slate-200 rounded-xl p-4">
-                          <p className="text-xs text-slate-500 mb-1">Salario mensual prom.</p>
+                          <p className="text-xs text-slate-500 mb-1">{t("employees.aguinaldo.avgSalary")}</p>
                           <p className="text-2xl font-bold text-slate-900">{fmt(fichaAguinaldoData?.avgMonthlySalary || 0)}</p>
-                          <p className="text-xs text-slate-400">Basado en ingresos reales</p>
+                          <p className="text-xs text-slate-400">{t("employees.aguinaldo.basedOnReal")}</p>
                         </div>
                         <div className={`rounded-xl p-4 border ${fichaAguinaldoData?.alreadyPaid ? "bg-green-50 border-green-200" : "bg-emerald-50 border-emerald-200"}`}>
-                          <p className={`text-xs ${fichaAguinaldoData?.alreadyPaid ? "text-green-700" : "text-emerald-700"} mb-1`}>Aguinaldo acumulado</p>
+                          <p className={`text-xs ${fichaAguinaldoData?.alreadyPaid ? "text-green-700" : "text-emerald-700"} mb-1`}>{t("employees.aguinaldo.accumulated")}</p>
                           <p className={`text-2xl font-bold ${fichaAguinaldoData?.alreadyPaid ? "text-green-700" : "text-emerald-700"}`}>{fmt(fichaAguinaldoData?.calculatedBonus || 0)}</p>
-                          <p className={`text-xs ${fichaAguinaldoData?.alreadyPaid ? "text-green-600" : "text-emerald-600"}`}>{Math.floor(aguinaldoData.monthsWorked)}/12 meses</p>
+                          <p className={`text-xs ${fichaAguinaldoData?.alreadyPaid ? "text-green-600" : "text-emerald-600"}`}>{t("employees.aguinaldo.months", { n: Math.floor(aguinaldoData.monthsWorked) })}</p>
                         </div>
                       </div>
                       
                       {!fichaAguinaldoData?.alreadyPaid && (
                         <button onClick={() => setShowBonusPayModal(true)}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg transition-colors">
-                          💰 Registrar Pago de Aguinaldo
+                          {t("employees.aguinaldo.payBtn")}
                         </button>
                       )}
                       
                       {fichaAguinaldoHistory.length > 0 && (
                         <div>
-                          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">Historial de Pagos</p>
+                          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">{t("employees.aguinaldo.historyTitle")}</p>
                           <div className="space-y-2">
                             {fichaAguinaldoHistory.map((payment) => (
                               <div key={payment.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex justify-between items-start">
                                 <div>
-                                  <p className="text-sm font-semibold text-slate-900">Ciclo {payment.cycle_year}</p>
+                                  <p className="text-sm font-semibold text-slate-900">{t("employees.aguinaldo.cycle", { year: payment.cycle_year })}</p>
                                   <p className="text-xs text-slate-500">
-                                    Pagado el {payment.paid_at ? fmtDate(payment.paid_at.split("T")[0]) : "Pendiente"}
+                                    {payment.paid_at ? t("employees.aguinaldo.paidOn", { date: fmtDate(payment.paid_at.split("T")[0]) }) : t("employees.aguinaldo.pending")}
                                   </p>
                                 </div>
                                 <p className="text-sm font-bold text-slate-900">{fmt(payment.paid_amount || payment.calculated_amount)}</p>
@@ -1070,8 +1072,7 @@ export default function EmployeesPage() {
                       )}
                       
                       <p className="text-xs text-slate-400">
-                        * Ley 185 Nicaragua: aguinaldo = 1 mes de salario ordinario por año trabajado.
-                        Calculado como promedio de horas/mes × tarifa/h, pro-rateado a los meses trabajados en el ciclo Dic–Nov.
+                        {t("employees.aguinaldo.legalNote")}
                       </p>
                     </>
                   )}
@@ -1082,12 +1083,12 @@ export default function EmployeesPage() {
               {fichaTab === "vacaciones" && (
                 <div className="space-y-4">
                   {!fichaEmp.hire_date ? (
-                    <p className="text-sm text-amber-600">Agrega la fecha de contratacion para calcular las vacaciones.</p>
+                    <p className="text-sm text-amber-600">{t("employees.vacation.noHireDate")}</p>
                   ) : vacationData && (
                     <>
                       {vacationData.avgHoursPerMonth === 0 && (
                         <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          Registra pagos con horas trabajadas para calcular el valor monetario de las vacaciones.
+                          {t("employees.vacation.noPayments")}
                         </p>
                       )}
                       
@@ -1096,26 +1097,26 @@ export default function EmployeesPage() {
                         <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2">
                           <span className="text-lg">🏖️</span>
                           <p className="text-sm text-amber-700">
-                            <span className="font-semibold">El empleado tiene derecho a vacaciones</span> ({fichaVacationData.daysRemaining} días acumulados)
+                            <span className="font-semibold">{t("employees.vacation.dueAlert", { n: fichaVacationData.daysRemaining })}</span>
                           </p>
                         </div>
                       )}
                       
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                        <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-1">Desde contratacion</p>
+                        <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide mb-1">{t("employees.vacation.sinceHire")}</p>
                         <p className="text-sm text-slate-700">
-                          {fmtDate(fichaEmp.hire_date!)} – hoy
-                          {" · "}{Math.floor(fichaVacationData?.monthsSinceHire || 0)} mes{Math.floor(fichaVacationData?.monthsSinceHire || 0) !== 1 ? "es" : ""}
+                          {fmtDate(fichaEmp.hire_date!)} – {t("employees.vacation.today")}
+                          {" · "}{t("employees.vacation.months", { n: Math.floor(fichaVacationData?.monthsSinceHire || 0) })}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                          <p className="text-xs text-amber-700 mb-1">Días acumulados</p>
+                          <p className="text-xs text-amber-700 mb-1">{t("employees.vacation.daysAccrued")}</p>
                           <p className="text-2xl font-bold text-amber-700">{fichaVacationData?.daysAccrued || 0}</p>
-                          <p className="text-xs text-amber-600">2.5 días × {Math.floor(fichaVacationData?.monthsSinceHire || 0)} mes{Math.floor(fichaVacationData?.monthsSinceHire || 0) !== 1 ? "es" : ""}</p>
+                          <p className="text-xs text-amber-600">{t("employees.vacation.perMonth", { n: Math.floor(fichaVacationData?.monthsSinceHire || 0) })}</p>
                         </div>
                         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                          <p className="text-xs text-green-700 mb-1">Días disponibles</p>
+                          <p className="text-xs text-green-700 mb-1">{t("employees.vacation.daysAvailable")}</p>
                           <p className="text-2xl font-bold text-green-700">{fichaVacationData?.daysRemaining || 0}</p>
                         </div>
                       </div>
@@ -1123,11 +1124,11 @@ export default function EmployeesPage() {
                       {fichaVacationData && (
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                            <p className="text-xs text-slate-600 font-semibold">Días utilizados</p>
+                            <p className="text-xs text-slate-600 font-semibold">{t("employees.vacation.daysUsed")}</p>
                             <p className="text-2xl font-bold text-slate-900">{fichaVacationData.daysUsed}</p>
                           </div>
                           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">Valor monetario</p>
+                            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">{t("employees.vacation.monetaryValue")}</p>
                             <p className="text-xl font-bold text-emerald-700">{fmt(fichaVacationData.monetaryValue || 0)}</p>
                           </div>
                         </div>
@@ -1136,25 +1137,25 @@ export default function EmployeesPage() {
                       {fichaVacationData && fichaVacationData.daysRemaining > 0 && (
                         <button onClick={() => setShowVacationPayModal(true)}
                           className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg transition-colors">
-                          🏖️ Registrar Vacaciones
+                          {t("employees.vacation.payBtn")}
                         </button>
                       )}
                       
                       {fichaVacationHistory.length > 0 && (
                         <div>
-                          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">Historial de Vacaciones</p>
+                          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">{t("employees.vacation.historyTitle")}</p>
                           <div className="space-y-2">
                             {fichaVacationHistory.map((vacation) => (
                               <div key={vacation.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                                 <div className="flex justify-between items-start mb-1">
                                   <p className="text-sm font-semibold text-slate-900">
-                                    {vacation.days_used} días ({fmtDate(vacation.start_date)} a {fmtDate(vacation.end_date)})
+                                    {t("employees.vacation.historyItem", { days: vacation.days_used, from: fmtDate(vacation.start_date), to: fmtDate(vacation.end_date) })}
                                   </p>
                                   <p className="text-sm font-bold text-slate-900">{fmt(vacation.monetary_value)}</p>
                                 </div>
-                                {vacation.notes && <p className="text-xs text-slate-500">Notas: {vacation.notes}</p>}
+                                {vacation.notes && <p className="text-xs text-slate-500">{t("employees.vacation.notes", { notes: vacation.notes })}</p>}
                                 <p className="text-xs text-slate-400">
-                                  Registrado el {fmtDate(vacation.created_at.split("T")[0])}
+                                  {t("employees.vacation.registeredOn", { date: fmtDate(vacation.created_at.split("T")[0]) })}
                                 </p>
                               </div>
                             ))}
@@ -1163,8 +1164,7 @@ export default function EmployeesPage() {
                       )}
                       
                       <p className="text-xs text-slate-400">
-                        * Art. 76 Código Laboral Nicaragua: 15 días por cada 6 meses = 2.5 días/mes.
-                        Valor monetario = días acumulados × horas promedio por día (promedio mensual ÷ 30) × tarifa/h.
+                        {t("employees.vacation.legalNote")}
                       </p>
                     </>
                   )}
@@ -1176,7 +1176,7 @@ export default function EmployeesPage() {
             {/* ── Bonus Payment Modal ── */}
             <Dialog
               isOpen={showBonusPayModal && !!fichaAguinaldoData}
-              title="Pagar Aguinaldo"
+              title={t("employees.bonusModal.title")}
               onClose={() => setShowBonusPayModal(false)}
               maxWidth="sm"
               footer={
@@ -1186,19 +1186,19 @@ export default function EmployeesPage() {
                     disabled={bonusPaySaving || !bonusPayForm.paidAmount}
                     className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg text-white font-semibold whitespace-nowrap"
                   >
-                    {bonusPaySaving ? "Guardando..." : "✓ Confirmar"}
+                    {bonusPaySaving ? t("employees.bonusModal.saving") : t("employees.bonusModal.confirm")}
                   </button>
                 </div>
               }
             >
               <div className="space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-xs text-white font-semibold mb-1">Monto a pagar</p>
+                  <p className="text-xs text-white font-semibold mb-1">{t("employees.bonusModal.amountLabel")}</p>
                   <p className="text-2xl font-bold text-white">{fichaAguinaldoData ? fmt(fichaAguinaldoData.calculatedBonus) : 0}</p>
-                  <p className="text-xs text-white mt-1">Ciclo {fichaAguinaldoData?.cycleYear}</p>
+                  <p className="text-xs text-white mt-1">{t("employees.bonusModal.cycle", { year: fichaAguinaldoData?.cycleYear })}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Monto pagado</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t("employees.bonusModal.paidLabel")}</label>
                   <input
                     type="number"
                     value={bonusPayForm.paidAmount}
@@ -1208,12 +1208,12 @@ export default function EmployeesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t("employees.bonusModal.notesLabel")}</label>
                   <input
                     type="text"
                     value={bonusPayForm.notes}
                     onChange={(e) => setBonusPayForm((f) => ({ ...f, notes: e.target.value }))}
-                    placeholder="Ej: Transferencia bancaria"
+                    placeholder={t("employees.bonusModal.notesPlaceholder")}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -1223,7 +1223,7 @@ export default function EmployeesPage() {
             {/* ── Vacation Payment Modal ── */}
             <Dialog
               isOpen={showVacationPayModal && !!fichaVacationData}
-              title="Registrar Vacaciones"
+              title={t("employees.vacationModal.title")}
               onClose={() => setShowVacationPayModal(false)}
               maxWidth="sm"
               footer={
@@ -1233,19 +1233,19 @@ export default function EmployeesPage() {
                     disabled={vacationPaySaving || !vacationPayForm.daysUsed || !vacationPayForm.startDate || !vacationPayForm.endDate}
                     className="py-2 px-4 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-white font-semibold whitespace-nowrap"
                   >
-                    {vacationPaySaving ? "Guardando..." : "✓ Guardar"}
+                    {vacationPaySaving ? t("employees.vacationModal.saving") : t("employees.vacationModal.confirm")}
                   </button>
                 </div>
               }
             >
               <div className="space-y-4">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-xs text-amber-600 font-semibold mb-1">Días disponibles</p>
-                  <p className="text-2xl font-bold text-amber-900">{fichaVacationData ? fichaVacationData.daysRemaining : 0} días</p>
+                  <p className="text-xs text-amber-600 font-semibold mb-1">{t("employees.vacationModal.availableDays")}</p>
+                  <p className="text-2xl font-bold text-amber-900">{fichaVacationData ? fichaVacationData.daysRemaining : 0} {t("employees.vacation.daysAccrued").toLowerCase()}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Días</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t("employees.vacationModal.daysLabel")}</label>
                     <input
                       type="number"
                       step="0.5"
@@ -1257,7 +1257,7 @@ export default function EmployeesPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Desde</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t("employees.vacationModal.fromLabel")}</label>
                     <input
                       type="date"
                       value={vacationPayForm.startDate}
@@ -1267,7 +1267,7 @@ export default function EmployeesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Hasta</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t("employees.vacationModal.toLabel")}</label>
                   <input
                     type="date"
                     value={vacationPayForm.endDate}
@@ -1276,12 +1276,12 @@ export default function EmployeesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Notas (opcional)</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t("employees.vacationModal.notesLabel")}</label>
                   <input
                     type="text"
                     value={vacationPayForm.notes}
                     onChange={(e) => setVacationPayForm((f) => ({ ...f, notes: e.target.value }))}
-                    placeholder="Ej: Aprobado por gerente"
+                    placeholder={t("employees.vacationModal.notesPlaceholder")}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
