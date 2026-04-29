@@ -103,8 +103,11 @@ function generateSummarySales(
   let totalDiscount = 0;
   let totalTax = 0;
   let bestHour = { hour: 0, count: 0 };
-  const hourCounts = new Map<number, number>();
   const hourSales = new Map<number, number>();
+
+  // Track unique timestamps per day and per hour (same second = same client)
+  const dailyUniqueTs = new Map<string, Set<string>>();
+  const hourUniqueTs = new Map<number, Set<string>>();
 
   txns.forEach((tx) => {
     const date = new Date(tx.created_at);
@@ -112,16 +115,20 @@ function generateSummarySales(
     const localDate = new Date(date.getTime() - 6 * 60 * 60 * 1000);
     const dateStr = localDate.toISOString().split("T")[0];
     const hour = localDate.getUTCHours();
+    // Key to the second — same second = same client (handles imported data)
+    const tsKey = tx.created_at.substring(0, 19);
 
     totalSales += Number(tx.total);
     totalDiscount += Number(tx.discount || 0);
     totalTax += Number(tx.tax || 0);
 
-    // Track hourly distribution
-    hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+    // Track unique client timestamps per hour
+    if (!hourUniqueTs.has(hour)) hourUniqueTs.set(hour, new Set());
+    hourUniqueTs.get(hour)!.add(tsKey);
     hourSales.set(hour, (hourSales.get(hour) || 0) + Number(tx.total));
-    if ((hourCounts.get(hour) || 0) > bestHour.count) {
-      bestHour = { hour, count: hourCounts.get(hour)! };
+    const hourClientCount = hourUniqueTs.get(hour)!.size;
+    if (hourClientCount > bestHour.count) {
+      bestHour = { hour, count: hourClientCount };
     }
 
     // Aggregate by date
@@ -134,13 +141,15 @@ function generateSummarySales(
         transactions: 0,
         payment: {},
       });
+      dailyUniqueTs.set(dateStr, new Set());
     }
 
     const daily = dailyMap.get(dateStr)!;
     daily.sales += Number(tx.total);
     daily.discount += Number(tx.discount || 0);
     daily.tax += Number(tx.tax || 0);
-    daily.transactions += 1;
+    dailyUniqueTs.get(dateStr)!.add(tsKey);
+    daily.transactions = dailyUniqueTs.get(dateStr)!.size;
     daily.payment[tx.payment_method] = (daily.payment[tx.payment_method] || 0) + Number(tx.total);
   });
 
@@ -154,17 +163,22 @@ function generateSummarySales(
     byHour.push({
       hour,
       sales: hourSales.get(hour) || 0,
-      transactions: hourCounts.get(hour) || 0,
+      transactions: hourUniqueTs.get(hour)?.size || 0,
     });
   }
+
+  // Total unique client timestamps across all days
+  const allUniqueTs = new Set<string>();
+  txns.forEach((tx) => allUniqueTs.add(tx.created_at.substring(0, 19)));
+  const totalClients = allUniqueTs.size;
 
   return {
     summary: {
       totalSales,
       totalDiscount,
       totalTax,
-      totalTransactions: txns.length,
-      averageTransaction: txns.length > 0 ? totalSales / txns.length : 0,
+      totalTransactions: totalClients,
+      averageTransaction: totalClients > 0 ? totalSales / totalClients : 0,
       bestHour: bestHour.hour,
       bestHourCount: bestHour.count,
     },

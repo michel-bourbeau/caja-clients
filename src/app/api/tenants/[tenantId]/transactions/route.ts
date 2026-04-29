@@ -64,14 +64,19 @@ export async function GET(
     const url = new URL(request.url);
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
+    // Exact UTC timestamps for Nicaragua-timezone-aware day queries
+    const fromUtc = url.searchParams.get("fromUtc");
+    const toUtc = url.searchParams.get("toUtc");
 
     let query = supabaseAdmin
       .from("transactions")
       .select("*")
       .eq("tenant_id", tenantId);
 
-    // Apply date filters if provided
-    if (from && to) {
+    // Apply date filters — prefer exact UTC range (Nicaragua-aware), fallback to date strings
+    if (fromUtc && toUtc) {
+      query = query.gte("created_at", fromUtc).lt("created_at", toUtc);
+    } else if (from && to) {
       query = query
         .gte("created_at", `${from}T00:00:00Z`)
         .lte("created_at", `${to}T23:59:59Z`);

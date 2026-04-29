@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, DashboardHeader, EmptyState } from "@/components";
+import { PageIcon, DashboardHeader, EmptyState, Dialog } from "@/components";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -78,6 +78,13 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Day detail dialog
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [dayTransactions, setDayTransactions] = useState<any[]>([]);
+  const [dayDialogOpen, setDayDialogOpen] = useState(false);
+  const [dayLoading, setDayLoading] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+
   // Calculate date range based on period type
   const getDateRange = (date: Date, type: PeriodType): { from: string; to: string } => {
     const year = date.getFullYear();
@@ -140,6 +147,66 @@ export default function ReportsPage() {
       return currentDate.toLocaleDateString("es-NI", { month: "long", year: "numeric" });
     } else {
       return year.toString();
+    }
+  };
+
+  // Build clients-per-day (or per-month for YEAR) from byDay transactions
+  const clientsChartData = useMemo(() => {
+    if (!salesData?.byDay) return [];
+
+    if (periodType === "YEAR") {
+      const monthMap = new Map<string, { key: string; label: string; clients: number }>();
+      salesData.byDay.forEach((day) => {
+        const [y, m] = day.date.split("-");
+        const key = `${y}-${m}`;
+        if (!monthMap.has(key)) {
+          const d = new Date(Number(y), Number(m) - 1, 1);
+          const label = d.toLocaleDateString("es-NI", { month: "short" });
+          monthMap.set(key, { key, label, clients: 0 });
+        }
+        monthMap.get(key)!.clients += day.transactions;
+      });
+      return Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
+    }
+
+    if (periodType === "WEEK") {
+      return salesData.byDay.map((day) => {
+        const [y, m, d] = day.date.split("-").map(Number);
+        const label = new Date(y, m - 1, d).toLocaleDateString("es-NI", { weekday: "short", day: "numeric" });
+        return { key: day.date, label, clients: day.transactions };
+      });
+    }
+
+    // MONTH — one bar per day
+    return salesData.byDay.map((day) => {
+      const [y, m, d] = day.date.split("-").map(Number);
+      const label = new Date(y, m - 1, d).toLocaleDateString("es-NI", { day: "numeric", month: "short" });
+      return { key: day.date, label, clients: day.transactions };
+    });
+  }, [salesData, periodType]);
+
+  const fetchDayDetail = async (dateStr: string) => {
+    if (!tenantId || !dateStr) return;
+    setSelectedDay(dateStr);
+    setDayTransactions([]);
+    setDayDialogOpen(true);
+    setDayLoading(true);
+    try {
+      // Nicaragua day: midnight local = T06:00Z; next midnight = next day T06:00Z
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const fromUtc = `${dateStr}T06:00:00.000Z`;
+      const nextDay = new Date(Date.UTC(y, m - 1, d + 1));
+      const toUtc = `${nextDay.toISOString().split("T")[0]}T06:00:00.000Z`;
+      const res = await fetch(
+        `/api/tenants/${tenantId}/transactions?fromUtc=${encodeURIComponent(fromUtc)}&toUtc=${encodeURIComponent(toUtc)}`
+      );
+      if (!res.ok) throw new Error("Error loading day detail");
+      const data = await res.json();
+      setDayTransactions((data || []).filter((tx: any) => tx.status === "COMPLETED"));
+    } catch {
+      setDayTransactions([]);
+    } finally {
+      setDayLoading(false);
     }
   };
 
@@ -284,12 +351,88 @@ export default function ReportsPage() {
             </div>
 
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-4">
-              <p className="text-sm text-purple-700 font-semibold mb-1">Mejor Hora</p>
-              <p className="text-3xl font-bold text-purple-900">{String(salesData.summary.bestHour).padStart(2, "0")}:00</p>
-              <p className="text-xs text-purple-600 mt-2">{salesData.summary.bestHourCount} transacciones</p>
+              <p className="text-sm text-purple-700 font-semibold mb-1">Total Clientes</p>
+              <p className="text-3xl font-bold text-purple-900">{salesData.summary.totalTransactions}</p>
+              <p className="text-xs text-purple-600 mt-2">ventas únicas en {formatPeriodLabel()}</p>
             </div>
           </div>
         )}
+
+        {/* Clients Analysis */}
+        {!loading && clientsChartData.length > 0 && salesData && (() => {
+          const peakPeriod = clientsChartData.reduce(
+            (best, d) => (d.clients > best.clients ? d : best),
+            { key: "", label: "–", clients: 0 }
+          );
+          const activePeriods = clientsChartData.filter((d) => d.clients > 0).length;
+          const avgClients = activePeriods > 0
+            ? Math.round(salesData.summary.totalTransactions / activePeriods)
+            : 0;
+          const periodLabel = periodType === "YEAR" ? "por mes" : periodType === "WEEK" ? "por día" : "por día activo";
+          const peakLabel = periodType === "YEAR" ? "Mejor Mes" : "Mejor Día";
+          const chartTitle = periodType === "YEAR" ? "Clientes por Mes" : periodType === "WEEK" ? "Clientes por Día (Semana)" : "Clientes por Día";
+
+          return (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">{chartTitle}</h2>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="bg-purple-50 rounded-lg p-3 text-center border border-purple-100">
+                  <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">Total</p>
+                  <p className="text-2xl font-bold text-purple-900">{salesData.summary.totalTransactions}</p>
+                  <p className="text-xs text-purple-500 mt-0.5">clientes</p>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-100">
+                  <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Promedio</p>
+                  <p className="text-2xl font-bold text-blue-900">{avgClients}</p>
+                  <p className="text-xs text-blue-500 mt-0.5">{periodLabel}</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+                  <p className="text-xs text-green-600 font-medium uppercase tracking-wide">{peakLabel}</p>
+                  <p className="text-2xl font-bold text-green-900">{peakPeriod.label}</p>
+                  <p className="text-xs text-green-500 mt-0.5">{peakPeriod.clients} clientes</p>
+                </div>
+              </div>
+
+              {/* Desktop Bar Chart */}
+              <div className="hidden sm:block">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={clientsChartData} barCategoryGap="30%">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <Tooltip formatter={(value) => [value, "Clientes"]} />
+                    <Bar
+                      dataKey="clients"
+                      fill="#8B5CF6"
+                      name="Clientes"
+                      radius={[4, 4, 0, 0]}
+                      cursor={periodType !== "YEAR" ? "pointer" : "default"}
+                      onClick={periodType !== "YEAR" ? (data: any) => fetchDayDetail(data.key) : undefined}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Mobile List */}
+              <div className="sm:hidden space-y-2">
+                {clientsChartData.filter((d) => d.clients > 0).map((d) => (
+                  <div
+                    key={d.key}
+                    className={`flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200 ${periodType !== "YEAR" ? "cursor-pointer hover:bg-purple-50" : ""}`}
+                    onClick={periodType !== "YEAR" ? () => fetchDayDetail(d.key) : undefined}
+                  >
+                    <p className="font-medium text-slate-900">{d.label}</p>
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                      {d.clients} clientes
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Sales by Hour Chart */}
         {salesData && salesData.byHour && salesData.byHour.length > 0 && (
@@ -368,7 +511,11 @@ export default function ReportsPage() {
             {/* Mobile List */}
             <div className="sm:hidden space-y-2">
               {salesData.byDay.map((day: any) => (
-                <div key={day.date} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <div
+                  key={day.date}
+                  className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-blue-50"
+                  onClick={() => fetchDayDetail(day.date)}
+                >
                   <div>
                     <p className="font-medium text-slate-900">{new Date(day.date).toLocaleDateString("es-NI", { month: "short", day: "numeric" })}</p>
                     <p className="text-xs text-slate-600">{day.transactions} transacciones</p>
@@ -538,6 +685,161 @@ export default function ReportsPage() {
               <p className="text-slate-500 text-center py-8">No hay datos</p>
             )}
           </div>
+        )}
+        {/* Day Detail Dialog */}
+        {selectedDay && (() => {
+          const [y, m, d] = selectedDay.split("-").map(Number);
+          const dayTitle = new Date(y, m - 1, d, 12).toLocaleDateString("es-NI", {
+            weekday: "long", day: "numeric", month: "long", year: "numeric",
+          });
+          const totalNeto = dayTransactions.reduce((s, tx) => s + Number(tx.total), 0);
+          const totalBruto = dayTransactions.reduce((s, tx) => s + Number(tx.total) + Number(tx.discount || 0), 0);
+          const promedio = dayTransactions.length > 0 ? totalNeto / dayTransactions.length : 0;
+          const getTxTime = (tx: any) => {
+            const local = new Date(new Date(tx.created_at).getTime() - 6 * 60 * 60 * 1000);
+            return `${String(local.getUTCHours()).padStart(2, "0")}:${String(local.getUTCMinutes()).padStart(2, "0")}`;
+          };
+
+          // Group transactions with the same timestamp (to the second) = 1 client
+          const groupedMap = new Map<string, { txs: any[]; key: string }>();
+          dayTransactions.forEach((tx) => {
+            const key = tx.created_at.substring(0, 19); // "YYYY-MM-DDTHH:MM:SS"
+            if (!groupedMap.has(key)) groupedMap.set(key, { txs: [], key });
+            groupedMap.get(key)!.txs.push(tx);
+          });
+          const clientGroups = Array.from(groupedMap.values()).sort((a, b) =>
+            a.key.localeCompare(b.key)
+          );
+          const clientCount = clientGroups.length;
+          return (
+            <Dialog
+              isOpen={dayDialogOpen}
+              title={`Análisis de Clientes — ${dayTitle}`}
+              onClose={() => { setDayDialogOpen(false); setSelectedTx(null); }}
+            >
+              {dayLoading ? (
+                <div className="py-12 flex items-center justify-center">
+                  <EmptyState state="loading" message="Cargando ventas del día..." />
+                </div>
+              ) : dayTransactions.length === 0 ? (
+                <div className="py-12 text-center text-slate-500">No hay ventas registradas para este día.</div>
+              ) : (
+                <div>
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5 pb-4 border-b border-slate-200">
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">Clientes</p>
+                      <p className="text-2xl font-bold text-slate-900">{clientCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">Total Bruto</p>
+                      <p className="text-2xl font-bold text-slate-900">C${totalBruto.toFixed(0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">Total Neto</p>
+                      <p className="text-2xl font-bold text-slate-900">C${totalNeto.toFixed(0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">Promedio/Cliente</p>
+                      <p className="text-2xl font-bold text-slate-900">C${clientCount > 0 ? (totalNeto / clientCount).toFixed(0) : "0"}</p>
+                    </div>
+                  </div>
+                  {/* Transactions table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-900 text-white text-xs uppercase font-semibold">
+                          <th className="px-3 py-2 text-left">Hora</th>
+                          <th className="px-3 py-2 text-left">Empleado</th>
+                          <th className="px-3 py-2 text-right">Productos</th>
+                          <th className="px-3 py-2 text-right">Total</th>
+                          <th className="px-3 py-2 text-right">Descuento</th>
+                          <th className="px-3 py-2 text-right">Neto</th>
+                          <th className="px-3 py-2 text-center">Detalles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {clientGroups.map((group, i) => {
+                          const repTx = group.txs[0];
+                          // Aggregate all txs in this group (same timestamp = same client)
+                          const allItems: any[] = group.txs.flatMap((tx: any) => tx.items || []);
+                          const itemCount = allItems.reduce((s: number, it: any) => s + (it.quantity || 1), 0);
+                          const groupTotal = group.txs.reduce((s: number, tx: any) => s + Number(tx.total), 0);
+                          const groupDisc = group.txs.reduce((s: number, tx: any) => s + Number(tx.discount || 0), 0);
+                          const groupBruto = groupTotal + groupDisc;
+                          // Build a synthetic tx for the detail dialog
+                          const syntheticTx = { ...repTx, items: allItems, total: groupTotal, discount: groupDisc };
+                          return (
+                            <tr key={group.key} className={i % 2 === 0 ? "" : "bg-slate-50/50"}>
+                              <td className="px-3 py-2.5 font-bold text-slate-900">{getTxTime(repTx)}</td>
+                              <td className="px-3 py-2.5 text-slate-700">{repTx.cashier_name || "—"}</td>
+                              <td className="px-3 py-2.5 text-right text-slate-700">{itemCount}</td>
+                              <td className="px-3 py-2.5 text-right text-slate-700">C${groupBruto.toFixed(0)}</td>
+                              <td className="px-3 py-2.5 text-right">
+                                {groupDisc > 0
+                                  ? <span className="text-amber-600 font-medium">-C${groupDisc.toFixed(0)}</span>
+                                  : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-bold text-green-700">C${groupTotal.toFixed(0)}</td>
+                              <td className="px-3 py-2.5 text-center">
+                                <button
+                                  onClick={() => setSelectedTx(syntheticTx)}
+                                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 transition-colors"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-slate-300 bg-slate-50">
+                          <td className="px-3 py-2 text-right text-xs text-slate-500 font-semibold" colSpan={6}>Total clientes:</td>
+                          <td className="px-3 py-2 text-center font-bold text-slate-900">{clientCount}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </Dialog>
+          );
+        })()}
+
+        {/* Item Detail Sub-Dialog */}
+        {selectedTx && (
+          <Dialog
+            isOpen
+            title={`Detalle · ${(() => {
+              const local = new Date(new Date(selectedTx.created_at).getTime() - 6 * 60 * 60 * 1000);
+              return `${String(local.getUTCHours()).padStart(2, "0")}:${String(local.getUTCMinutes()).padStart(2, "0")} — ${selectedTx.cashier_name || "—"}`;
+            })()}`}
+            onClose={() => setSelectedTx(null)}
+            maxWidth="md"
+          >
+            <div className="space-y-2">
+              {(selectedTx.items || []).map((item: any, i: number) => (
+                <div key={i} className="flex justify-between items-center p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex-1 min-w-0 mr-4">
+                    <p className="font-medium text-slate-900 text-sm truncate">{item.name || item.productId}</p>
+                    {item.variantName && <p className="text-xs text-slate-500">{item.variantName}</p>}
+                  </div>
+                  <div className="flex items-center gap-3 text-sm flex-shrink-0">
+                    <span className="text-slate-500">{item.quantity}×</span>
+                    <span className="text-slate-500 w-16 text-right">C${Number(item.price || 0).toFixed(2)}</span>
+                    <span className="font-bold text-slate-900 w-20 text-right">C${Number(item.total || (item.price * item.quantity) || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between items-center px-3 py-2.5 rounded-lg bg-slate-900 text-white mt-3">
+                <span className="font-semibold">Total</span>
+                <span className="font-bold">C${Number(selectedTx.total).toFixed(2)}</span>
+              </div>
+            </div>
+          </Dialog>
         )}
       </Section>
     </Container>
