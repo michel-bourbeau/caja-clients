@@ -520,6 +520,82 @@
     }
   },
 
+  "admin": {
+    "title": "Admin",
+    "roles": {
+      "card_title": "👥 Gestion des Rôles",
+      "card_desc": "Créez et personnalisez des rôles selon les besoins de votre entreprise. Définissez des permissions spécifiques pour chaque fonction.",
+      "card_btn": "Aller à la Gestion des Rôles"
+    },
+    "settings": {
+      "card_title": "⚙️ Configuration Système",
+      "card_desc": "Ajustez la configuration générale de votre système comme la TVA, les informations d'entreprise et les intégrations.",
+      "card_btn": "Aller à la Configuration"
+    },
+    "audit": {
+      "card_title": "📜 Journal d'Audit",
+      "card_desc": "Consultez l'historique des modifications et des activités dans le système pour garantir la sécurité."
+    },
+    "stats": {
+      "card_title": "📊 Statistiques",
+      "card_desc": "Visualisez les statistiques du système comme les utilisateurs actifs, les transactions et plus."
+    },
+    "comingSoon": "(À venir)",
+    "sysInfo": {
+      "title": "Informations Système",
+      "version": "Version",
+      "status": "Statut",
+      "statusValue": "✓ Actif",
+      "database": "Base de Données",
+      "lastSync": "Dernière Synchronisation",
+      "lastSyncValue": "Il y a 5 min"
+    },
+    "rolesPage": {
+      "title": "Gérer les Rôles",
+      "subtitle": "Définissez les droits d'accès de chaque rôle",
+      "newRole": "Nouveau rôle",
+      "configure": "Configurer",
+      "configureTitle": "Configurer le rôle",
+      "deleteTitle": "Supprimer le rôle",
+      "system": "Système",
+      "custom": "Personnalisé",
+      "rights": "droits",
+      "unsaved": "Non sauvegardé",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement...",
+      "createRole": "Créer le rôle",
+      "creating": "Création...",
+      "delete": "Supprimer",
+      "nameLabel": "Nom du rôle *",
+      "namePlaceholder": "Ex : Superviseur",
+      "descLabel": "Description",
+      "descPlaceholder": "Description brève (optionnel)",
+      "afterCreate": "Les droits seront configurés après la création.",
+      "confirmDeleteTitle": "Supprimer le rôle",
+      "confirmDeleteMsg": "Supprimer \"{{name}}\" ?",
+      "confirmDeleteWarning": "Cette action est irréversible. Les employés avec ce rôle devront être réassignés.",
+      "createdFlash": "Rôle \"{{name}}\" créé",
+      "deletedFlash": "Rôle \"{{name}}\" supprimé",
+      "savedFlash": "Droits sauvegardés",
+      "loadError": "Impossible de charger les rôles",
+      "createError": "Erreur lors de la création",
+      "deleteError": "Erreur lors de la suppression"
+    },
+    "categories": {
+      "POS": "Point de Vente",
+      "INVENTORY": "Inventaire",
+      "EMPLOYEES": "Employés",
+      "SCHEDULES": "Horaires",
+      "PAYROLL": "Paie",
+      "REPORTS": "Rapports",
+      "EXPENSES": "Dépenses",
+      "SETTINGS": "Paramètres",
+      "LOYALTY": "Clients Fidèles",
+      "CONTACTS": "Contacts"
+    }
+  },
+
   "pos": {
     "title": "Caisse",
     "reload": "Recharger la Caisse",

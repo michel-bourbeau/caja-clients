@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { DEFAULT_PERMISSIONS, ADMIN_ONLY_PERMISSIONS, Permission } from "@/lib/types/roles";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { IconButton, Dialog, LoadingSpinner } from "@/components";
 
@@ -23,19 +24,6 @@ interface TenantRole {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CATEGORY_LABELS: Record<string, string> = {
-  POS: "Punto de Venta",
-  INVENTORY: "Inventario",
-  EMPLOYEES: "Empleados",
-  SCHEDULES: "Horarios",
-  PAYROLL: "Nómina",
-  REPORTS: "Reportes",
-  EXPENSES: "Gastos",
-  SETTINGS: "Configuración",
-  LOYALTY: "Clientes Fieles",
-  CONTACTS: "Contactos",
-};
-
 const CATEGORY_COLORS: Record<string, string> = {
   POS:        "bg-blue-100 text-blue-700 border-blue-200",
   INVENTORY:  "bg-green-100 text-green-700 border-green-200",
@@ -49,7 +37,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   CONTACTS:   "bg-indigo-100 text-indigo-700 border-indigo-200",
 };
 
-const CATEGORIES = Object.keys(CATEGORY_LABELS) as (keyof typeof CATEGORY_LABELS)[];
+const CATEGORIES = ["POS", "INVENTORY", "EMPLOYEES", "SCHEDULES", "PAYROLL", "REPORTS", "EXPENSES", "SETTINGS", "LOYALTY", "CONTACTS"] as const;
+type CategoryKey = typeof CATEGORIES[number];
 
 const GROUPED_PERMISSIONS = CATEGORIES.reduce<Record<string, Permission[]>>((acc, cat) => {
   acc[cat] = DEFAULT_PERMISSIONS.filter((p) => p.category === cat && !ADMIN_ONLY_PERMISSIONS.includes(p.id));
@@ -59,12 +48,14 @@ const GROUPED_PERMISSIONS = CATEGORIES.reduce<Record<string, Permission[]>>((acc
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RoleBadge({ role }: { role: TenantRole }) {
+  const { t } = useLanguage();
   const base = "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium";
-  if (role.is_system) return <span className={`${base} bg-slate-700 text-white`}>Sistema</span>;
-  return <span className={`${base} bg-indigo-100 text-indigo-700`}>Personalizado</span>;
+  if (role.is_system) return <span className={`${base} bg-slate-700 text-white`}>{t("admin.rolesPage.system")}</span>;
+  return <span className={`${base} bg-indigo-100 text-indigo-700`}>{t("admin.rolesPage.custom")}</span>;
 }
 
 function PermissionCount({ permissions }: { permissions: string[] }) {
+  const { t } = useLanguage();
   const visiblePermissionsCount = DEFAULT_PERMISSIONS.filter(
     (p) => !ADMIN_ONLY_PERMISSIONS.includes(p.id)
   ).length;
@@ -73,7 +64,7 @@ function PermissionCount({ permissions }: { permissions: string[] }) {
   ).length;
   return (
     <span className="text-xs text-slate-400">
-      {visiblePermissions} / {visiblePermissionsCount} derechos
+      {visiblePermissions} / {visiblePermissionsCount} {t("admin.rolesPage.rights")}
     </span>
   );
 }
@@ -83,6 +74,7 @@ function PermissionCount({ permissions }: { permissions: string[] }) {
 export default function RolesPage() {
   const tenantId = useTenantId();
   const { refreshPermissions } = useAuth();
+  const { t } = useLanguage();
 
   const [roles, setRoles] = useState<TenantRole[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -136,7 +128,7 @@ export default function RolesPage() {
         setDraftPerms(data[0].permissions);
       }
     } catch {
-      showFlash("error", "Imposible cargar los roles");
+      showFlash("error", t("admin.rolesPage.loadError"));
     } finally {
       setLoading(false);
     }
@@ -222,7 +214,7 @@ export default function RolesPage() {
       // Refresh user permissions if their role was updated
       await refreshPermissions();
       
-      showFlash("success", "Derechos guardados");
+      showFlash("success", t("admin.rolesPage.savedFlash"));
       setShowEditModal(false);
     } catch (e) {
       showFlash("error", e instanceof Error ? e.message : "Error");
@@ -251,9 +243,9 @@ export default function RolesPage() {
       setRoles((prev) => [...prev, created]);
       setShowAddModal(false);
       setAddForm({ name: "", description: "" });
-      showFlash("success", `Rol "${created.name}" creado`);
+      showFlash("success", t("admin.rolesPage.createdFlash", { name: created.name }));
     } catch (e) {
-      showFlash("error", e instanceof Error ? e.message : "Error al crear");
+      showFlash("error", e instanceof Error ? e.message : t("admin.rolesPage.createError"));
     } finally {
       setAddLoading(false);
     }
@@ -282,9 +274,9 @@ export default function RolesPage() {
       // Refresh user permissions in case their role was deleted
       await refreshPermissions();
       
-      showFlash("success", `Rol "${confirmDelete.name}" eliminado`);
+      showFlash("success", t("admin.rolesPage.deletedFlash", { name: confirmDelete.name }));
     } catch (e) {
-      showFlash("error", e instanceof Error ? e.message : "Error al eliminar");
+      showFlash("error", e instanceof Error ? e.message : t("admin.rolesPage.deleteError"));
       setConfirmDelete(null);
     }
   };
@@ -303,9 +295,9 @@ export default function RolesPage() {
       <Section>
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Gestionar Roles</h1>
+          <h1 className="text-3xl font-bold text-slate-900">{t("admin.rolesPage.title")}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Define los derechos de acceso de cada rol
+            {t("admin.rolesPage.subtitle")}
           </p>
         </div>
 
@@ -325,7 +317,7 @@ export default function RolesPage() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Nuevo rol
+            {t("admin.rolesPage.newRole")}
           </Button>
         </div>
 
@@ -360,12 +352,12 @@ export default function RolesPage() {
                     <button
                       onClick={() => handleSelectRole(role)}
                       className="flex items-center gap-2 flex-1 text-sm font-medium text-slate-700 hover:text-slate-900 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
-                      title="Configurar rol"
+                      title={t("admin.rolesPage.configureTitle")}
                     >
                       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      <span>Configurar</span>
+                      <span>{t("admin.rolesPage.configure")}</span>
                     </button>
                     {!role.is_system && (
                       <IconButton
@@ -373,7 +365,7 @@ export default function RolesPage() {
                         color="red"
                         size="sm"
                         onClick={() => setConfirmDelete(role)}
-                        title="Eliminar rol"
+                        title={t("admin.rolesPage.deleteTitle")}
                       />
                     )}
                   </div>
@@ -410,7 +402,7 @@ export default function RolesPage() {
                       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      <span>Configurar</span>
+                      <span>{t("admin.rolesPage.configure")}</span>
                     </button>
                     {!role.is_system && (
                       <IconButton
@@ -418,7 +410,7 @@ export default function RolesPage() {
                         color="red"
                         size="sm"
                         onClick={() => setConfirmDelete(role)}
-                        title="Eliminar rol"
+                        title={t("admin.rolesPage.deleteTitle")}
                       />
                     )}
                   </div>
@@ -445,7 +437,7 @@ export default function RolesPage() {
                   setDraftPerms(selectedRole?.permissions || []);
                 }}
               >
-                Cancelar
+                {t("admin.rolesPage.cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -462,7 +454,7 @@ export default function RolesPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
-                Guardar
+                {saving ? t("admin.rolesPage.saving") : t("admin.rolesPage.save")}
               </Button>
             </div>
           }
@@ -472,22 +464,23 @@ export default function RolesPage() {
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
               </svg>
-              Sin guardar
+              {t("admin.rolesPage.unsaved")}
             </div>
           )}
 
           <div className="space-y-6">
             {CATEGORIES.map((cat) => {
-              const perms = GROUPED_PERMISSIONS[cat];
+              const catKey = cat as string;
+              const perms = GROUPED_PERMISSIONS[catKey];
               if (!perms || perms.length === 0) return null;
               const checkedCount = perms.filter((p) => draftPerms.includes(p.id)).length;
               const allChecked = checkedCount === perms.length;
               const someChecked = checkedCount > 0 && !allChecked;
 
               return (
-                <div key={cat}>
+                <div key={catKey}>
                   <div className="flex items-center gap-3 mb-3">
-                    <button onClick={() => toggleCategory(cat)} className="flex items-center gap-2 group">
+                    <button onClick={() => toggleCategory(catKey)} className="flex items-center gap-2 group">
                       <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                         allChecked
                           ? "bg-slate-900 border-slate-900"
@@ -503,8 +496,8 @@ export default function RolesPage() {
                         {someChecked && <div className="w-2 h-0.5 bg-slate-600 rounded" />}
                       </div>
                     </button>
-                    <span className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-md border ${CATEGORY_COLORS[cat] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
-                      {CATEGORY_LABELS[cat] ?? cat}
+                    <span className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-md border ${CATEGORY_COLORS[catKey] ?? "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                      {t(`admin.categories.${catKey}`) || catKey}
                     </span>
                     <span className="text-xs text-slate-400">{checkedCount}/{perms.length}</span>
                   </div>
@@ -550,7 +543,7 @@ export default function RolesPage() {
         {/* ── Add Role Modal ──────────────────────────────────────────────────────── */}
         <Dialog
           isOpen={showAddModal}
-          title="Nuevo rol"
+          title={t("admin.rolesPage.newRole")}
           onClose={() => setShowAddModal(false)}
           footer={
             <div className="flex gap-2">
@@ -558,7 +551,7 @@ export default function RolesPage() {
                 variant="ghost"
                 onClick={() => setShowAddModal(false)}
               >
-                Cancelar
+                {t("admin.rolesPage.cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -571,35 +564,35 @@ export default function RolesPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 )}
-                Crear rol
+                {addLoading ? t("admin.rolesPage.creating") : t("admin.rolesPage.createRole")}
               </Button>
             </div>
           }
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del rol *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("admin.rolesPage.nameLabel")}</label>
               <input
                 type="text"
                 required
                 value={addForm.name}
                 onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Ej: Supervisor"
+                placeholder={t("admin.rolesPage.namePlaceholder")}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("admin.rolesPage.descLabel")}</label>
               <input
                 type="text"
                 value={addForm.description}
                 onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Descripción breve (opcional)"
+                placeholder={t("admin.rolesPage.descPlaceholder")}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             <p className="text-xs text-slate-400">
-              Los derechos se configurarán después de la creación.
+              {t("admin.rolesPage.afterCreate")}
             </p>
           </div>
         </Dialog>
@@ -607,7 +600,7 @@ export default function RolesPage() {
         {/* ── Delete Confirm Modal ────────────────────────────────────────────────── */}
         <Dialog
           isOpen={!!confirmDelete}
-          title="Eliminar rol"
+          title={t("admin.rolesPage.confirmDeleteTitle")}
           onClose={() => setConfirmDelete(null)}
           footer={
             <div className="flex gap-2">
@@ -615,13 +608,13 @@ export default function RolesPage() {
                 variant="ghost"
                 onClick={() => setConfirmDelete(null)}
               >
-                Cancelar
+                {t("admin.rolesPage.cancel")}
               </Button>
               <Button
                 variant="danger"
                 onClick={handleDeleteRole}
               >
-                Eliminar
+                {t("admin.rolesPage.delete")}
               </Button>
             </div>
           }
@@ -633,9 +626,9 @@ export default function RolesPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900">¿Eliminar "{confirmDelete?.name}"?</p>
+              <p className="text-sm font-semibold text-slate-900">{t("admin.rolesPage.confirmDeleteMsg", { name: confirmDelete?.name ?? "" })}</p>
               <p className="text-sm text-slate-500 mt-1">
-                Esta acción es irreversible. Los empleados con este rol deberán ser reasignados.
+                {t("admin.rolesPage.confirmDeleteWarning")}
               </p>
             </div>
           </div>

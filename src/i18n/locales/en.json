@@ -518,6 +518,83 @@
       "configMsg": "Failed to load tenant features: {{error}}. Using default settings."
     }
   },
+
+  "admin": {
+    "title": "Admin",
+    "roles": {
+      "card_title": "👥 Role Management",
+      "card_desc": "Create and customize roles to fit your company's needs. Define specific permissions for each function.",
+      "card_btn": "Go to Role Management"
+    },
+    "settings": {
+      "card_title": "⚙️ System Settings",
+      "card_desc": "Adjust general system settings such as VAT, company information and integrations.",
+      "card_btn": "Go to Settings"
+    },
+    "audit": {
+      "card_title": "📜 Audit Log",
+      "card_desc": "Review the history of changes and activities in the system to ensure security."
+    },
+    "stats": {
+      "card_title": "📊 Statistics",
+      "card_desc": "View system statistics such as active users, transactions and more."
+    },
+    "comingSoon": "(Coming soon)",
+    "sysInfo": {
+      "title": "System Information",
+      "version": "Version",
+      "status": "Status",
+      "statusValue": "✓ Active",
+      "database": "Database",
+      "lastSync": "Last Sync",
+      "lastSyncValue": "5 min ago"
+    },
+    "rolesPage": {
+      "title": "Manage Roles",
+      "subtitle": "Define access rights for each role",
+      "newRole": "New role",
+      "configure": "Configure",
+      "configureTitle": "Configure role",
+      "deleteTitle": "Delete role",
+      "system": "System",
+      "custom": "Custom",
+      "rights": "rights",
+      "unsaved": "Unsaved",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving...",
+      "createRole": "Create role",
+      "creating": "Creating...",
+      "delete": "Delete",
+      "nameLabel": "Role name *",
+      "namePlaceholder": "E.g.: Supervisor",
+      "descLabel": "Description",
+      "descPlaceholder": "Brief description (optional)",
+      "afterCreate": "Rights will be configured after creation.",
+      "confirmDeleteTitle": "Delete role",
+      "confirmDeleteMsg": "Delete \"{{name}}\"?",
+      "confirmDeleteWarning": "This action is irreversible. Employees with this role will need to be reassigned.",
+      "createdFlash": "Role \"{{name}}\" created",
+      "deletedFlash": "Role \"{{name}}\" deleted",
+      "savedFlash": "Rights saved",
+      "loadError": "Unable to load roles",
+      "createError": "Error creating role",
+      "deleteError": "Error deleting role"
+    },
+    "categories": {
+      "POS": "Point of Sale",
+      "INVENTORY": "Inventory",
+      "EMPLOYEES": "Employees",
+      "SCHEDULES": "Schedules",
+      "PAYROLL": "Payroll",
+      "REPORTS": "Reports",
+      "EXPENSES": "Expenses",
+      "SETTINGS": "Settings",
+      "LOYALTY": "Loyalty Customers",
+      "CONTACTS": "Contacts"
+    }
+  },
+
   "pos": {
     "title": "Cash Register",
     "reload": "Reload POS",
