@@ -221,7 +221,23 @@ export interface Expense {
   is_recurring: boolean;
   recurring_frequency?: "weekly" | "biweekly" | "monthly";
   recurring_day_of_month?: number;
+  fixed_expense_id?: string;
   status: "RECORDED" | "APPROVED" | "PAID";
+  notes?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface FixedExpense {
+  id: string;
+  tenant_id: string;
+  name: string;
+  amount: number;
+  category?: string;
+  supplier_id?: string;
+  supplier?: Supplier;
+  day_of_month: number;
+  is_active: boolean;
   notes?: string;
   created_at: Date;
   updated_at: Date;

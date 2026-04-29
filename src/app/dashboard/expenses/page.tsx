@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
-import { Expense, Supplier, ExpenseCategory } from "@/lib/types";
+import { Expense, Supplier, ExpenseCategory, FixedExpense } from "@/lib/types";
 import { Dialog, DialogFooter, FlashMessage, useFlash, EmptyState, DeleteConfirmDialog } from "@/components";
 
 export default function ExpensesPage() {
@@ -15,10 +15,26 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { flash, showFlash, clearFlash } = useFlash();
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [deletingFixedId, setDeletingFixedId] = useState<string | null>(null);
+
+  // Fixed expenses panel state
+  const [showFixedPanel, setShowFixedPanel] = useState(false);
+  const [showFixedForm, setShowFixedForm] = useState(false);
+  const [editingFixed, setEditingFixed] = useState<FixedExpense | null>(null);
+  const [applyingFixed, setApplyingFixed] = useState(false);
+  const [fixedForm, setFixedForm] = useState({
+    name: "",
+    amount: 0,
+    category: "",
+    supplier_id: "",
+    day_of_month: 1,
+    notes: "",
+  });
 
   // Form states
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -99,10 +115,11 @@ export default function ExpensesPage() {
       setIsLoading(true);
 
       const headers = { "x-user-id": user?.id || "" };
-      const [expensesRes, suppliersRes, categoriesRes] = await Promise.all([
+      const [expensesRes, suppliersRes, categoriesRes, fixedRes] = await Promise.all([
         fetch(`/api/tenants/${tenantId}/expenses`, { headers }),
         fetch(`/api/tenants/${tenantId}/suppliers`),
         fetch(`/api/tenants/${tenantId}/expense-categories`),
+        fetch(`/api/tenants/${tenantId}/fixed-expenses`, { headers }),
       ]);
 
       if (!expensesRes.ok || !suppliersRes.ok || !categoriesRes.ok) throw new Error("Failed to load data");
@@ -110,6 +127,7 @@ export default function ExpensesPage() {
       const expensesData = await expensesRes.json();
       const suppliersData = await suppliersRes.json();
       const categoriesData = await categoriesRes.json();
+      const fixedData = fixedRes.ok ? await fixedRes.json() : [];
 
       setExpenses(
         expensesData.map((e: any) => ({
@@ -121,6 +139,7 @@ export default function ExpensesPage() {
       );
       setSuppliers(suppliersData);
       setCategories(categoriesData);
+      setFixedExpenses(fixedData);
     } catch (err) {
       showFlash("error", err instanceof Error ? err.message : "Error loading data");
     } finally {
@@ -259,8 +278,112 @@ export default function ExpensesPage() {
     setShowExpenseForm(true);
   };
 
-  const resetExpenseForm = () => {
-    setFormData({
+  // ── Fixed Expenses CRUD ──────────────────────────────────────────────────
+
+  const resetFixedForm = () => {
+    setFixedForm({ name: "", amount: 0, category: "", supplier_id: "", day_of_month: 1, notes: "" });
+    setEditingFixed(null);
+  };
+
+  const handleSaveFixed = async () => {
+    if (!tenantId || !fixedForm.name.trim()) {
+      showFlash("error", "El nombre es requerido");
+      return;
+    }
+    if (fixedForm.amount <= 0) {
+      showFlash("error", "El monto debe ser mayor a 0");
+      return;
+    }
+    try {
+      const method = editingFixed ? "PUT" : "POST";
+      const url = editingFixed
+        ? `/api/tenants/${tenantId}/fixed-expenses/${editingFixed.id}`
+        : `/api/tenants/${tenantId}/fixed-expenses`;
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", "x-user-id": user?.id || "" },
+        body: JSON.stringify({
+          name: fixedForm.name.trim(),
+          amount: parseFloat(fixedForm.amount.toString()),
+          category: fixedForm.category || null,
+          supplier_id: fixedForm.supplier_id || null,
+          day_of_month: parseInt(fixedForm.day_of_month.toString()),
+          notes: fixedForm.notes || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(err.error || "Failed to save");
+      }
+
+      showFlash("success", editingFixed ? "Gasto fijo actualizado" : "Gasto fijo creado");
+      setShowFixedForm(false);
+      resetFixedForm();
+      await loadData();
+    } catch (err) {
+      showFlash("error", err instanceof Error ? err.message : "Error al guardar");
+    }
+  };
+
+  const handleEditFixed = (fe: FixedExpense) => {
+    setEditingFixed(fe);
+    setFixedForm({
+      name: fe.name,
+      amount: fe.amount,
+      category: fe.category || "",
+      supplier_id: fe.supplier_id || "",
+      day_of_month: fe.day_of_month,
+      notes: fe.notes || "",
+    });
+    setShowFixedForm(true);
+  };
+
+  const executeDeleteFixed = async () => {
+    if (!deletingFixedId) return;
+    const id = deletingFixedId;
+    setDeletingFixedId(null);
+    try {
+      const response = await fetch(`/api/tenants/${tenantId}/fixed-expenses/${id}`, {
+        method: "DELETE",
+        headers: { "x-user-id": user?.id || "" },
+      });
+      if (!response.ok) throw new Error("Failed to delete");
+      showFlash("success", "Gasto fijo eliminado");
+      await loadData();
+    } catch (err) {
+      showFlash("error", err instanceof Error ? err.message : "Error al eliminar");
+    }
+  };
+
+  const handleApplyFixed = async () => {
+    if (!tenantId) return;
+    setApplyingFixed(true);
+    try {
+      const response = await fetch(`/api/tenants/${tenantId}/fixed-expenses/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": user?.id || "" },
+        body: JSON.stringify({ year: currentDate.getFullYear(), month: currentDate.getMonth() + 1 }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to apply");
+      if (result.created > 0) {
+        showFlash("success", `${result.created} gasto${result.created !== 1 ? "s" : ""} fijo${result.created !== 1 ? "s" : ""} generado${result.created !== 1 ? "s" : ""} · ${result.skipped} ya existían`);
+      } else {
+        showFlash("info" as any, result.message || `Todos los gastos fijos ya fueron aplicados este mes`);
+      }
+      await loadData();
+    } catch (err) {
+      showFlash("error", err instanceof Error ? err.message : "Error al aplicar");
+    } finally {
+      setApplyingFixed(false);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const resetExpenseForm = () => {    setFormData({
       supplier_id: "",
       amount: 0,
       description: "",
@@ -504,6 +627,14 @@ export default function ExpensesPage() {
                 ⚙️ Categorías
               </button>
             </>
+          )}
+          {canCreate && (
+            <button
+              onClick={() => setShowFixedPanel(true)}
+              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              📌 Gastos Fijos
+            </button>
           )}
           <button
             onClick={() => {
@@ -1079,6 +1210,212 @@ export default function ExpensesPage() {
         message="¿Eliminar esta categoría? Esta acción no se puede deshacer."
         onConfirm={executeDeleteCategory}
         onCancel={() => setDeletingCategoryId(null)}
+      />
+
+      {/* ── Fixed Expenses Panel ─────────────────────────────────────── */}
+      <Dialog
+        isOpen={showFixedPanel}
+        title="Gastos Fijos Mensuales"
+        onClose={() => setShowFixedPanel(false)}
+        maxWidth="lg"
+        scrollable
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <button
+              onClick={handleApplyFixed}
+              disabled={applyingFixed || fixedExpenses.filter((f) => f.is_active).length === 0}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              {applyingFixed
+                ? "Generando..."
+                : `⚡ Generar para ${currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })}`}
+            </button>
+            <button
+              onClick={() => {
+                resetFixedForm();
+                setShowFixedForm(true);
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              + Agregar
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-500 mb-4">
+          Define los gastos que se repiten cada mes (loyer, electricité, internet…).
+          Usa el botón <strong>Generar</strong> para agregarlos automáticamente al mes seleccionado.
+        </p>
+
+        {fixedExpenses.length === 0 ? (
+          <div className="py-8 text-center text-slate-400">
+            <p className="text-4xl mb-2">📋</p>
+            <p className="text-sm">No hay gastos fijos configurados.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {fixedExpenses.map((fe) => (
+              <div
+                key={fe.id}
+                className={`flex items-center justify-between p-3 rounded-lg border ${
+                  fe.is_active ? "bg-white border-slate-200" : "bg-slate-50 border-slate-100 opacity-60"
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900 truncate">{fe.name}</span>
+                    {!fe.is_active && (
+                      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs rounded-full">Inactivo</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+                    <span className="font-semibold text-slate-700">{fmt(fe.amount)}</span>
+                    {fe.category && <span>· {fe.category}</span>}
+                    {fe.supplier?.name && <span>· {fe.supplier.name}</span>}
+                    <span>· Día {fe.day_of_month} de cada mes</span>
+                  </div>
+                </div>
+                <div className="flex gap-1 ml-3 shrink-0">
+                  <button
+                    onClick={() => handleEditFixed(fe)}
+                    className="px-2 py-1 bg-blue-100 hover:bg-blue-600 text-blue-600 hover:text-white text-xs rounded transition-colors"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={() => setDeletingFixedId(fe.id)}
+                    className="px-2 py-1 bg-red-100 hover:bg-red-600 text-red-600 hover:text-white text-xs rounded transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Dialog>
+
+      {/* Fixed Expense Add/Edit Form */}
+      <Dialog
+        isOpen={showFixedForm}
+        title={editingFixed ? "Editar Gasto Fijo" : "Nuevo Gasto Fijo"}
+        onClose={() => {
+          setShowFixedForm(false);
+          resetFixedForm();
+        }}
+        maxWidth="md"
+        footer={
+          <DialogFooter onSave={handleSaveFixed} saveLabel={editingFixed ? "Actualizar" : "Crear"} />
+        }
+      >
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre *</label>
+          <input
+            type="text"
+            value={fixedForm.name}
+            onChange={(e) => setFixedForm({ ...fixedForm, name: e.target.value })}
+            placeholder="Ej: Loyer, Electricité, Internet…"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Monto *</label>
+          <input
+            type="number"
+            step="0.01"
+            value={fixedForm.amount}
+            onChange={(e) => setFixedForm({ ...fixedForm, amount: parseFloat(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Categoría</label>
+          <select
+            value={fixedForm.category}
+            onChange={(e) => setFixedForm({ ...fixedForm, category: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          >
+            <option value="">Sin categoría</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.name}>{cat.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Proveedor</label>
+          <select
+            value={fixedForm.supplier_id}
+            onChange={(e) => setFixedForm({ ...fixedForm, supplier_id: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          >
+            <option value="">Sin proveedor</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">
+            Día del mes (1–28)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="28"
+            value={fixedForm.day_of_month}
+            onChange={(e) =>
+              setFixedForm({ ...fixedForm, day_of_month: parseInt(e.target.value) || 1 })
+            }
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            El gasto se generará en este día cada mes. Máximo 28 para compatibilidad con febrero.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Notas</label>
+          <textarea
+            value={fixedForm.notes}
+            onChange={(e) => setFixedForm({ ...fixedForm, notes: e.target.value })}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
+            rows={2}
+          />
+        </div>
+
+        {editingFixed && (
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="fixed-active"
+              checked={fixedExpenses.find((f) => f.id === editingFixed.id)?.is_active ?? true}
+              onChange={async (e) => {
+                try {
+                  await fetch(`/api/tenants/${tenantId}/fixed-expenses/${editingFixed.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ is_active: e.target.checked }),
+                  });
+                  await loadData();
+                } catch {}
+              }}
+              className="rounded"
+            />
+            <label htmlFor="fixed-active" className="text-sm text-gray-700">Activo</label>
+          </div>
+        )}
+      </Dialog>
+
+      {/* Delete Fixed Expense Confirmation */}
+      <DeleteConfirmDialog
+        isOpen={!!deletingFixedId}
+        message="¿Eliminar este gasto fijo? Los gastos ya generados no se verán afectados."
+        onConfirm={executeDeleteFixed}
+        onCancel={() => setDeletingFixedId(null)}
       />
     </div>
   );
