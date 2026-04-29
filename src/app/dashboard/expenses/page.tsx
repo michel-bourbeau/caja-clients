@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
+import { useLanguage } from "@/context/LanguageContext";
 import { Expense, Supplier, ExpenseCategory, FixedExpense } from "@/lib/types";
 import { Dialog, DialogFooter, FlashMessage, useFlash, EmptyState, DeleteConfirmDialog } from "@/components";
 
@@ -11,6 +12,7 @@ export default function ExpensesPage() {
   const { user, hasPermission } = useAuth();
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -194,7 +196,7 @@ export default function ExpensesPage() {
   // Handle create/edit expense
   const handleSaveExpense = async () => {
     if (!tenantId || formData.amount <= 0) {
-      showFlash("error", "Monto debe ser mayor a 0");
+      showFlash("error", t("expenses.flashAmountMin"));
       return;
     }
 
@@ -237,7 +239,7 @@ export default function ExpensesPage() {
       const result = await response.json();
 
 
-      showFlash("success", editingExpense ? "Gasto actualizado" : "Gasto registrado");
+      showFlash("success", editingExpense ? t("expenses.flashExpenseUpdated") : t("expenses.flashExpenseSaved"));
       setShowExpenseForm(false);
       setEditingExpense(null);
       resetExpenseForm();
@@ -251,7 +253,7 @@ export default function ExpensesPage() {
 
   const handleCreateSupplier = async () => {
     if (!tenantId || !supplierForm.name.trim()) {
-      showFlash("error", "Nombre del proveedor es requerido");
+      showFlash("error", t("expenses.flashSupplierRequired"));
       return;
     }
 
@@ -264,7 +266,7 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to create supplier");
 
-      showFlash("success", "Proveedor creado");
+      showFlash("success", t("expenses.flashSupplierCreated"));
       setShowSupplierForm(false);
       setSupplierForm({ name: "", description: "", contact: "" });
       await loadData();
@@ -293,7 +295,7 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to delete");
 
-      showFlash("success", "Gasto eliminado");
+      showFlash("success", t("expenses.flashExpenseDeleted"));
       await loadData();
     } catch (err) {
       showFlash("error", err instanceof Error ? err.message : "Error deleting expense");
@@ -327,11 +329,11 @@ export default function ExpensesPage() {
 
   const handleSaveFixed = async () => {
     if (!tenantId || !fixedForm.name.trim()) {
-      showFlash("error", "El nombre es requerido");
+      showFlash("error", t("expenses.flashFixedNameRequired"));
       return;
     }
     if (fixedForm.amount <= 0) {
-      showFlash("error", "El monto debe ser mayor a 0");
+      showFlash("error", t("expenses.flashFixedAmountMin"));
       return;
     }
     try {
@@ -358,7 +360,7 @@ export default function ExpensesPage() {
         throw new Error(err.error || "Failed to save");
       }
 
-      showFlash("success", editingFixed ? "Gasto fijo actualizado" : "Gasto fijo creado");
+      showFlash("success", editingFixed ? t("expenses.flashFixedUpdated") : t("expenses.flashFixedCreated"));
       setShowFixedForm(false);
       resetFixedForm();
       await loadData();
@@ -390,7 +392,7 @@ export default function ExpensesPage() {
         headers: { "x-user-id": user?.id || "" },
       });
       if (!response.ok) throw new Error("Failed to delete");
-      showFlash("success", "Gasto fijo eliminado");
+      showFlash("success", t("expenses.flashFixedDeleted"));
       await loadData();
     } catch (err) {
       showFlash("error", err instanceof Error ? err.message : "Error al eliminar");
@@ -409,9 +411,9 @@ export default function ExpensesPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Failed to apply");
       if (result.created > 0) {
-        showFlash("success", `${result.created} gasto${result.created !== 1 ? "s" : ""} fijo${result.created !== 1 ? "s" : ""} generado${result.created !== 1 ? "s" : ""} · ${result.skipped} ya existían`);
+        showFlash("success", t("expenses.flashFixedGenerated", { count: result.created, skipped: result.skipped }));
       } else {
-        showFlash("info" as any, result.message || `Todos los gastos fijos ya fueron aplicados este mes`);
+        showFlash("info" as any, result.message || t("expenses.flashFixedAllApplied"));
       }
       await loadData();
     } catch (err) {
@@ -461,7 +463,7 @@ export default function ExpensesPage() {
 
       if (!response.ok) throw new Error("Failed to save category");
 
-      showFlash("success", editingCategory ? "Categoría actualizada" : "Categoría creada");
+      showFlash("success", editingCategory ? t("expenses.flashCatUpdated") : t("expenses.flashCatCreated"));
       setShowCategoryForm(false);
       setEditingCategory(null);
       setCategoryForm({ name: "", description: "" });
@@ -523,7 +525,7 @@ export default function ExpensesPage() {
     if (mode === "week") {
       const date = new Date(key);
       const weekEnd = new Date(date.getTime() + 6 * 24 * 60 * 60 * 1000);
-      return `Semana ${date.toLocaleDateString("es-NI", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("es-NI", { month: "short", day: "numeric" })}`;
+      return `${t("expenses.periodWeekGroup")} ${date.toLocaleDateString("es-NI", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("es-NI", { month: "short", day: "numeric" })}`;
     } else if (mode === "month") {
       const [year, month] = key.split("-");
       return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("es-NI", {
@@ -609,7 +611,7 @@ export default function ExpensesPage() {
       }));
 
     return sorted;
-  }, [expenses, filters, canViewAll, user?.id, viewMode, currentDate]);
+  }, [expenses, filters, canViewAll, user?.id, viewMode, currentDate, t]);
 
   const totals = useMemo(() => {
     const allExpenses = filteredExpenses.flatMap((group) => group.expenses);
@@ -632,9 +634,9 @@ export default function ExpensesPage() {
   if (!canCreate) {
     return (
       <div className="p-6 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Acceso Denegado</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t("expenses.accessDenied")}</h1>
         <p className="text-gray-600 mt-2">
-          No tienes permiso para acceder a este módulo.
+          {t("expenses.noPermission")}
         </p>
       </div>
     );
@@ -645,12 +647,12 @@ export default function ExpensesPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gastos</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t("expenses.title")}</h1>
           <p className="text-sm text-gray-700 mt-1">
-            {totals.count} gasto{totals.count !== 1 ? "s" : ""} · Gastos: <span className="font-semibold">{fmt(totals.amount)}</span>
+            {totals.count} {t("expenses.expenseWord")}{totals.count !== 1 ? "s" : ""} · {t("expenses.subtitleExpenses")} <span className="font-semibold">{fmt(totals.amount)}</span>
             {totals.salaries > 0 && (
-              <> · Salarios: <span className="font-semibold text-purple-700">{fmt(totals.salaries)}</span>
-              {" "}· Total: <span className="font-semibold text-red-700">{fmt(totals.grand)}</span></>
+              <> · {t("expenses.subtitleSalaries")} <span className="font-semibold text-purple-700">{fmt(totals.salaries)}</span>
+              {" "}· {t("expenses.subtitleTotal")} <span className="font-semibold text-red-700">{fmt(totals.grand)}</span></>
             )}
           </p>
         </div>
@@ -661,7 +663,7 @@ export default function ExpensesPage() {
                 onClick={() => setShowSupplierForm(true)}
                 className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors"
               >
-                + Proveedor
+                {t("expenses.btnSupplier")}
               </button>
               <button
                 onClick={() => {
@@ -671,7 +673,7 @@ export default function ExpensesPage() {
                 }}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors"
               >
-                ⚙️ Categorías
+                {t("expenses.btnCategories")}
               </button>
             </>
           )}
@@ -680,7 +682,7 @@ export default function ExpensesPage() {
               onClick={() => setShowFixedPanel(true)}
               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors"
             >
-              📌 Gastos Fijos
+              {t("expenses.btnFixed")}
             </button>
           )}
           <button
@@ -690,7 +692,7 @@ export default function ExpensesPage() {
             }}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            + Gasto
+            {t("expenses.btnAdd")}
           </button>
         </div>
       </div>
@@ -709,7 +711,7 @@ export default function ExpensesPage() {
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300"
             }`}
           >
-            Por Semana
+            {t("expenses.viewWeek")}
           </button>
           <button
             onClick={() => setViewMode("month")}
@@ -719,7 +721,7 @@ export default function ExpensesPage() {
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300"
             }`}
           >
-            Por Mes
+            {t("expenses.viewMonth")}
           </button>
           <button
             onClick={() => setViewMode("year")}
@@ -729,7 +731,7 @@ export default function ExpensesPage() {
                 : "bg-slate-200 text-slate-700 hover:bg-slate-300"
             }`}
           >
-            Por Año
+            {t("expenses.viewYear")}
           </button>
         </div>
 
@@ -739,16 +741,16 @@ export default function ExpensesPage() {
             onClick={goToPreviousPeriod}
             className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
           >
-            ← Anterior
+            {t("expenses.navPrev")}
           </button>
           
           <div className="flex-1 text-center">
             <span className="text-sm font-semibold text-gray-700">
               {viewMode === "week"
-                ? `Semana del ${new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - currentDate.getDay()).toLocaleDateString("es-ES")}`
+                ? `${t("expenses.periodWeekOf")} ${new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - currentDate.getDay()).toLocaleDateString("es-ES")}`
                 : viewMode === "month"
                 ? currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
-                : `Año ${currentDate.getFullYear()}`}
+                : `${t("expenses.periodYear")} ${currentDate.getFullYear()}`}
             </span>
           </div>
 
@@ -756,14 +758,14 @@ export default function ExpensesPage() {
             onClick={goToToday}
             className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
           >
-            Hoy
+            {t("expenses.navToday")}
           </button>
 
           <button
             onClick={goToNextPeriod}
             className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
           >
-            Siguiente →
+            {t("expenses.navNext")}
           </button>
         </div>
       </div>
@@ -773,7 +775,7 @@ export default function ExpensesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Categoría
+              {t("expenses.filterCategory")}
             </label>
             <select
               value={filters.category}
@@ -782,7 +784,7 @@ export default function ExpensesPage() {
               }
               className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-gray-900"
             >
-              <option value="ALL">Todas</option>
+              <option value="ALL">{t("expenses.filterAll")}</option>
               {categoryOptions.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
@@ -792,7 +794,7 @@ export default function ExpensesPage() {
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Proveedor
+              {t("expenses.filterSupplier")}
             </label>
             <select
               value={filters.supplier_id}
@@ -801,7 +803,7 @@ export default function ExpensesPage() {
               }
               className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-gray-900"
             >
-              <option value="ALL">Todos</option>
+              <option value="ALL">{t("expenses.filterAllSuppliers")}</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -815,31 +817,31 @@ export default function ExpensesPage() {
       {/* Expenses List */}
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         {isLoading ? (
-          <EmptyState state="loading" message="Cargando gastos..." />
+          <EmptyState state="loading" message={t("expenses.loading")} />
         ) : filteredExpenses.length === 0 ? (
-          <EmptyState state="empty" message="No hay gastos registrados." />
+          <EmptyState state="empty" message={t("expenses.empty")} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                    Fecha
+                    {t("expenses.colDate")}
                   </th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-700">
-                    Descripción
+                    {t("expenses.colDesc")}
                   </th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-700 hidden md:table-cell">
-                    Proveedor
+                    {t("expenses.colSupplier")}
                   </th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-700 hidden sm:table-cell">
-                    Categoría
+                    {t("expenses.colCategory")}
                   </th>
                   <th className="px-4 py-2 text-right font-semibold text-gray-700">
-                    Monto
+                    {t("expenses.colAmount")}
                   </th>
                   <th className="px-4 py-2 text-center font-semibold text-gray-700 w-20">
-                    Acciones
+                    {t("expenses.colActions")}
                   </th>
                 </tr>
               </thead>
@@ -865,7 +867,7 @@ export default function ExpensesPage() {
                           {expense.description}
                           {expense.is_recurring && (
                             <span className="ml-2 inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
-                              Recurrente
+                              {t("expenses.badgeRecurring")}
                             </span>
                           )}
                         </td>
@@ -911,7 +913,7 @@ export default function ExpensesPage() {
       {/* Expense Form Modal */}
       <Dialog
         isOpen={showExpenseForm}
-        title={editingExpense ? "Editar Gasto" : "Registrar Gasto"}
+        title={editingExpense ? t("expenses.formEditTitle") : t("expenses.formAddTitle")}
         onClose={() => {
           setShowExpenseForm(false);
           setEditingExpense(null);
@@ -921,13 +923,13 @@ export default function ExpensesPage() {
         footer={
           <DialogFooter
             onSave={handleSaveExpense}
-            saveLabel="Guardar"
+            saveLabel={t("expenses.saveBtn")}
           />
         }
       >
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Proveedor
+            {t("expenses.labelSupplier")}
           </label>
           <select
             value={formData.supplier_id}
@@ -936,7 +938,7 @@ export default function ExpensesPage() {
             }
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
           >
-            <option value="">Sin proveedor</option>
+            <option value="">{t("expenses.noSupplier")}</option>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -946,7 +948,7 @@ export default function ExpensesPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Monto *</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelAmount")}</label>
           <input
                 type="number"
                 step="0.01"
@@ -963,7 +965,7 @@ export default function ExpensesPage() {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Descripción
+                {t("expenses.labelDesc")}
               </label>
               <input
                 type="text"
@@ -977,7 +979,7 @@ export default function ExpensesPage() {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Categoría
+                {t("expenses.labelCategory")}
               </label>
               <div className="flex gap-2">
                 <select
@@ -987,7 +989,7 @@ export default function ExpensesPage() {
                   }
                   className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
                 >
-                  <option value="">Selecciona categoría</option>
+                  <option value="">{t("expenses.selectCategory")}</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.name}>
                       {cat.name}
@@ -1010,7 +1012,7 @@ export default function ExpensesPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Fecha</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelDate")}</label>
               <input
                 type="date"
                 value={formData.expense_date}
@@ -1023,7 +1025,7 @@ export default function ExpensesPage() {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Frecuencia de Recurrencia
+                {t("expenses.labelFrequency")}
               </label>
               <select
                 value={formData.recurring_frequency}
@@ -1037,17 +1039,17 @@ export default function ExpensesPage() {
                 }}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
               >
-                <option value="">No recurrente</option>
-                <option value="weekly">Semanal</option>
-                <option value="biweekly">Cada dos semanas</option>
-                <option value="monthly">Mensual</option>
+                <option value="">{t("expenses.freqNone")}</option>
+                <option value="weekly">{t("expenses.freqWeekly")}</option>
+                <option value="biweekly">{t("expenses.freqBiweekly")}</option>
+                <option value="monthly">{t("expenses.freqMonthly")}</option>
               </select>
             </div>
 
             {formData.recurring_frequency === "monthly" && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Día del mes para repetir
+                  {t("expenses.labelRepeatDay")}
                 </label>
                 <input
                   type="number"
@@ -1078,12 +1080,12 @@ export default function ExpensesPage() {
                 }
                 className="w-full px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold rounded-lg transition-colors"
               >
-                Detener Recurrencia
+                {t("expenses.stopRecurring")}
               </button>
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Notas</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelNotes")}</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) =>
@@ -1098,7 +1100,7 @@ export default function ExpensesPage() {
       {/* Supplier Form Modal */}
       <Dialog
         isOpen={showSupplierForm}
-        title="Crear Proveedor"
+        title={t("expenses.supplierFormTitle")}
         onClose={() => {
           setShowSupplierForm(false);
           setSupplierForm({ name: "", description: "", contact: "" });
@@ -1107,13 +1109,13 @@ export default function ExpensesPage() {
         footer={
           <DialogFooter
             onSave={handleCreateSupplier}
-            saveLabel="Crear"
+            saveLabel={t("expenses.createBtn")}
           />
         }
       >
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Nombre *
+            {t("expenses.labelName")}
           </label>
           <input
             type="text"
@@ -1127,7 +1129,7 @@ export default function ExpensesPage() {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Descripción
+            {t("expenses.labelDescription")}
           </label>
           <input
             type="text"
@@ -1144,7 +1146,7 @@ export default function ExpensesPage() {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Contacto
+            {t("expenses.labelContact")}
           </label>
           <input
             type="text"
@@ -1160,7 +1162,7 @@ export default function ExpensesPage() {
       {/* Category Management Modal */}
       <Dialog
         isOpen={showCategoryForm}
-        title={editingCategory ? "Editar Categoría" : "Crear Categoría"}
+        title={editingCategory ? t("expenses.catFormEditTitle") : t("expenses.catFormAddTitle")}
         onClose={() => {
           setShowCategoryForm(false);
           setEditingCategory(null);
@@ -1170,13 +1172,13 @@ export default function ExpensesPage() {
         footer={
           <DialogFooter
             onSave={handleSaveCategory}
-            saveLabel={editingCategory ? "Actualizar" : "Crear"}
+            saveLabel={editingCategory ? t("expenses.updateBtn") : t("expenses.createBtn")}
           />
         }
       >
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Nombre *
+            {t("expenses.labelName")}
           </label>
           <input
             type="text"
@@ -1190,7 +1192,7 @@ export default function ExpensesPage() {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Descripción
+            {t("expenses.labelDescription")}
           </label>
           <input
             type="text"
@@ -1205,10 +1207,10 @@ export default function ExpensesPage() {
         {/* Categories List */}
         {!editingCategory && (
           <div className="mt-6 pt-6 border-t border-slate-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Categorías Existentes</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t("expenses.catListTitle")}</h3>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {categories.length === 0 ? (
-                <p className="text-gray-700">No hay categorías creadas</p>
+                <p className="text-gray-700">{t("expenses.catEmpty")}</p>
               ) : (
                 categories.map((cat) => (
                   <div
@@ -1246,7 +1248,7 @@ export default function ExpensesPage() {
       {/* Delete Expense Confirmation */}
       <DeleteConfirmDialog
         isOpen={!!deletingExpenseId}
-        message="¿Eliminar este gasto? Esta acción no se puede deshacer."
+        message={t("expenses.deleteExpenseMsg")}
         onConfirm={executeDeleteExpense}
         onCancel={() => setDeletingExpenseId(null)}
       />
@@ -1254,7 +1256,7 @@ export default function ExpensesPage() {
       {/* Delete Category Confirmation */}
       <DeleteConfirmDialog
         isOpen={!!deletingCategoryId}
-        message="¿Eliminar esta categoría? Esta acción no se puede deshacer."
+        message={t("expenses.deleteCatMsg")}
         onConfirm={executeDeleteCategory}
         onCancel={() => setDeletingCategoryId(null)}
       />
@@ -1262,7 +1264,7 @@ export default function ExpensesPage() {
       {/* ── Fixed Expenses Panel ─────────────────────────────────────── */}
       <Dialog
         isOpen={showFixedPanel}
-        title="Gastos Fijos Mensuales"
+        title={t("expenses.fixedTitle")}
         onClose={() => setShowFixedPanel(false)}
         maxWidth="lg"
         scrollable
@@ -1274,8 +1276,8 @@ export default function ExpensesPage() {
               className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
             >
               {applyingFixed
-                ? "Generando..."
-                : `⚡ Generar para ${currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })}`}
+                ? t("expenses.fixedGenerating")
+                : t("expenses.fixedGenerateBtn", { period: currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" }) })}
             </button>
             <button
               onClick={() => {
@@ -1284,20 +1286,19 @@ export default function ExpensesPage() {
               }}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
             >
-              + Agregar
+              {t("expenses.fixedAddBtn")}
             </button>
           </div>
         }
       >
         <p className="text-sm text-slate-500 mb-4">
-          Define los gastos que se repiten cada mes (loyer, electricité, internet…).
-          Usa el botón <strong>Generar</strong> para agregarlos automáticamente al mes seleccionado.
+          {t("expenses.fixedDesc")}
         </p>
 
         {fixedExpenses.length === 0 ? (
           <div className="py-8 text-center text-slate-400">
             <p className="text-4xl mb-2">📋</p>
-            <p className="text-sm">No hay gastos fijos configurados.</p>
+            <p className="text-sm">{t("expenses.fixedEmpty")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -1312,14 +1313,14 @@ export default function ExpensesPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-gray-900 truncate">{fe.name}</span>
                     {!fe.is_active && (
-                      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs rounded-full">Inactivo</span>
+                      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs rounded-full">{t("expenses.fixedInactive")}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
                     <span className="font-semibold text-slate-700">{fmt(fe.amount)}</span>
                     {fe.category && <span>· {fe.category}</span>}
                     {fe.supplier?.name && <span>· {fe.supplier.name}</span>}
-                    <span>· Día {fe.day_of_month} de cada mes</span>
+                    <span>· {t("expenses.fixedDayLabel", { day: fe.day_of_month })}</span>
                   </div>
                 </div>
                 <div className="flex gap-1 ml-3 shrink-0">
@@ -1345,29 +1346,29 @@ export default function ExpensesPage() {
       {/* Fixed Expense Add/Edit Form */}
       <Dialog
         isOpen={showFixedForm}
-        title={editingFixed ? "Editar Gasto Fijo" : "Nuevo Gasto Fijo"}
+        title={editingFixed ? t("expenses.fixedFormEditTitle") : t("expenses.fixedFormAddTitle")}
         onClose={() => {
           setShowFixedForm(false);
           resetFixedForm();
         }}
         maxWidth="md"
         footer={
-          <DialogFooter onSave={handleSaveFixed} saveLabel={editingFixed ? "Actualizar" : "Crear"} />
+          <DialogFooter onSave={handleSaveFixed} saveLabel={editingFixed ? t("expenses.updateBtn") : t("expenses.createBtn")} />
         }
       >
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre *</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelName")}</label>
           <input
             type="text"
             value={fixedForm.name}
             onChange={(e) => setFixedForm({ ...fixedForm, name: e.target.value })}
-            placeholder="Ej: Loyer, Electricité, Internet…"
+            placeholder={t("expenses.fixedNamePlaceholder")}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Monto *</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelAmount")}</label>
           <input
             type="number"
             step="0.01"
@@ -1378,13 +1379,13 @@ export default function ExpensesPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Categoría</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelCategory")}</label>
           <select
             value={fixedForm.category}
             onChange={(e) => setFixedForm({ ...fixedForm, category: e.target.value })}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
           >
-            <option value="">Sin categoría</option>
+            <option value="">{t("expenses.noCategory")}</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.name}>{cat.name}</option>
             ))}
@@ -1392,13 +1393,13 @@ export default function ExpensesPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Proveedor</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelSupplier")}</label>
           <select
             value={fixedForm.supplier_id}
             onChange={(e) => setFixedForm({ ...fixedForm, supplier_id: e.target.value })}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
           >
-            <option value="">Sin proveedor</option>
+            <option value="">{t("expenses.noSupplier")}</option>
             {suppliers.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
@@ -1407,7 +1408,7 @@ export default function ExpensesPage() {
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Día del mes (1–28)
+            {t("expenses.fixedLabelMonthDay")}
           </label>
           <input
             type="number"
@@ -1420,12 +1421,12 @@ export default function ExpensesPage() {
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-gray-900"
           />
           <p className="text-xs text-slate-400 mt-1">
-            El gasto se generará en este día cada mes. Máximo 28 para compatibilidad con febrero.
+            {t("expenses.fixedMonthDayHelp")}
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">Notas</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">{t("expenses.labelNotes")}</label>
           <textarea
             value={fixedForm.notes}
             onChange={(e) => setFixedForm({ ...fixedForm, notes: e.target.value })}
@@ -1452,7 +1453,7 @@ export default function ExpensesPage() {
               }}
               className="rounded"
             />
-            <label htmlFor="fixed-active" className="text-sm text-gray-700">Activo</label>
+            <label htmlFor="fixed-active" className="text-sm text-gray-700">{t("expenses.fixedActiveLabel")}</label>
           </div>
         )}
       </Dialog>
@@ -1460,7 +1461,7 @@ export default function ExpensesPage() {
       {/* Delete Fixed Expense Confirmation */}
       <DeleteConfirmDialog
         isOpen={!!deletingFixedId}
-        message="¿Eliminar este gasto fijo? Los gastos ya generados no se verán afectados."
+        message={t("expenses.deleteFixedMsg")}
         onConfirm={executeDeleteFixed}
         onCancel={() => setDeletingFixedId(null)}
       />
