@@ -16,6 +16,7 @@ export default function ExpensesPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+  const [salaryPayments, setSalaryPayments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { flash, showFlash, clearFlash } = useFlash();
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
@@ -150,6 +151,45 @@ export default function ExpensesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Fetch salary payments for the current period
+  const loadSalaryPayments = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const periodStart = new Date(currentDate);
+      const periodEnd   = new Date(currentDate);
+
+      if (viewMode === "week") {
+        const day = periodStart.getDay();
+        periodStart.setDate(periodStart.getDate() - day);
+        periodEnd.setDate(periodStart.getDate() + 6);
+      } else if (viewMode === "month") {
+        periodStart.setDate(1);
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+        periodEnd.setDate(0);
+      } else {
+        periodStart.setMonth(0); periodStart.setDate(1);
+        periodEnd.setMonth(11); periodEnd.setDate(31);
+      }
+
+      const paidFrom = periodStart.toISOString().split("T")[0];
+      const paidTo   = periodEnd.toISOString().split("T")[0];
+
+      const res = await fetch(
+        `/api/tenants/${tenantId}/payroll/payments?paidFrom=${paidFrom}&paidTo=${paidTo}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setSalaryPayments(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // Non-blocking: salary data is complementary
+    }
+  }, [tenantId, currentDate, viewMode]);
+
+  useEffect(() => {
+    loadSalaryPayments();
+  }, [loadSalaryPayments]);
 
   // Handle create/edit expense
   const handleSaveExpense = async () => {
@@ -573,11 +613,15 @@ export default function ExpensesPage() {
 
   const totals = useMemo(() => {
     const allExpenses = filteredExpenses.flatMap((group) => group.expenses);
+    const expensesAmount = allExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const salariesAmount = salaryPayments.reduce((sum, p) => sum + Number(p.amount), 0);
     return {
       count: allExpenses.length,
-      amount: allExpenses.reduce((sum, e) => sum + e.amount, 0),
+      amount: expensesAmount,
+      salaries: salariesAmount,
+      grand: expensesAmount + salariesAmount,
     };
-  }, [filteredExpenses]);
+  }, [filteredExpenses, salaryPayments]);
 
   // Extract category names from loaded categories for filter display
   const categoryOptions = useMemo(
@@ -603,8 +647,11 @@ export default function ExpensesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gastos</h1>
           <p className="text-sm text-gray-700 mt-1">
-            {totals.count} gasto{totals.count !== 1 ? "s" : ""} · Total:{" "}
-            <span className="font-semibold">{fmt(totals.amount)}</span>
+            {totals.count} gasto{totals.count !== 1 ? "s" : ""} · Gastos: <span className="font-semibold">{fmt(totals.amount)}</span>
+            {totals.salaries > 0 && (
+              <> · Salarios: <span className="font-semibold text-purple-700">{fmt(totals.salaries)}</span>
+              {" "}· Total: <span className="font-semibold text-red-700">{fmt(totals.grand)}</span></>
+            )}
           </p>
         </div>
         <div className="flex gap-2">

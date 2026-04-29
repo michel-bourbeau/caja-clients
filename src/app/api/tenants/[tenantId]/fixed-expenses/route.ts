@@ -15,7 +15,13 @@ export async function GET(
       .eq("tenant_id", tenantId)
       .order("name", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      // Table doesn't exist yet (migration not run) — return empty gracefully
+      if ((error as any).code === "PGRST205" || (error as any).code === "42P01") {
+        return NextResponse.json([]);
+      }
+      throw error;
+    }
     return NextResponse.json(data || []);
   } catch (error) {
     console.error("Error in GET /fixed-expenses:", error);

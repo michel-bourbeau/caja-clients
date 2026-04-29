@@ -45,6 +45,7 @@ export const Sidebar: React.FC = () => {
     } else if (
       pathname.startsWith("/dashboard/reports") ||
       pathname.startsWith("/dashboard/profits") ||
+      pathname.startsWith("/dashboard/bilan") ||
       pathname.startsWith("/dashboard/expenses")
     ) {
       setExpandedSections((prev) => ({ ...prev, finanzas: true }));
@@ -159,6 +160,9 @@ export const Sidebar: React.FC = () => {
               <>
                 <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" isNested />
                 <NavLink href="/dashboard/profits" label="Análisis de Ganancias" iconType="reports" isNested />
+                {features?.reports && (
+                  <NavLink href="/dashboard/bilan" label="Bilan Financiero" iconType="bilan" isNested />
+                )}
               </>
             )}
             {(hasPermission("expenses.create") ||
@@ -212,7 +216,7 @@ export const Sidebar: React.FC = () => {
 
 interface AccordionProps {
   label: string;
-  iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "contacts" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings";
+  iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "bilan" | "contacts" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings";
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -244,7 +248,7 @@ const Accordion: React.FC<AccordionProps> = ({
   </div>
 );
 
-const NavLink: React.FC<{ href: string; label: string; iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "contacts" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings"; isNested?: boolean }> = ({
+const NavLink: React.FC<{ href: string; label: string; iconType: "dashboard" | "pos" | "transactions" | "cierre" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "bilan" | "contacts" | "admin" | "modules" | "periods" | "taxes" | "roles" | "settings"; isNested?: boolean }> = ({
   href,
   label,
   iconType,

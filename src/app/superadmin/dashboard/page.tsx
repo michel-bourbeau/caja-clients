@@ -2,9 +2,35 @@
 
 import React, { useState, useEffect } from "react";
 import { useSuperAdmin } from "@/context/SuperAdminContext";
-import { Button, Input, Card } from "@/components/ui";
+import {
+  Button,
+  Input,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
+  Badge,
+  Alert,
+  Container,
+} from "@/components/StripeUIComponents";
 import { useRouter } from "next/navigation";
 import { SUPERADMIN_IMPERSONATION_KEY } from "@/context/AuthContext";
+import {
+  Shield,
+  Plus,
+  Settings,
+  Users,
+  LogOut,
+  RefreshCw,
+  Edit2,
+  Trash2,
+  CreditCard,
+  ChevronDown,
+  X,
+  Check,
+  Building2,
+} from "lucide-react";
 
 interface Tenant {
   id: string;
@@ -25,10 +51,17 @@ const AVAILABLE_MODULES = [
   { id: "schedules", label: "Horarios y Turnos", icon: "📅", description: "Asistencia y horarios" },
   { id: "payroll", label: "Nómina", icon: "💰", description: "Recibos, Períodos de Pago" },
   { id: "reports", label: "Reportes de Ventas", icon: "📊", description: "Análisis y reportes" },
-  { id: "loyalty", label: "Clientes Fieles", icon: "💳", description: "Programa de fidelización" },
   { id: "expenses", label: "Gastos y Proveedores", icon: "💸", description: "Registro de gastos" },
   { id: "taxes", label: "Impuestos", icon: "📋", description: "Gestión de impuestos" },
-  { id: "contacts", label: "Contactos", icon: "📋", description: "Gestión de contactos importantes" },
+  { id: "loyalty", label: "Clientes Fieles", icon: "💳", description: "Programa de fidelización" },
+  { id: "contacts", label: "Contactos", icon: "📇", description: "Gestión de contactos importantes" },
+];
+
+const MODULE_GROUPS = [
+  { id: "ventes", label: "🛒 Ventes (Core)", modules: ["pos", "inventory"] },
+  { id: "personnel", label: "👥 Personnel", modules: ["employees", "schedules", "payroll"] },
+  { id: "finances", label: "📊 Finances", modules: ["reports", "expenses", "taxes"] },
+  { id: "clients", label: "🤝 Clients", modules: ["loyalty", "contacts"] },
 ];
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
@@ -64,10 +97,10 @@ const PLAN_PRESETS: Record<string, Record<string, boolean>> = {
     inventory: true,
     employees: true,
     schedules: true,
-    payroll: false,
+    payroll: true,
     reports: true,
-    loyalty: true,
-    expenses: true,
+    loyalty: false,
+    expenses: false,
     taxes: true,
     contacts: true,
   },
@@ -529,50 +562,62 @@ export default function SuperAdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-slate-100 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-purple-600">🔐 SuperAdmin Console</h1>
-            <p className="text-gray-700 mt-2">Gestion des Tenants et Modules</p>
+    <div className="min-h-screen bg-slate-50">
+      {/* Top bar */}
+      <div className="border-b border-slate-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-violet-100">
+                <Shield className="w-5 h-5 text-violet-600" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-slate-900">SuperAdmin Console</h1>
+                <p className="text-xs text-slate-500">Gestion des Tenants et Modules</p>
+              </div>
+            </div>
+            <Button variant="danger" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4" />
+              Déconnexion
+            </Button>
           </div>
-          <Button onClick={handleLogout} className="bg-red-600">
-            Déconnexion
-          </Button>
         </div>
+      </div>
+
+      {/* Main content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Message */}
         {message && (
-          <div
-            className={`p-4 rounded mb-6 ${
-              message.includes("✅")
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
+          <Alert variant={message.includes("✅") ? "success" : "error"}>
             {message}
-          </div>
+          </Alert>
         )}
 
         {/* Action Buttons */}
-        <div className="mb-6 flex flex-wrap gap-3">
-          <Button onClick={() => setShowCreateForm(!showCreateForm)} className="bg-purple-600">
-            {showCreateForm ? "❌ Annuler" : "➕ Créer un Tenant"}
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => setShowCreateForm(!showCreateForm)} variant={showCreateForm ? "secondary" : "primary"}>
+            {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            {showCreateForm ? "Annuler" : "Créer un Tenant"}
           </Button>
-          <Button onClick={() => setShowManagePlans(!showManagePlans)} className="bg-orange-600">
-            {showManagePlans ? "❌ Fermer" : "🎯 Gérer les Plans"}
+          <Button onClick={() => setShowManagePlans(!showManagePlans)} variant={showManagePlans ? "secondary" : "secondary"}>
+            <Settings className="w-4 h-4" />
+            {showManagePlans ? "Fermer les Plans" : "Gérer les Plans"}
           </Button>
-          <Button onClick={() => router.push("/superadmin/users")} className="bg-indigo-600">
-            👥 Gestion des Utilisateurs
+          <Button onClick={() => router.push("/superadmin/users")} variant="secondary">
+            <Users className="w-4 h-4" />
+            Gestion des Utilisateurs
           </Button>
         </div>
 
         {/* Create Form */}
         {showCreateForm && (
-          <Card className="p-6 mb-8">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900">Créer un Nouveau Tenant</h2>
-            <form onSubmit={handleCreateTenant} className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Créer un Nouveau Tenant</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateTenant} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Input
                   label="Nom du Tenant"
@@ -613,38 +658,48 @@ export default function SuperAdminDashboard() {
                 <p className="text-xs text-slate-500 mb-3">
                   Pré-sélectionnés selon le plan — vous pouvez ajuster manuellement.
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {AVAILABLE_MODULES.map((module) => (
-                    <label key={module.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedModules[module.id]}
-                        onChange={(e) =>
-                          setSelectedModules((prev) => {
-                            const updated = { ...prev, [module.id]: e.target.checked };
-                            // If result no longer matches the current plan preset, switch to custom
-                            const preset = planConfigs[formData.plan];
-                            if (preset) {
-                              const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
-                              if (!matchesPreset) setFormData((f) => ({ ...f, plan: "custom" }));
-                            }
-                            return updated;
-                          })
-                        }
-                        className="w-4 h-4"
-                      />
-                      <span>
-                        {module.icon} {module.label}
-                      </span>
-                    </label>
+                <div className="space-y-4">
+                  {MODULE_GROUPS.map((group) => (
+                    <div key={group.id}>
+                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">{group.label}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pl-2">
+                        {group.modules.map((moduleId) => {
+                          const module = AVAILABLE_MODULES.find((m) => m.id === moduleId);
+                          if (!module) return null;
+                          return (
+                            <label key={module.id} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedModules[module.id]}
+                                onChange={(e) =>
+                                  setSelectedModules((prev) => {
+                                    const updated = { ...prev, [module.id]: e.target.checked };
+                                    const preset = planConfigs[formData.plan];
+                                    if (preset) {
+                                      const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
+                                      if (!matchesPreset) setFormData((f) => ({ ...f, plan: "custom" }));
+                                    }
+                                    return updated;
+                                  })
+                                }
+                                className="w-4 h-4"
+                              />
+                              <span>
+                                {module.icon} {module.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
 
               {/* Admin Account */}
-              <div className="border border-purple-200 rounded-lg p-4 bg-purple-50">
-                <h3 className="font-bold text-purple-800 mb-3">👤 Compte Admin du Tenant</h3>
-                <p className="text-xs text-purple-600 mb-3">
+              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                <h3 className="font-semibold text-slate-900 mb-1 flex items-center gap-2"><Users className="w-4 h-4 text-slate-500" /> Compte Admin du Tenant</h3>
+                <p className="text-xs text-slate-500 mb-4">
                   Facultatif — si renseigné, un compte admin sera créé avec tous les droits dans ce tenant.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -677,33 +732,38 @@ export default function SuperAdminDashboard() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full bg-purple-600">
+              <Button type="submit" className="w-full">
+                <Plus className="w-4 h-4" />
                 Créer le Tenant
               </Button>
             </form>
+            </CardContent>
           </Card>
         )}
 
         {/* Manage Plans Form */}
         {showManagePlans && (
-          <Card className="p-6 mb-8 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300">
-            <h2 className="text-2xl font-bold mb-6 text-orange-900">🎯 Gérer les Types de Forfaits</h2>
-            <p className="text-sm text-orange-800 mb-6">
-              Activez ou désactivez les modules pour chaque type de forfait. Ces paramètres seront appliqués à tous les nouveaux tenants.
-            </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Gérer les Types de Forfaits</CardTitle>
+              <p className="text-sm text-slate-500 mt-1">
+                Activez ou désactivez les modules pour chaque type de forfait.
+              </p>
+            </CardHeader>
+            <CardContent>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {Object.entries(PLAN_LABELS).map(([planId, planInfo]) => (
-                <Card key={planId} className="p-4 border-2 border-orange-200 bg-white">
-                  <div className="mb-4">
-                    <h3 className="font-bold text-lg text-orange-900 mb-1">{planInfo.label}</h3>
-                    <p className="text-xs text-orange-700">ID: {planId}</p>
+                <div key={planId} className="border border-slate-200 rounded-lg p-4 bg-white">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="font-semibold text-slate-900">{planInfo.label}</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${planInfo.color}`}>{planId}</span>
                   </div>
 
                   {/* Pricing Section */}
                   {planId !== "custom" && (
-                    <div className="mb-4 pb-4 border-b-2 border-orange-100">
-                      <label className="block text-xs font-semibold text-orange-800 mb-2">💵 Prix fixe (NIO/mois)</label>
+                    <div className="mb-4 pb-4 border-b border-slate-100">
+                      <label className="block text-xs font-semibold text-slate-600 mb-2">Prix (NIO/mois)</label>
                       <input
                         type="number"
                         placeholder="Montant"
@@ -714,178 +774,144 @@ export default function SuperAdminDashboard() {
                             [planId]: parseInt(e.target.value) || 0,
                           }))
                         }
-                        className="w-full px-2 py-1 border border-orange-300 rounded text-sm"
+                        className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm"
                       />
-                      <p className="text-xs text-orange-600 mt-1">
-                        💰 {planPrices[planId] ?? 0} NIO/mes
+                      <p className="text-xs text-slate-500 mt-1">
+                        {planPrices[planId] ?? 0} NIO/mes
                       </p>
                     </div>
                   )}
                   
-                  <div className="space-y-2 mb-4 border-t-2 border-orange-100 pt-4">
-                    {AVAILABLE_MODULES.map((module) => (
-                      <label key={module.id} className="flex items-center gap-2 cursor-pointer hover:bg-orange-50 p-2 rounded">
-                        <input
-                          type="checkbox"
-                          checked={planConfigs[planId]?.[module.id] ?? false}
-                          onChange={(e) => {
-                            setPlanConfigs((prev) => ({
-                              ...prev,
-                              [planId]: {
-                                ...prev[planId],
-                                [module.id]: e.target.checked,
-                              },
-                            }));
-                          }}
-                          className="w-4 h-4"
-                        />
-                        <span className="text-sm text-slate-700">
-                          {module.icon} {module.label}
-                        </span>
-                      </label>
+                  <div className="space-y-3 mb-4 border-t border-slate-100 pt-3">
+                    {MODULE_GROUPS.map((group) => (
+                      <div key={group.id}>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{group.label}</p>
+                        <div className="space-y-1 pl-1">
+                          {group.modules.map((moduleId) => {
+                            const module = AVAILABLE_MODULES.find((m) => m.id === moduleId);
+                            if (!module) return null;
+                            return (
+                              <label key={module.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={planConfigs[planId]?.[module.id] ?? false}
+                                  onChange={(e) => {
+                                    setPlanConfigs((prev) => ({
+                                      ...prev,
+                                      [planId]: {
+                                        ...prev[planId],
+                                        [module.id]: e.target.checked,
+                                      },
+                                    }));
+                                  }}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm text-slate-700">
+                                  {module.icon} {module.label}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ))}
                   </div>
                   
-                  <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
-                    ✓ {Object.values(planConfigs[planId] || {}).filter(Boolean).length} modules activés
-                  </div>
-                </Card>
+                  <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 p-2 rounded">
+                    {Object.values(planConfigs[planId] || {}).filter(Boolean).length} modules activés
+                  </p>
+                </div>
               ))}
             </div>
-            
-            <div className="mt-6 flex gap-3">
+            </CardContent>
+            <CardFooter>
               <Button 
                 onClick={async () => {
                   await savePlanConfigs();
                   await savePlanPrices();
                 }}
-                className="bg-orange-600"
               >
-                💾 Enregistrer les modifications
+                <Check className="w-4 h-4" />
+                Enregistrer les modifications
               </Button>
               <Button 
+                variant="secondary"
                 onClick={() => {
                   setPlanConfigs(PLAN_PRESETS);
                   setPlanPrices(PLAN_PRICES);
                 }}
-                className="bg-slate-500"
               >
-                ↺ Réinitialiser
+                <RefreshCw className="w-4 h-4" />
+                Réinitialiser
               </Button>
-            </div>
+            </CardFooter>
           </Card>
         )}
 
         {/* Tenants List */}
         <div>
-          <h2 className="text-2xl font-bold mb-4 text-gray-900">Tenants Actifs</h2>
+          <h2 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-slate-400" />
+            Tenants Actifs ({tenants.length})
+          </h2>
           {loading ? (
-            <p className="text-gray-800">Chargement...</p>
+            <Card>
+              <CardContent>
+                <p className="text-slate-500 text-center py-4">Chargement...</p>
+              </CardContent>
+            </Card>
           ) : tenants.length === 0 ? (
-            <Card className="p-8 text-center text-gray-800">
-              Aucun tenant créé. Cliquez sur "Créer un Tenant" pour commencer.
+            <Card>
+              <CardContent>
+                <p className="text-slate-500 text-center py-8">Aucun tenant créé. Cliquez sur "Créer un Tenant" pour commencer.</p>
+              </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {tenants.map((tenant) => (
-                <Card key={tenant.id} className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">{tenant.name}</h3>
-                      <p className="text-sm text-gray-700">
-                        Slug: <code className="bg-slate-100 px-2 py-1 rounded">{tenant.slug}</code>
-                      </p>
-                      <p className="text-xs text-gray-700 mt-1">
-                        ID: {tenant.id}
-                      </p>
+                <Card key={tenant.id}>
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-base font-bold text-slate-900 truncate">{tenant.name}</h3>
+                        {isSuspended(tenant) ? (
+                          <Badge variant="error">Suspendu</Badge>
+                        ) : isPaymentActive(tenant) ? (
+                          <Badge variant="success">Payé</Badge>
+                        ) : tenant.paid_until && new Date(tenant.paid_until) <= new Date() ? (
+                          <Badge variant="warning">Expiré</Badge>
+                        ) : tenant.trial_ends_at ? (
+                          <Badge variant="default">Essai</Badge>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
+                        <span>Slug: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">{tenant.slug}</code></span>
+                        <span className={`font-medium ${PLAN_LABELS[tenant.plan]?.color || ""} px-2 py-0.5 rounded`}>{PLAN_LABELS[tenant.plan]?.label || tenant.plan}</span>
+                        <span>{PLAN_PRICES[tenant.plan] || 0} NIO/mes</span>
+                        {tenant.paid_until && <span>Vence: {new Date(tenant.paid_until).toLocaleDateString('fr-FR')}</span>}
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end gap-3">
-                      {/* Subscription Info Section */}
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 min-w-max">
-                        <div className="flex flex-col gap-2">
-                          {/* Plan Badge */}
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-slate-600">Plan:</span>
-                            <div className="flex items-center gap-2">
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-semibold ${PLAN_LABELS[tenant.plan]?.color || "bg-slate-100 text-slate-700"}`}>
-                                {PLAN_LABELS[tenant.plan]?.label || tenant.plan}
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setEditingTenant(tenant);
-                                  setSelectedModules(tenant.features || {});
-                                  setEditingPlan(tenant.plan || "basic");
-                                }}
-                                className="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors"
-                                title="Modifier le plan et les modules"
-                              >
-                                ✏️
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Price */}
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold text-slate-600">Precio:</span>
-                            <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-50 text-green-700">
-                              💵 {PLAN_PRICES[tenant.plan] || 0} NIO/mes
-                            </span>
-                          </div>
-
-                          {/* Expiration Date */}
-                          {tenant.paid_until && (
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-semibold text-slate-600">Vencimiento:</span>
-                              <span className="inline-block px-2 py-1 rounded text-xs font-mono bg-blue-50 text-blue-700 border border-blue-200">
-                                📅 {new Date(tenant.paid_until).toLocaleDateString('fr-FR')}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Status Badge */}
-                          <div className="border-t border-slate-200 pt-2 mt-2">
-                            {isSuspended(tenant) ? (
-                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-red-600 text-white border border-red-700 w-full text-center">
-                                🚨 SUSPENDU
-                              </span>
-                            ) : isPaymentActive(tenant) ? (
-                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-700 border border-green-300 w-full text-center">
-                                ✅ Payé
-                              </span>
-                            ) : tenant.paid_until && new Date(tenant.paid_until) <= new Date() ? (
-                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-300 w-full text-center">
-                                ⚠️ Expiré
-                              </span>
-                            ) : tenant.trial_ends_at ? (
-                              <span className="inline-block px-2 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-700 border border-yellow-300 w-full text-center">
-                                ⏳ Essai
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex flex-wrap gap-2 w-full">
-                        <button
-                          onClick={() => enterTenant(tenant)}
-                          className="flex-1 min-w-fit flex items-center justify-center gap-1.5 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold rounded-lg transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                          </svg>
-                          Accéder
-                        </button>
-                        <button
-                          onClick={() => openPaymentModal(tenant)}
-                          className="flex-1 min-w-fit flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                        >
-                          ⚙️ Gérer l'abonnement
-                        </button>
-                      </div>
+                    <div className="flex flex-wrap gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => enterTenant(tenant)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        Accéder
+                      </button>
+                      <button
+                        onClick={() => openPaymentModal(tenant)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        Abonnement
+                      </button>
                     </div>
                   </div>
 
+                  <div className="mt-4 border-t border-slate-100 pt-4">
                   {editingTenant?.id === tenant.id ? (
                     <form onSubmit={handleUpdateTenant} className="space-y-4">
                       <div>
@@ -908,133 +934,145 @@ export default function SuperAdminDashboard() {
                       </div>
                       <div>
                         <label className="block text-sm font-semibold mb-3 text-slate-900">Modules</label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {AVAILABLE_MODULES.map((module) => (
-                            <label key={module.id} className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={selectedModules[module.id] || false}
-                                onChange={(e) => {
-                                  const updated = { ...selectedModules, [module.id]: e.target.checked };
-                                  const preset = planConfigs[editingPlan];
-                                  if (preset) {
-                                    const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
-                                    if (!matchesPreset) setEditingPlan("custom");
-                                  }
-                                  setSelectedModules(updated);
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <span className="text-sm text-slate-900">{module.icon} {module.label}</span>
-                            </label>
+                        <div className="space-y-4">
+                          {MODULE_GROUPS.map((group) => (
+                            <div key={group.id}>
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{group.label}</p>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pl-2">
+                                {group.modules.map((moduleId) => {
+                                  const module = AVAILABLE_MODULES.find((m) => m.id === moduleId);
+                                  if (!module) return null;
+                                  return (
+                                    <label key={module.id} className="flex items-center gap-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedModules[module.id] || false}
+                                        onChange={(e) => {
+                                          const updated = { ...selectedModules, [module.id]: e.target.checked };
+                                          const preset = planConfigs[editingPlan];
+                                          if (preset) {
+                                            const matchesPreset = AVAILABLE_MODULES.every((m) => updated[m.id] === preset[m.id]);
+                                            if (!matchesPreset) setEditingPlan("custom");
+                                          }
+                                          setSelectedModules(updated);
+                                        }}
+                                        className="w-4 h-4"
+                                      />
+                                      <span className="text-sm text-slate-900">{module.icon} {module.label}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button type="submit" className="bg-green-600">
-                          ✅ Sauvegarder
+                        <Button type="submit">
+                          <Check className="w-4 h-4" /> Sauvegarder
                         </Button>
                         <Button
                           type="button"
+                          variant="secondary"
                           onClick={() => setEditingTenant(null)}
-                          className="bg-slate-400"
                         >
-                          ❌ Annuler
+                          <X className="w-4 h-4" /> Annuler
                         </Button>
                       </div>
                     </form>
                   ) : deletingTenantId === tenant.id ? (
-                    <div className="bg-red-50 border border-red-300 rounded-lg p-4 space-y-3">
-                      <div>
-                        <p className="text-sm font-bold text-red-900 mb-3">
-                          ⚠️ Attention: Cela supprimera le tenant "{tenant.name}" et TOUTES ses données (employés, transactions, configurations, etc.).
-                        </p>
-                        <p className="text-xs text-red-700 mb-3">
-                          Tapez le nom du tenant pour confirmer:
-                        </p>
-                        <input
-                          type="text"
-                          placeholder={tenant.name}
-                          value={deleteConfirmation}
-                          onChange={(e) => setDeleteConfirmation(e.target.value)}
-                          className="w-full px-3 py-2 border border-red-300 rounded-lg bg-white text-red-900 mb-3 font-mono text-sm"
-                        />
-                      </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                      <p className="text-sm font-semibold text-red-900">
+                        Cela supprimera le tenant "{tenant.name}" et TOUTES ses données définitivement.
+                      </p>
+                      <p className="text-xs text-red-600">Tapez le nom du tenant pour confirmer:</p>
+                      <input
+                        type="text"
+                        placeholder={tenant.name}
+                        value={deleteConfirmation}
+                        onChange={(e) => setDeleteConfirmation(e.target.value)}
+                        className="w-full px-3 py-2 border border-red-300 rounded-lg bg-white text-red-900 font-mono text-sm"
+                      />
                       <div className="flex gap-2">
                         <Button
+                          variant="danger"
                           onClick={() => handleDeleteTenant(tenant)}
                           disabled={deleteConfirmation !== tenant.name}
-                          className="bg-red-600 disabled:opacity-50"
                         >
-                          🗑️ Supprimer Définitivement
+                          <Trash2 className="w-4 h-4" /> Supprimer Définitivement
                         </Button>
                         <Button
+                          variant="secondary"
                           type="button"
                           onClick={() => {
                             setDeletingTenantId(null);
                             setDeleteConfirmation("");
                           }}
-                          className="bg-slate-400"
                         >
-                          ❌ Annuler
+                          <X className="w-4 h-4" /> Annuler
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <div className="mb-4">
-                        <label className="text-sm font-semibold text-slate-900 block mb-2">
-                          Modules:
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {AVAILABLE_MODULES.map((module) =>
-                            tenant.features?.[module.id] ? (
-                              <span
-                                key={module.id}
-                                className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm font-medium"
-                              >
-                                {module.icon} {module.label}
-                              </span>
-                            ) : (
-                              <span
-                                key={module.id}
-                                className="px-3 py-1 bg-slate-100 text-slate-400 rounded text-sm line-through"
-                              >
-                                {module.icon} {module.label}
-                              </span>
-                            )
-                          )}
+                      <div className="mb-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Modules</p>
+                        <div className="space-y-1.5">
+                          {MODULE_GROUPS.map((group) => (
+                            <div key={group.id}>
+                              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">{group.label}</p>
+                              <div className="flex flex-wrap gap-1 pl-2">
+                                {group.modules.map((moduleId) => {
+                                  const module = AVAILABLE_MODULES.find((m) => m.id === moduleId);
+                                  if (!module) return null;
+                                  return tenant.features?.[module.id] ? (
+                                    <span key={module.id} className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                      {module.icon} {module.label}
+                                    </span>
+                                  ) : (
+                                    <span key={module.id} className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded text-xs line-through">
+                                      {module.icon} {module.label}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 mt-3">
                         <Button
+                          size="sm"
+                          variant="secondary"
                           onClick={() => {
                             setEditingTenant(tenant);
                             setSelectedModules(tenant.features || {});
                             setEditingPlan(tenant.plan || "basic");
                           }}
-                          className="bg-blue-600"
                         >
-                          ✏️ Modifier Plan & Modules
+                          <Edit2 className="w-4 h-4" /> Modifier Plan
                         </Button>
                         <Button
+                          size="sm"
+                          variant="secondary"
                           onClick={() => handleSyncTenant(tenant)}
-                          className="bg-amber-600"
                         >
-                          🔄 Synchroniser
+                          <RefreshCw className="w-4 h-4" /> Synchroniser
                         </Button>
                         <Button
+                          size="sm"
+                          variant="danger"
                           onClick={() => {
                             setDeletingTenantId(tenant.id);
                             setDeleteConfirmation("");
                           }}
-                          className="bg-red-600 hover:bg-red-700"
                         >
-                          🗑️ Supprimer
+                          <Trash2 className="w-4 h-4" /> Supprimer
                         </Button>
                       </div>
                     </div>
                   )}
+                  </div>
                 </Card>
               ))}
             </div>
@@ -1044,118 +1082,122 @@ export default function SuperAdminDashboard() {
 
       {/* Payment Modal */}
       {showPaymentModal && paymentModalTenant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto bg-white">
-            <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-cyan-50 border-b-2 border-blue-300 p-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-blue-900">⚙️ Gérer l'abonnement</h2>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-lg bg-white rounded-xl border border-slate-200 shadow-xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-slate-100">
+                  <CreditCard className="w-4 h-4 text-slate-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Gérer l'abonnement</h2>
+                  <p className="text-xs text-slate-500">{paymentModalTenant.name}</p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowPaymentModal(false)}
-                className="text-3xl text-slate-500 hover:text-slate-700 font-bold"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
               >
-                ✕
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-6">
               {/* Tenant Info */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <p className="text-sm text-slate-600"><strong>Client:</strong> {paymentModalTenant.name}</p>
-                <p className="text-sm text-slate-600"><strong>Plan:</strong> {PLAN_LABELS[paymentModalTenant.plan]?.label}</p>
-                <p className="text-sm text-slate-600"><strong>Statut:</strong> {isPaymentActive(paymentModalTenant) ? "✅ Payé" : "⏳ Essai"}</p>
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-1">
+                <p className="text-sm text-slate-700"><span className="font-semibold">Plan:</span> {PLAN_LABELS[paymentModalTenant.plan]?.label}</p>
+                <p className="text-sm text-slate-700"><span className="font-semibold">Statut:</span> {isPaymentActive(paymentModalTenant) ? "Payé" : "Essai"}</p>
                 {((paymentModalTenant as any).paid_until) && (
-                  <p className="text-sm text-slate-600">
-                    <strong>Payé jusqu'au:</strong> {new Date((paymentModalTenant as any).paid_until).toLocaleDateString('fr-FR')}
+                  <p className="text-sm text-slate-700">
+                    <span className="font-semibold">Payé jusqu'au:</span> {new Date((paymentModalTenant as any).paid_until).toLocaleDateString('fr-FR')}
                   </p>
                 )}
               </div>
 
               {/* Payment Form */}
-              <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
-                <h3 className="text-lg font-semibold text-blue-900 mb-4">📝 Enregistrer un paiement</h3>
+              <div className="border border-slate-200 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-slate-900 mb-4">Enregistrer un paiement</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">Montant (NIO/mois)</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Montant (NIO/mois)</label>
                     <input
                       type="number"
                       value={paymentFormData.amount}
                       onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: e.target.value })}
-                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm"
                       placeholder="Montant"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">Payé jusqu'au</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Payé jusqu'au</label>
                     <input
                       type="date"
                       value={paymentFormData.paid_until}
                       onChange={(e) => setPaymentFormData({ ...paymentFormData, paid_until: e.target.value })}
-                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">Méthode de paiement</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Méthode de paiement</label>
                     <select
                       value={paymentFormData.payment_method}
                       onChange={(e) => setPaymentFormData({ ...paymentFormData, payment_method: e.target.value })}
-                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm"
                     >
-                      <option value="">-- Sélectionner une méthode --</option>
-                      <option value="CASH">💵 Espèces</option>
-                      <option value="CARD">💳 Crédit</option>
-                      <option value="TRANSFER">🏦 Transfert</option>
+                      <option value="">— Sélectionner —</option>
+                      <option value="CASH">Espèces</option>
+                      <option value="CARD">Carte de crédit</option>
+                      <option value="TRANSFER">Virement bancaire</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">Notes</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">Notes</label>
                     <textarea
                       value={paymentFormData.notes}
                       onChange={(e) => setPaymentFormData({ ...paymentFormData, notes: e.target.value })}
-                      className="w-full px-3 py-2 border border-blue-300 rounded-lg text-slate-900 bg-white h-20"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm h-20"
                       placeholder="Notes optionnelles..."
                     />
                   </div>
 
-                  <Button
-                    onClick={handleRecordPayment}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                  >
-                    💾 Enregistrer le paiement
+                  <Button onClick={handleRecordPayment} className="w-full">
+                    <Check className="w-4 h-4" />
+                    Enregistrer le paiement
                   </Button>
                 </div>
               </div>
 
               {/* Payment History */}
               <div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">📊 Historique des paiements</h3>
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">Historique des paiements</h3>
                 {loadingPaymentHistory ? (
-                  <p className="text-slate-600">Chargement...</p>
+                  <p className="text-sm text-slate-500">Chargement...</p>
                 ) : paymentHistory.length === 0 ? (
-                  <p className="text-slate-600">Aucun paiement enregistré</p>
+                  <p className="text-sm text-slate-500">Aucun paiement enregistré</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {paymentHistory.map((payment: any) => (
-                      <div key={payment.id} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-slate-900">
-                              💰 {payment.amount} NIO - {payment.plan}
-                            </p>
-                            <p className="text-xs text-slate-600">
-                              Enregistré le: {new Date(payment.payment_date).toLocaleDateString('fr-FR')}
-                            </p>
-                            <p className="text-xs text-slate-600">
-                              Payé jusqu'au: {new Date(payment.paid_until).toLocaleDateString('fr-FR')}
-                            </p>
-                            {payment.payment_method && (
-                              <p className="text-xs text-slate-600">Méthode: {payment.payment_method}</p>
-                            )}
-                            {payment.notes && (
-                              <p className="text-xs text-slate-600 italic">Note: {payment.notes}</p>
-                            )}
-                          </div>
+                      <div key={payment.id} className="bg-slate-50 px-4 py-3 rounded-lg border border-slate-200">
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {payment.amount} NIO — {payment.plan}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Enregistré le: {new Date(payment.payment_date).toLocaleDateString('fr-FR')}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Payé jusqu'au: {new Date(payment.paid_until).toLocaleDateString('fr-FR')}
+                          </p>
+                          {payment.payment_method && (
+                            <p className="text-xs text-slate-500">Méthode: {payment.payment_method}</p>
+                          )}
+                          {payment.notes && (
+                            <p className="text-xs text-slate-400 italic">{payment.notes}</p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1163,24 +1205,19 @@ export default function SuperAdminDashboard() {
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  onClick={() => setShowPaymentModal(false)}
-                  className="flex-1 bg-slate-500 hover:bg-slate-600"
-                >
-                  ❌ Fermer
+              <div className="flex gap-3 pt-2 border-t border-slate-100">
+                <Button variant="secondary" onClick={() => setShowPaymentModal(false)} className="flex-1">
+                  Fermer
                 </Button>
                 {isPaymentActive(paymentModalTenant!) && (
-                  <Button
-                    onClick={() => handleCancelPayment(paymentModalTenant!)}
-                    className="flex-1 bg-red-600 hover:bg-red-700"
-                  >
-                    🗑️ Annuler paiement
+                  <Button variant="danger" onClick={() => handleCancelPayment(paymentModalTenant!)} className="flex-1">
+                    <X className="w-4 h-4" />
+                    Annuler paiement
                   </Button>
                 )}
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       )}
 

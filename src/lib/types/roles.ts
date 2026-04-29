@@ -284,22 +284,38 @@ export const DEFAULT_ROLES: Omit<Role, "createdAt" | "updatedAt">[] = [
   {
     id: "manager",
     name: "Gerente",
-    description: "Gestión de empleados, nómina y reportes",
+    description: "Gestión operacional: empleados, nómina, reportes, gastos y contactos",
     permissions: [
-      "employees.view",
-      "employees.create",
-      "employees.edit",
-      "schedules.view",
-      "schedules.edit",
-      "payroll.view",
-      "payroll.create",
-      "payroll.approve",
-      "inventory.view",
+      // POS
       "pos.view",
       "pos.cierre",
       "pos.cierre_review",
+      // Inventario
+      "inventory.view",
+      "inventory.adjust",
+      // Empleados
+      "employees.view",
+      "employees.create",
+      "employees.edit",
+      // Horarios
+      "schedules.view",
+      "schedules.edit",
+      // Nómina
+      "payroll.view",
+      "payroll.create",
+      "payroll.approve",
+      // Reportes & Finanzas
       "reports.view",
       "reports.export",
+      // Gastos (lecture + création)
+      "expenses.view_all",
+      "expenses.create",
+      "expenses.edit",
+      "expenses.manage_suppliers",
+      // Contactos (lecture)
+      "contacts.view",
+      // Clientes Fieles (lecture)
+      "loyalty.view",
     ],
     isSystem: true,
   },

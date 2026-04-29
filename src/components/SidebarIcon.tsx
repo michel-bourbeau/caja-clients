@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Receipt,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 
 type SidebarIconType =
@@ -38,6 +39,7 @@ type SidebarIconType =
   | "roles"
   | "settings"
   | "expenses"
+  | "bilan"
   | "contacts";
 
 interface SidebarIconProps {
@@ -72,6 +74,7 @@ export const SidebarIcon: React.FC<SidebarIconProps> = ({
     roles: <Key className={iconClasses} />,
     settings: <Settings className={iconClasses} />,
     expenses: <Receipt className={iconClasses} />,
+    bilan: <BarChart3 className={iconClasses} />,
     contacts: <BookOpen className={iconClasses} />,
   };
 

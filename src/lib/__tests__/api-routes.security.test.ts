@@ -286,12 +286,12 @@ describe("🔒 API Route Handler Security Tests", () => {
       expect(response.status).toBe(403);
     });
 
-    test("GET /expenses returns 403 for manager (missing expenses.view_all)", () => {
+    test("GET /expenses returns 200 for manager (has expenses.view_all)", () => {
       const managerContext: MockAuthContext = {
         user: { id: "user-2", tenantId: "tenant-1", roleId: "manager", permissions: permissionsForRole("manager") },
       };
       const response = viewAllHandler(managerContext);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
   });
 
@@ -337,12 +337,12 @@ describe("🔒 API Route Handler Security Tests", () => {
       expect(response.status).toBe(403);
     });
 
-    test("GET /contacts returns 403 for manager (missing contacts.view)", () => {
+    test("GET /contacts returns 200 for manager (has contacts.view)", () => {
       const managerContext: MockAuthContext = {
         user: { id: "user-2", tenantId: "tenant-1", roleId: "manager", permissions: permissionsForRole("manager") },
       };
       const response = getContactsHandler(managerContext);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
     });
 
     test("POST /contacts returns 403 for cashier (missing contacts.create)", () => {

@@ -68,7 +68,12 @@ export async function POST(
       .eq("tenant_id", tenantId)
       .eq("is_active", true);
 
-    if (fixedError) throw fixedError;
+    if (fixedError) {
+      if ((fixedError as any).code === "PGRST205" || (fixedError as any).code === "42P01") {
+        return NextResponse.json({ created: 0, skipped: 0, message: "Tabla no creada aún. Ejecute la migración en Supabase." });
+      }
+      throw fixedError;
+    }
     if (!fixedList || fixedList.length === 0) {
       return NextResponse.json({ created: 0, skipped: 0, message: "No hay gastos fijos activos" });
     }

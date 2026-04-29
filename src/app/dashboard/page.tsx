@@ -43,6 +43,7 @@ import {
   AlertCircle,
   RefreshCw,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 
 import { useRouter } from "next/navigation";
@@ -260,6 +261,17 @@ export default function DashboardPage() {
       iconBg: "bg-emerald-100",
       group: "finanzas",
       show: features.reports && hasPermission("settings.manage_roles"),
+    },
+    {
+      id: "bilan",
+      title: "Bilan Financiero",
+      icon: BarChart3,
+      description: "Ganancia neta: ventas − gastos − salarios",
+      href: "/dashboard/bilan",
+      color: "bg-blue-50 border-blue-200 text-blue-800",
+      iconBg: "bg-blue-100",
+      group: "finanzas",
+      show: features.reports && hasPermission("reports.view"),
     },
     {
       id: "reports",

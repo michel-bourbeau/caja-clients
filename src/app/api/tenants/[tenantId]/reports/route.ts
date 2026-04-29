@@ -71,6 +71,8 @@ export async function GET(
       return NextResponse.json(generateProductReport(txns));
     } else if (reportType === "PAYMENT") {
       return NextResponse.json(generatePaymentReport(txns));
+    } else if (reportType === "BILAN") {
+      return NextResponse.json(generateBilanReport(txns));
     }
 
     return NextResponse.json({ error: "Unknown report type" }, { status: 400 });
@@ -289,4 +291,31 @@ function generatePaymentReport(txns: any[]) {
   const breakdown = Object.values(paymentMap).sort((a, b) => b.amount - a.amount);
 
   return { breakdown };
+}
+
+/**
+ * Generate bilan (financial overview) aggregated data.
+ * Computes revenue, COGS, gross profit and transaction count from items.
+ */
+function generateBilanReport(txns: any[]) {
+  let revenue = 0;
+  let cogs = 0;
+
+  // Unique client timestamps (same second = same client)
+  const uniqueTs = new Set<string>();
+
+  txns.forEach((tx) => {
+    uniqueTs.add((tx.created_at as string).substring(0, 19));
+    const items: any[] = tx.items || [];
+    items.forEach((item) => {
+      const qty = Number(item.quantity) || 1;
+      revenue += (Number(item.price) || 0) * qty;
+      cogs += (Number(item.cost_price) || 0) * qty;
+    });
+  });
+
+  const txCount = uniqueTs.size;
+  const grossProfit = revenue - cogs;
+
+  return { revenue, cogs, grossProfit, txCount };
 }

@@ -174,7 +174,7 @@ describe("DashboardPage — Access Control", () => {
     // Compteur dans le sous-titre
     it("affiche le bon nombre de modules dans le sous-titre", () => {
       const subtitle = screen.getByTestId("dashboard-subtitle");
-      expect(subtitle.textContent).toMatch(/16 módulos/);
+      expect(subtitle.textContent).toMatch(/17 módulos/);
     });
   });
 

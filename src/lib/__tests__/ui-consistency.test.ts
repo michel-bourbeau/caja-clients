@@ -212,12 +212,12 @@ describe("🎨 UI Consistency & Visibility Tests", () => {
   });
 
   describe("Manager Module Visibility", () => {
-    test("Manager sees most modules except loyalty, contacts, expenses", () => {
+    test("Manager sees most modules except pos.create", () => {
       const managerPerms = permissionsForRole("manager");
       const visible = getVisibleModules(managerPerms, DASHBOARD_MODULES);
 
-      // Manager missing: loyalty, contacts, expenses, pos.create
-      expect(visible.length).toBe(8);
+      // Manager now has expenses.view_all, contacts.view, loyalty.view
+      expect(visible.length).toBe(11);
     });
 
     test("Manager sees payroll modules", () => {
