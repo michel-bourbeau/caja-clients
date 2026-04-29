@@ -8,6 +8,7 @@ import { Button, Card, Container, Section, Alert } from "@/components/StripeUICo
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, EmptyState } from "@/components";
 import { Pencil, Package, Trash2, History, TrendingUp, TrendingDown, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { useCurrency } from "@/lib/utils/useCurrency";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ProductVariant {
   id: string;
@@ -83,6 +84,7 @@ export default function InventoryPage() {
   const { tenantId } = useTenant();
   const router = useRouter();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -257,7 +259,7 @@ export default function InventoryPage() {
       }
     } catch (error) {
       console.error("Error loading inventory:", error);
-      setMessage("Error loading inventory");
+      setMessage(t("inventory.errors.loadingInventory"));
     } finally {
       setLoading(false);
     }
@@ -294,7 +296,7 @@ export default function InventoryPage() {
 
   const handleAdjustStock = async () => {
     if (!adjustForm.product_id || !adjustForm.quantity || isNaN(parseInt(adjustForm.quantity))) {
-      setMessage("Veuillez sélectionner un produit et saisir une quantité valide");
+      setMessage(t("inventory.errors.selectProductAndQty"));
       return;
     }
     try {
@@ -311,28 +313,28 @@ export default function InventoryPage() {
         }),
       });
       if (res.ok) {
-        setMessage("Mouvement de stock enregistré");
+        setMessage(t("inventory.success.movementRecorded"));
         setShowAdjustModal(false);
         setAdjustForm({ product_id: "", variant_id: "", movement_type: "restock", quantity: "", notes: "" });
         await fetchData();
         await fetchMovements({ product_id: movFilterProduct || undefined, movement_type: movFilterType || undefined, from_date: movFilterFrom || undefined, to_date: movFilterTo || undefined });
       } else {
         const err = await res.json();
-        setMessage(err.error || "Erreur lors de l'ajustement");
+        setMessage(err.error || t("inventory.errors.adjustError"));
       }
     } catch {
-      setMessage("Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
   const handleAddCategory = async () => {
     if (!newCategory.name.trim()) {
-      setMessage("Le nom de la catégorie est requis");
+      setMessage(t("inventory.errors.categoryNameRequired"));
       return;
     }
 
     if (!tenantId) {
-      setMessage("Erreur: Tenant ID non trouvé. Reconnectez-vous.");
+      setMessage(t("inventory.errors.tenantNotFound"));
       return;
     }
 
@@ -347,7 +349,7 @@ export default function InventoryPage() {
       });
 
       if (res.ok) {
-        setMessage("Catégorie créée avec succès");
+        setMessage(t("inventory.success.categoryCreated"));
         setNewCategory({ name: "", description: "" });
         setShowAddCategory(false);
         await fetchData();
@@ -358,7 +360,7 @@ export default function InventoryPage() {
       }
     } catch (error) {
       console.error("Fetch error:", error);
-      setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
@@ -383,7 +385,7 @@ export default function InventoryPage() {
       return data.url;
     } catch (error) {
       console.error("Error uploading image:", error);
-      setMessage("Error al subir la imagen");
+      setMessage(t("inventory.errors.imageUpload"));
       return null;
     }
   };
@@ -392,11 +394,11 @@ export default function InventoryPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
-        setMessage("Por favor selecciona una imagen");
+        setMessage(t("inventory.errors.imageTypeError"));
         return;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setMessage("La imagen debe ser menor a 5MB");
+        setMessage(t("inventory.errors.imageSizeError"));
         return;
       }
       setProductImage(file);
@@ -410,15 +412,15 @@ export default function InventoryPage() {
 
   const handleAddProduct = async () => {
     if (!newProduct.name.trim() || !newProduct.sku.trim()) {
-      setMessage("El nombre y SKU son obligatorios");
+      setMessage(t("inventory.errors.nameSkuRequired"));
       return;
     }
     if (!isMultiFormat && !newProduct.price) {
-      setMessage("El precio es obligatorio");
+      setMessage(t("inventory.errors.priceRequired"));
       return;
     }
     if (isMultiFormat && variantRows.some((v) => !v.label.trim() || !v.price)) {
-      setMessage("Cada formato necesita un nombre y precio");
+      setMessage(t("inventory.errors.variantNamePriceRequired"));
       return;
     }
 
@@ -481,7 +483,7 @@ export default function InventoryPage() {
         );
       }
 
-      setMessage("Producto creado con éxito");
+      setMessage(t("inventory.success.productCreated"));
       setNewProduct({ name: "", sku: "", price: "", cost_price: "", quantity: "", min_stock: "", category_id: "", description: "" });
       setProductImage(null);
       setProductImagePreview("");
@@ -490,12 +492,12 @@ export default function InventoryPage() {
       setShowAddProduct(false);
       await fetchData();
     } catch (error) {
-      setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!confirm("Confirmer la suppression du produit?")) return;
+    if (!confirm(t("inventory.confirm.deleteProduct"))) return;
 
     try {
       const res = await fetch(`/api/tenants/${tenantId}/products/${productId}`, {
@@ -503,19 +505,19 @@ export default function InventoryPage() {
       });
 
       if (res.ok) {
-        setMessage("Produit supprimé");
+        setMessage(t("inventory.success.productDeleted"));
         await fetchData();
       } else {
-        setMessage("Erreur lors de la suppression");
+        setMessage(t("inventory.errors.deleteError"));
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
   const handleUpdateQuantity = async (productId: string, newQuantity: string) => {
     if (!newQuantity || isNaN(parseInt(newQuantity))) {
-      setMessage("Veuillez entrer une quantité valide");
+      setMessage(t("inventory.errors.invalidQuantity"));
       return;
     }
 
@@ -531,7 +533,7 @@ export default function InventoryPage() {
       });
 
       if (res.ok) {
-        setMessage("Stock mis à jour avec succès");
+        setMessage(t("inventory.success.stockUpdated"));
         setEditingProductId(null);
         setEditingQuantity("");
 
@@ -547,7 +549,7 @@ export default function InventoryPage() {
                 product_id:    productId,
                 movement_type,
                 quantity:      Math.abs(delta),
-                notes:         `Mise à jour manuelle (${oldQty} → ${newQty})`,
+                notes:         t("inventory.notes.manualUpdate", { before: String(oldQty), after: String(newQty) }),
                 created_by:    user?.email || user?.id,
               }),
             });
@@ -557,17 +559,17 @@ export default function InventoryPage() {
         await fetchData();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Erreur lors de la mise à jour");
+        setMessage(error.error || t("inventory.errors.updateError"));
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
       console.error(error);
     }
   };
 
   const handleUpdateMinStock = async (productId: string, value: string) => {
     if (value === "" || isNaN(parseInt(value))) {
-      setMessage("Cantidad mínima inválida");
+      setMessage(t("inventory.errors.invalidMinStock"));
       return;
     }
     try {
@@ -582,16 +584,16 @@ export default function InventoryPage() {
         await fetchData();
       } else {
         const err = await res.json();
-        setMessage(err.error || "Error al actualizar mínimo");
+        setMessage(err.error || t("inventory.errors.updateMinStockError"));
       }
     } catch {
-      setMessage("Error de red");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
   const handleUpdateVariantQty = async (productId: string, variantId: string, qty: string) => {
     if (!qty || isNaN(parseInt(qty))) {
-      setMessage("Quantité invalide");
+      setMessage(t("inventory.errors.invalidQuantity"));
       return;
     }
     const newQty = parseInt(qty);
@@ -607,7 +609,7 @@ export default function InventoryPage() {
         body: JSON.stringify({ stock_quantity: newQty }),
       });
       if (res.ok) {
-        setMessage("Stock mis à jour");
+        setMessage(t("inventory.success.stockUpdated"));
         setEditingVariantId(null);
         setEditingVariantQty("");
 
@@ -624,7 +626,7 @@ export default function InventoryPage() {
                 variant_id:    variantId,
                 movement_type,
                 quantity:      Math.abs(delta),
-                notes:         `Mise à jour manuelle (${oldQty} → ${newQty})`,
+                notes:         t("inventory.notes.manualUpdate", { before: String(oldQty), after: String(newQty) }),
                 created_by:    user?.email || user?.id,
               }),
             });
@@ -633,33 +635,33 @@ export default function InventoryPage() {
 
         await fetchData();
       } else {
-        setMessage("Erreur lors de la mise à jour");
+        setMessage(t("inventory.errors.updateError"));
       }
     } catch {
-      setMessage("Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
   const handleDeleteVariant = async (productId: string, variantId: string) => {
-    if (!confirm("Supprimer ce format?")) return;
+    if (!confirm(t("inventory.confirm.deleteVariant"))) return;
     try {
       const res = await fetch(`/api/tenants/${tenantId}/products/${productId}/variants/${variantId}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        setMessage("Format supprimé");
+        setMessage(t("inventory.success.variantDeleted"));
         await fetchData();
       } else {
-        setMessage("Erreur suppression");
+        setMessage(t("inventory.errors.deleteError"));
       }
     } catch {
-      setMessage("Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
   const handleUpdateVariantMinStock = async (productId: string, variantId: string, minStock: string) => {
     if (!minStock || isNaN(parseInt(minStock))) {
-      setMessage("Stock minimum invalide");
+      setMessage(t("inventory.errors.invalidMinStock"));
       return;
     }
     try {
@@ -669,15 +671,15 @@ export default function InventoryPage() {
         body: JSON.stringify({ min_stock: parseInt(minStock) }),
       });
       if (res.ok) {
-        setMessage("Stock minimum mis à jour");
+        setMessage(t("inventory.success.minStockUpdated"));
         setEditingVariantMinStockId(null);
         setEditingVariantMinStock("");
         await fetchData();
       } else {
-        setMessage("Erreur lors de la mise à jour");
+        setMessage(t("inventory.errors.updateError"));
       }
     } catch {
-      setMessage("Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
@@ -687,7 +689,7 @@ export default function InventoryPage() {
     const { productId, variantId, label, sku, price, cost_price } = editingVariantData;
     
     if (!label || !price || isNaN(parseFloat(price))) {
-      setMessage("Veuillez remplir tous les champs requis");
+      setMessage(t("inventory.errors.fillAllRequired"));
       return;
     }
 
@@ -703,15 +705,15 @@ export default function InventoryPage() {
         }),
       });
       if (res.ok) {
-        setMessage("Format mis à jour");
+        setMessage(t("inventory.success.variantUpdated"));
         setEditingVariantData(null);
         setEditProductModal(null);
         await fetchData();
       } else {
-        setMessage("Erreur lors de la mise à jour");
+        setMessage(t("inventory.errors.updateError"));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erreur réseau");
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
@@ -823,10 +825,10 @@ export default function InventoryPage() {
         }));
       }
       
-      setMessage("Format réordonné");
+      setMessage(t("inventory.success.variantReordered"));
     } catch (error) {
       console.error("❌ Network error:", error);
-      setMessage(`Erreur réseau: ${error instanceof Error ? error.message : "unknown"}`);
+      setMessage(t("inventory.errors.networkError"));
     }
   };
 
@@ -849,7 +851,7 @@ export default function InventoryPage() {
   const handleEditProduct = async () => {
     if (!editProductModal) return;
     if (!editForm.name.trim()) {
-      setMessage("El nombre es obligatorio");
+      setMessage(t("inventory.errors.nameRequired"));
       return;
     }
     setEditSaving(true);
@@ -881,15 +883,15 @@ export default function InventoryPage() {
         body: JSON.stringify(updateData),
       });
       if (res.ok) {
-        setMessage("Producto actualizado con éxito");
+        setMessage(t("inventory.success.productUpdated"));
         setEditProductModal(null);
         await fetchData();
       } else {
         const err = await res.json();
-        setMessage(err.error || "Error al guardar");
+        setMessage(err.error || t("inventory.errors.saveError"));
       }
     } catch {
-      setMessage("Error de red");
+      setMessage(t("inventory.errors.networkError"));
     } finally {
       setEditSaving(false);
       setUploadingEditImage(false);
@@ -982,7 +984,7 @@ export default function InventoryPage() {
       {/* Edit product modal */}
       <Dialog
         isOpen={!!editProductModal}
-        title="Editar Producto"
+        title={t("inventory.editProduct")}
         onClose={() => { setEditProductModal(null); setEditingModalVariantQtyId(null); setEditingModalVariantQty(""); setEditingModalVariantMinStockId(null); setEditingModalVariantMinStock(""); }}
         maxWidth="md"
         footer={
@@ -992,14 +994,14 @@ export default function InventoryPage() {
               disabled={editSaving || uploadingEditImage}
               className="bg-blue-600 hover:bg-blue-700 text-white truncate"
             >
-              {editSaving || uploadingEditImage ? "Guardando..." : "Guardar cambios"}
+              {editSaving || uploadingEditImage ? t("inventory.saving") : t("inventory.saveChanges")}
             </Button>
           </div>
         }
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.nameRequired")}</label>
                   <input
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
@@ -1008,7 +1010,7 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">SKU</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.sku")}</label>
                   <input
                     value={editForm.sku}
                     onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
@@ -1017,7 +1019,7 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Precio</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.price")}</label>
                   <input
                     type="number"
                     value={editForm.price}
@@ -1027,7 +1029,7 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Costo de compra</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.purchaseCost")}</label>
                   <input
                     type="number"
                     value={editForm.cost_price}
@@ -1042,11 +1044,11 @@ export default function InventoryPage() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <p className="text-xs text-slate-600">Ganancia por unidad</p>
+                      <p className="text-xs text-slate-600">{t("inventory.profitPerUnit")}</p>
                       <p className="font-bold text-green-700">{fmt(calculateProfitPerUnit(parseFloat(editForm.price) || 0, parseFloat(editForm.cost_price) || 0))}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-600">Margen de ganancia</p>
+                      <p className="text-xs text-slate-600">{t("inventory.profitMargin")}</p>
                       <p className="font-bold text-green-700">{calculateMarginPercent(parseFloat(editForm.price) || 0, parseFloat(editForm.cost_price) || 0).toFixed(1)}%</p>
                     </div>
                   </div>
@@ -1054,13 +1056,13 @@ export default function InventoryPage() {
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Categoría</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.category")}</label>
                   <select
                     value={editForm.category_id}
                     onChange={(e) => setEditForm({ ...editForm, category_id: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">— Sin categoría —</option>
+                    <option value="">{t("inventory.noCategoryOption")}</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
@@ -1068,7 +1070,7 @@ export default function InventoryPage() {
                 </div>
                 {editProductModal && !(editProductModal as any).has_variants && (
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Stock actual</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.currentStock")}</label>
                     <input
                       type="number"
                       value={editForm.quantity}
@@ -1081,7 +1083,7 @@ export default function InventoryPage() {
               </div>
               {editProductModal && !(editProductModal as any).has_variants && (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Stock mínimo</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.minStock")}</label>
                   <input
                     type="number"
                     value={editForm.min_stock}
@@ -1089,11 +1091,11 @@ export default function InventoryPage() {
                     placeholder="Alerta bajo inventario"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-slate-400 mt-0.5">Se alertará cuando el stock llegue a este número</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{t("inventory.minStockHint")}</p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.description")}</label>
                 <input
                   value={editForm.description}
                   onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
@@ -1105,15 +1107,15 @@ export default function InventoryPage() {
               {/* Variants section */}
               {editProductModal && (editProductModal as any).has_variants && (editProductModal as any).variants && (editProductModal as any).variants.length > 0 && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Gestionar Formatos</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 mb-3">{t("inventory.manageVariants")}</h3>
                   
                   {/* Editing a variant's properties */}
                   {editingVariantData && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm font-semibold text-slate-900 mb-3">Editar Formato</p>
+                      <p className="text-sm font-semibold text-slate-900 mb-3">{t("inventory.editVariant")}</p>
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">Etiqueta</label>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t("inventory.label")}</label>
                           <input
                             type="text"
                             value={editingVariantData.label}
@@ -1123,7 +1125,7 @@ export default function InventoryPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">Precio Venta</label>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t("inventory.salePrice")}</label>
                           <input
                             type="number"
                             value={editingVariantData.price}
@@ -1134,7 +1136,7 @@ export default function InventoryPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">Costo Compra</label>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">{t("inventory.cost")}</label>
                           <input
                             type="number"
                             value={editingVariantData.cost_price}
@@ -1150,13 +1152,13 @@ export default function InventoryPage() {
                           onClick={handleUpdateVariantProperties}
                           className="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded"
                         >
-                          Guardar
+                          {t("inventory.save")}
                         </button>
                         <button
                           onClick={() => setEditingVariantData(null)}
                           className="flex-1 px-3 py-1 bg-slate-300 text-slate-700 text-xs font-semibold rounded"
                         >
-                          Cancelar
+                          {t("inventory.cancel")}
                         </button>
                       </div>
                     </div>
@@ -1171,8 +1173,8 @@ export default function InventoryPage() {
                           <p className="text-sm font-medium text-slate-900">{variant.label}</p>
                           <p className="text-xs text-slate-500">Venta: ${variant.price} · Costo: ${variant.cost_price || 0}</p>
                           <p className="text-xs text-slate-600 mt-1">
-                            Stock: <span className={`font-semibold ${variant.stock_quantity <= 0 ? 'text-red-600' : 'text-green-600'}`}>{variant.stock_quantity}</span>
-                            {variant.price && <span className="ml-2 text-green-600 font-semibold">Margen: {calculateMarginPercent(variant.price, variant.cost_price || 0).toFixed(0)}%</span>}
+                            {t("inventory.stockLabel")}: <span className={`font-semibold ${variant.stock_quantity <= 0 ? 'text-red-600' : 'text-green-600'}`}>{variant.stock_quantity}</span>
+                            {variant.price && <span className="ml-2 text-green-600 font-semibold">{t("inventory.margin")}: {calculateMarginPercent(variant.price, variant.cost_price || 0).toFixed(0)}%</span>}
                           </p>
                         </div>
                         <div className="flex items-center gap-1 flex-wrap justify-start sm:justify-end">
@@ -1189,7 +1191,7 @@ export default function InventoryPage() {
                             className="px-2 py-1 bg-amber-100 hover:bg-amber-600 hover:text-white text-amber-600 text-xs font-semibold rounded"
                             title="Editar propiedades"
                           >
-                            Propiedades
+                            {t("inventory.properties")}
                           </button>
                           
                           {/* Stock actual */}
@@ -1218,7 +1220,7 @@ export default function InventoryPage() {
                               title="Editar stock"
                               className="px-2 py-1 bg-purple-100 hover:bg-purple-600 hover:text-white text-purple-600 text-xs font-semibold rounded"
                             >
-                              Stock
+                              {t("inventory.stock")}
                             </button>
                           )}
                           
@@ -1247,7 +1249,7 @@ export default function InventoryPage() {
                               title="Editar stock mínimo"
                               className="px-2 py-1 bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-semibold rounded"
                             >
-                              Mín: {variant.min_stock ?? 0}
+                              {t("inventory.minShort", { val: String(variant.min_stock ?? 0) })}
                             </button>
                           )}
                         </div>
@@ -1277,7 +1279,7 @@ export default function InventoryPage() {
               )}
               
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Imagen del producto</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.productImage")}</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -1285,11 +1287,11 @@ export default function InventoryPage() {
                     const file = e.target.files?.[0];
                     if (file) {
                       if (!file.type.startsWith("image/")) {
-                        setMessage("Por favor selecciona una imagen");
+                        setMessage(t("inventory.errors.imageTypeError"));
                         return;
                       }
                       if (file.size > 5 * 1024 * 1024) {
-                        setMessage("La imagen debe ser menor a 5MB");
+                        setMessage(t("inventory.errors.imageSizeError"));
                         return;
                       }
                       setEditImage(file);
@@ -1302,7 +1304,7 @@ export default function InventoryPage() {
                   }}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-slate-400 mt-0.5">JPG, PNG (máx 5MB)</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t("inventory.imageHint")}</p>
               </div>
             {editImagePreview && (
               <div className="mt-4 flex items-center gap-3">
@@ -1318,7 +1320,7 @@ export default function InventoryPage() {
                   }}
                   className="text-sm text-red-600 hover:text-red-700 font-semibold"
                 >
-                  Eliminar imagen
+                  {t("inventory.deleteImage")}
                 </button>
               </div>
             )}
@@ -1327,38 +1329,38 @@ export default function InventoryPage() {
       {/* Header */}
       <DashboardHeader 
         pageType="inventory" 
-        title="Gestión de Productos"
-        subtitle={`${products.length} producto${products.length !== 1 ? "s" : ""} en inventario`}
+        title={t("inventory.title")}
+        subtitle={products.length === 1 ? t("inventory.pageSubtitle", { count: "1" }) : t("inventory.pageSubtitlePlural", { count: String(products.length) })}
       >
         <Button
           variant={reorderMode ? "danger" : "secondary"}
           onClick={() => setReorderMode((v) => !v)}
         >
-          {reorderMode ? "✓ Salir orden" : "↕ Ordenar"}
+          {reorderMode ? t("inventory.exitOrder") : t("inventory.reorderMode")}
         </Button>
         <Button variant="secondary" onClick={() => setShowCategoryManager((v) => !v)}>
-          {showCategoryManager ? "✕ Categorías" : "🏷 Categorías"}
+          {showCategoryManager ? t("inventory.hideCategories") : t("inventory.showCategories")}
         </Button>
         {activeTab === "productos" && (
           <>
             <Button variant="primary" onClick={() => setShowAddCategory(true)}>
-              + Categoría
+              {t("inventory.addCategory")}
             </Button>
             <Button variant="primary" onClick={() => setShowAddProduct(true)}>
-              + Producto
+              {t("inventory.addProduct")}
             </Button>
           </>
         )}
         {activeTab === "movimientos" && user?.permissions?.includes("inventory.adjust") && (
           <Button variant="primary" onClick={() => setShowAdjustModal(true)}>
             <SlidersHorizontal className="w-4 h-4" />
-            Ajuster stock
+            {t("inventory.adjustStock")}
           </Button>
         )}
       </DashboardHeader>
 
       {message && (
-        <Alert variant="success" title="Mensaje">
+        <Alert variant="success" title={t("inventory.message")}>
           {message}
         </Alert>
       )}
@@ -1374,8 +1376,7 @@ export default function InventoryPage() {
           }`}
         >
           <Package className="w-4 h-4" />
-          Productos
-          <span className="ml-1 text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{products.length}</span>
+          {t("inventory.tab.products")}
         </button>
         <button
           onClick={() => {
@@ -1394,7 +1395,7 @@ export default function InventoryPage() {
           }`}
         >
           <History className="w-4 h-4" />
-          Mouvements de stock
+          {t("inventory.tab.movements")}
         </button>
       </div>
 
@@ -1405,14 +1406,14 @@ export default function InventoryPage() {
       {showCategoryManager && (
         <Card>
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
-            <p className="text-base font-bold text-slate-800">🏷 Gestión de Categorías ({categories.length})</p>
+            <p className="text-base font-bold text-slate-800">{t("inventory.categoryManager", { count: String(categories.length) })}</p>
             <Button variant="secondary" onClick={() => { setShowCategoryManager(false); setShowAddCategory(true); }}>
-              + Nueva
+              {t("inventory.newCategory")}
             </Button>
           </div>
           <div className="divide-y divide-slate-100">
             {categories.length === 0 ? (
-              <p className="px-6 py-8 text-center text-slate-400">No hay categorías. Crea una con el botón + Categoría.</p>
+              <p className="px-6 py-8 text-center text-slate-400">{t("inventory.noCategories")}</p>
             ) : (
               categories.map((cat) => {
                 const productCount = products.filter((p) => p.category_id === cat.id).length;
@@ -1449,22 +1450,22 @@ export default function InventoryPage() {
                               if (res.ok) {
                                 const updated = await res.json();
                                 setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, name: updated.name, description: updated.description } : c));
-                                setMessage(`Categoría renombrada a "${updated.name}"`);
+                                setMessage(t("inventory.success.categoryRenamed", { name: updated.name }));
                               } else {
                                 const err = await res.json();
-                                setMessage(err.error || "Error al guardar");
+                                setMessage(err.error || t("inventory.errors.saveError"));
                               }
                               setEditingCategory(null);
                             }}
                             className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
                           >
-                            Guardar
+                            {t("inventory.save")}
                           </button>
                           <button
                             onClick={() => setEditingCategory(null)}
                             className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-100 transition-colors"
                           >
-                            Cancelar
+                            {t("inventory.cancel")}
                           </button>
                         </div>
                       </div>
@@ -1477,7 +1478,7 @@ export default function InventoryPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-                            {productCount} producto{productCount !== 1 ? "s" : ""}
+                            {t(productCount !== 1 ? "inventory.productsCountPlural" : "inventory.productsCount", { count: String(productCount) })}
                           </span>
                           {/* Edit button */}
                           <button
@@ -1491,8 +1492,8 @@ export default function InventoryPage() {
                           <button
                             onClick={async () => {
                               const msg = productCount > 0
-                                ? `¿Eliminar "${cat.name}"? Los ${productCount} producto(s) pasarán a "Sin categoría".`
-                                : `¿Eliminar la categoría "${cat.name}"?`;
+                                ? t("inventory.confirm.deleteCategoryWithProducts", { name: cat.name, count: String(productCount) })
+                                : t("inventory.confirm.deleteCategory", { name: cat.name });
                               if (!confirm(msg)) return;
                               const res = await fetch(`/api/tenants/${tenantId}/categories?id=${cat.id}`, { method: "DELETE" });
                               if (res.ok) {
@@ -1500,7 +1501,9 @@ export default function InventoryPage() {
                                 if (productCount > 0) {
                                   setProducts((prev) => prev.map((p) => p.category_id === cat.id ? { ...p, category_id: undefined } : p));
                                 }
-                                setMessage(`Categoría "${cat.name}" eliminada${productCount > 0 ? ` — ${productCount} producto(s) movidos a Sin categoría` : ""}`);
+                                setMessage(productCount > 0
+                                  ? t("inventory.success.categoryDeletedWithProducts", { name: cat.name, count: String(productCount) })
+                                  : t("inventory.success.categoryDeleted", { name: cat.name }));
                               } else {
                                 const err = await res.json();
                                 setMessage(err.error || "Error al eliminar");
@@ -1525,30 +1528,30 @@ export default function InventoryPage() {
       {/* Add Category Dialog */}
       <Dialog
         isOpen={showAddCategory}
-        title="Nueva Categoría"
+        title={t("inventory.newCategoryTitle")}
         onClose={() => setShowAddCategory(false)}
         maxWidth="sm"
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setShowAddCategory(false)} className="whitespace-nowrap">Cancelar</Button>
-            <Button variant="primary" onClick={handleAddCategory} className="whitespace-nowrap">Crear</Button>
+            <Button variant="secondary" onClick={() => setShowAddCategory(false)} className="whitespace-nowrap">{t("inventory.cancel")}</Button>
+            <Button variant="primary" onClick={handleAddCategory} className="whitespace-nowrap">{t("inventory.create")}</Button>
           </div>
         }
       >
         <div className="grid grid-cols-1 gap-3">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.name")}</label>
             <input
-              placeholder="Ej: Electrónica"
+              placeholder={t("inventory.categoryNamePlaceholder")}
               value={newCategory.name}
               onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Descripción</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">{t("inventory.description")}</label>
             <input
-              placeholder="Descripción opcional"
+              placeholder={t("inventory.descriptionPlaceholder")}
               value={newCategory.description}
               onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1560,14 +1563,14 @@ export default function InventoryPage() {
       {/* Add Product Dialog */}
       <Dialog
         isOpen={showAddProduct}
-        title="Nuevo Producto"
+        title={t("inventory.newProduct")}
         onClose={() => setShowAddProduct(false)}
         maxWidth="lg"
         scrollable={true}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", cost_price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", cost_price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="whitespace-nowrap">Cancelar</Button>
-            <Button variant="primary" onClick={handleAddProduct} disabled={uploadingImage} className="whitespace-nowrap">{uploadingImage ? "Subiendo..." : "Agregar"}</Button>
+            <Button variant="secondary" onClick={() => { setShowAddProduct(false); setIsMultiFormat(false); setVariantRows([{ label: "", price: "", cost_price: "", quantity: "" }]); setNewProduct({ name: "", sku: "", price: "", cost_price: "", quantity: "", min_stock: "", category_id: "", description: "" }); setProductImage(null); setProductImagePreview(""); }} className="whitespace-nowrap">{t("inventory.cancel")}</Button>
+            <Button variant="primary" onClick={handleAddProduct} disabled={uploadingImage} className="whitespace-nowrap">{uploadingImage ? t("inventory.uploading") : t("inventory.add")}</Button>
           </div>
         }
       >
@@ -1575,7 +1578,7 @@ export default function InventoryPage() {
               {/* Row 1: Nombre & Categoría */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.nameRequired")}</label>
                   <input
                     placeholder="Nombre del producto"
                     value={newProduct.name}
@@ -1587,13 +1590,13 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Categoría</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.category")}</label>
                   <select
                     value={newProduct.category_id}
                     onChange={(e) => setNewProduct({ ...newProduct, category_id: e.target.value })}
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">— Sin categoría —</option>
+                    <option value="">{t("inventory.noCategoryOption")}</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
@@ -1604,9 +1607,9 @@ export default function InventoryPage() {
               {/* Row 2: SKU & Descripción */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">SKU *</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.skuRequired")}</label>
                   <input
-                    placeholder="Generado automáticamente"
+                    placeholder={t("inventory.skuAutoGenerated")}
                     value={newProduct.sku}
                     readOnly
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-500 bg-slate-50 cursor-not-allowed"
@@ -1614,9 +1617,9 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Descripción</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.description")}</label>
                   <input
-                    placeholder="Descripción opcional"
+                    placeholder={t("inventory.descriptionPlaceholder")}
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                     className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1626,14 +1629,14 @@ export default function InventoryPage() {
 
               {/* Row 3: Imagen del producto */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Imagen del producto</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.productImage")}</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageSelect}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-slate-400 mt-1">JPG, PNG (máx 5MB)</p>
+                <p className="text-xs text-slate-400 mt-1">{t("inventory.imageHint")}</p>
               </div>
             </div>
 
@@ -1652,7 +1655,7 @@ export default function InventoryPage() {
                   }}
                   className="text-sm text-red-600 hover:text-red-700 font-semibold"
                 >
-                  ❌ Eliminar imagen
+                  ❌ {t("inventory.deleteImage")}
                 </button>
               </div>
             )}
@@ -1669,18 +1672,18 @@ export default function InventoryPage() {
                   }}
                   className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm font-semibold text-slate-700">Multi-formato (varios tamaños / presentaciones)</span>
+                <span className="text-sm font-semibold text-slate-700">{t("inventory.multiFormat")}</span>
               </label>
             </div>
 
             {/* Single product price+qty OR variant rows */}
             {isMultiFormat ? (
               <div className="space-y-4 mb-6">
-                <p className="text-sm font-bold text-slate-700">Formatos y Precios:</p>
+                <p className="text-sm font-bold text-slate-700">{t("inventory.variantsAndPrices")}</p>
                 {variantRows.map((v, i) => (
                   <div key={i} className="flex flex-wrap gap-2 items-end">
                     <div className="flex-1 min-w-[120px]">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Formato *" : ""}</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? t("inventory.variantFormat") : ""}</label>
                       <input
                         placeholder="Ej: 15g"
                         value={v.label}
@@ -1693,7 +1696,7 @@ export default function InventoryPage() {
                       />
                     </div>
                     <div className="w-28">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Precio *" : ""}</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? t("inventory.priceRequired") : ""}</label>
                       <input
                         type="number"
                         placeholder="Precio"
@@ -1707,7 +1710,7 @@ export default function InventoryPage() {
                       />
                     </div>
                     <div className="w-28">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Costo" : ""}</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? t("inventory.cost") : ""}</label>
                       <input
                         type="number"
                         placeholder="Costo"
@@ -1721,7 +1724,7 @@ export default function InventoryPage() {
                       />
                     </div>
                     <div className="w-24">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? "Stock" : ""}</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">{i === 0 ? t("inventory.stock") : ""}</label>
                       <input
                         type="number"
                         placeholder="Stock"
@@ -1752,13 +1755,13 @@ export default function InventoryPage() {
                 <button
                   onClick={() => setVariantRows([...variantRows, { label: "", price: "", cost_price: "", quantity: "" }])}
                   className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-semibold"
-                >+ Agregar formato</button>
+                >+ {t("inventory.addVariant")}</button>
               </div>
             ) : (
               <div className="space-y-5 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Precio *</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.priceRequired")}</label>
                     <input
                       type="number"
                       placeholder="Precio unitario"
@@ -1768,7 +1771,7 @@ export default function InventoryPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Costo de compra</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.purchaseCost")}</label>
                     <input
                       type="number"
                       placeholder="Costo de adquisición"
@@ -1783,11 +1786,11 @@ export default function InventoryPage() {
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-xs text-slate-600">Ganancia por unidad</p>
+                        <p className="text-xs text-slate-600">{t("inventory.profitPerUnit")}</p>
                         <p className="text-lg font-bold text-green-700">{fmt(calculateProfitPerUnit(parseFloat(newProduct.price) || 0, parseFloat(newProduct.cost_price) || 0))}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-600">Margen de ganancia</p>
+                        <p className="text-xs text-slate-600">{t("inventory.profitMargin")}</p>
                         <p className="text-lg font-bold text-green-700">{calculateMarginPercent(parseFloat(newProduct.price) || 0, parseFloat(newProduct.cost_price) || 0).toFixed(1)}%</p>
                       </div>
                     </div>
@@ -1795,7 +1798,7 @@ export default function InventoryPage() {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Stock inicial</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.initialStock")}</label>
                     <input
                       type="number"
                       placeholder="Cantidad disponible"
@@ -1805,7 +1808,7 @@ export default function InventoryPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Stock mínimo</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{t("inventory.minStock")}</label>
                     <input
                       type="number"
                       placeholder="Alerta bajo inventario"
@@ -1813,7 +1816,7 @@ export default function InventoryPage() {
                       onChange={(e) => setNewProduct({ ...newProduct, min_stock: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    <p className="text-xs text-slate-500 mt-2">Se alertará cuando el stock llegue a este número</p>
+                    <p className="text-xs text-slate-500 mt-2">{t("inventory.minStockHint")}</p>
                   </div>
                 </div>
               </div>
@@ -1826,9 +1829,9 @@ export default function InventoryPage() {
         <Card>
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
             <p className="text-sm font-semibold text-slate-700">
-              Modo ordenar — usa las flechas para reorganizar categorías y productos
+              {t("inventory.reorderHint")}
             </p>
-            {savingOrder && <span className="text-xs text-slate-600 animate-pulse">Guardando...</span>}
+            {savingOrder && <span className="text-xs text-slate-600 animate-pulse">{t("inventory.saving")}</span>}
           </div>
 
           <div className="divide-y divide-slate-200">
@@ -1837,7 +1840,7 @@ export default function InventoryPage() {
           {products.filter((p) => !p.category_id).length > 0 && (
             <div className="border-b border-slate-100">
               <div className="px-4 py-2 bg-slate-100 text-xs font-bold uppercase tracking-wide text-slate-500">
-                Sin categoría
+                {t("inventory.uncategorized")}
               </div>
               {products
                 .filter((p) => !p.category_id)
@@ -1907,7 +1910,7 @@ export default function InventoryPage() {
                   </div>
                 ))}
                 {catProducts.length === 0 && (
-                  <p className="px-12 py-2 text-xs text-slate-400 italic">Sin productos en esta categoría</p>
+                  <p className="px-12 py-2 text-xs text-slate-400 italic">{t("inventory.noProductsInCategory")}</p>
                 )}
               </div>
             );
@@ -1924,7 +1927,7 @@ export default function InventoryPage() {
           <SearchInput
             value={search}
             onChange={(value) => setSearch(value)}
-            placeholder="Buscar por nombre, SKU..."
+            placeholder={t("inventory.searchPlaceholder")}
             className="flex-1"
           />
           <select
@@ -1932,21 +1935,21 @@ export default function InventoryPage() {
             onChange={(e) => setFilterCategory(e.target.value)}
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">Todas las categorías</option>
+            <option value="">{t("inventory.allCategories")}</option>
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
-            <option value="__none__">Sin categoría</option>
+            <option value="__none__">{t("inventory.uncategorized")}</option>
           </select>
         </div>
 
         {loading ? (
-          <EmptyState state="loading" message="Cargando inventario..." />
+          <EmptyState state="loading" message={t("inventory.loading")} />
         ) : filteredProducts.length === 0 ? (
           <p className="p-12 text-center text-slate-400">
             {products.length === 0
-              ? "Ningún producto. Comience creando una categoría y agregando un producto."
-              : "Sin resultados para esta búsqueda."}
+              ? t("inventory.noProducts")
+              : t("inventory.noSearchResults")}
           </p>
         ) : (
           <div className="space-y-4">
@@ -1955,13 +1958,13 @@ export default function InventoryPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
-                  <th className="px-4 py-2.5 text-left text-white">Producto</th>
-                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">SKU</th>
-                  <th className="px-4 py-2.5 text-left hidden lg:table-cell text-white">Categoría</th>
-                  <th className="px-4 py-2.5 text-right text-white">Precio</th>
-                  <th className="px-4 py-2.5 text-center text-white">Stock</th>
-                  <th className="px-4 py-2.5 text-center hidden sm:table-cell text-white" title="Stock mínimo requerido">Mín.</th>
-                  <th className="px-4 py-2.5 text-center w-28 text-white">Acciones</th>
+                  <th className="px-4 py-2.5 text-left text-white">{t("inventory.colProduct")}</th>
+                  <th className="px-4 py-2.5 text-left hidden md:table-cell text-white">{t("inventory.sku")}</th>
+                  <th className="px-4 py-2.5 text-left hidden lg:table-cell text-white">{t("inventory.category")}</th>
+                  <th className="px-4 py-2.5 text-right text-white">{t("inventory.price")}</th>
+                  <th className="px-4 py-2.5 text-center text-white">{t("inventory.stock")}</th>
+                  <th className="px-4 py-2.5 text-center hidden sm:table-cell text-white">{t("inventory.colMin")}</th>
+                  <th className="px-4 py-2.5 text-center w-28 text-white">{t("inventory.colActions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1979,7 +1982,7 @@ export default function InventoryPage() {
                             <button
                               onClick={() => setExpandedProductId(isExpanded ? null : product.id)}
                               className="text-slate-400 hover:text-slate-700 transition-colors"
-                              title={isExpanded ? "Ocultar formatos" : "Ver formatos"}
+                              title={isExpanded ? t("inventory.hideVariants") : t("inventory.showVariants")}
                             >
                               <svg className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -1991,7 +1994,7 @@ export default function InventoryPage() {
                               {product.name}
                               {hasVariants && (
                                 <span className="ml-2 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                                  {product.variants!.length} formatos
+                                  {t("inventory.variantCount", { count: String(product.variants!.length) })}
                                 </span>
                               )}
                             </p>
@@ -2243,8 +2246,8 @@ export default function InventoryPage() {
               </tbody>
             </table>
             <div className="px-4 py-2 border-t border-slate-200 text-sm text-slate-400 bg-slate-50">
-              {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
-              {(search || filterCategory) && ` · filtrado de ${products.length}`}
+              {filteredProducts.length === 1 ? t("inventory.productsCount", { count: "1" }) : t("inventory.productsCountPlural", { count: String(filteredProducts.length) })}
+              {(search || filterCategory) && ` · ${t("inventory.filteredFrom", { count: String(products.length) })}`}
             </div>
             </div>
 
@@ -2265,7 +2268,7 @@ export default function InventoryPage() {
                       </div>
                       <span className="text-sm font-bold whitespace-nowrap">
                         {hasVariants ? (
-                          <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">Múltiples</span>
+                          <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">{t("inventory.multiple")}</span>
                         ) : (
                           <span className="text-blue-700">{fmt(product.price)}</span>
                         )}
@@ -2289,7 +2292,7 @@ export default function InventoryPage() {
                     {/* Row 3: Stock */}
                     {!hasVariants && (
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-600">Stock:</span>
+                        <span className="text-slate-600">{t("inventory.stockLabel")}</span>
                         <span className={`inline-block px-2 py-0.5 rounded-full font-semibold ${
                           product.quantity <= 0
                             ? "bg-red-100 text-red-700"
@@ -2305,7 +2308,7 @@ export default function InventoryPage() {
                     {/* Row 4: Variants list */}
                     {hasVariants && (
                       <div className="space-y-1.5 p-2 bg-purple-50 border border-purple-100 rounded-lg">
-                        <p className="text-xs font-semibold text-purple-700 mb-2">📦 Formatos ({product.variants!.length})</p>
+                        <p className="text-xs font-semibold text-purple-700 mb-2">{t("inventory.formatsCount", { count: String(product.variants!.length) })}</p>
                         {(product.variants ?? [])
                           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
                           .map((variant, variantIdx, sortedVariants) => (
@@ -2356,7 +2359,7 @@ export default function InventoryPage() {
                         className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium text-slate-700 transition-colors"
                       >
                         <Pencil size={14} />
-                        Editar
+                        {t("inventory.edit")}
                       </button>
                       {!hasVariants && (
                         <button
@@ -2364,7 +2367,7 @@ export default function InventoryPage() {
                           className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-blue-50 hover:bg-blue-100 rounded text-xs font-medium text-blue-600 transition-colors"
                         >
                           <Package size={14} />
-                          Stock
+                          {t("inventory.stock")}
                         </button>
                       )}
                       <button
@@ -2372,7 +2375,7 @@ export default function InventoryPage() {
                         className="flex-1 flex items-center justify-center gap-2 px-2 py-1.5 bg-red-50 hover:bg-red-100 rounded text-xs font-medium text-red-600 transition-colors"
                       >
                         <Trash2 size={14} />
-                        Eliminar
+                        {t("inventory.delete")}
                       </button>
                     </div>
                   </div>
@@ -2395,36 +2398,36 @@ export default function InventoryPage() {
           <Card>
             <div className="flex flex-wrap gap-3 items-end">
               <div className="flex-1 min-w-[180px]">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Produit</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("inventory.mov.product")}</label>
                 <select
                   value={movFilterProduct}
                   onChange={(e) => setMovFilterProduct(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
                 >
-                  <option value="">— Tous les produits —</option>
+                  <option value="">{t("inventory.mov.allProducts")}</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
               <div className="flex-1 min-w-[160px]">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Type de mouvement</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("inventory.mov.movementType")}</label>
                 <select
                   value={movFilterType}
                   onChange={(e) => setMovFilterType(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
                 >
-                  <option value="">— Tous les types —</option>
-                  <option value="sale">Vente</option>
-                  <option value="restock">Réapprovisionnement</option>
-                  <option value="adjustment">Ajustement</option>
-                  <option value="return">Retour</option>
-                  <option value="damage">Perte / Dommage</option>
-                  <option value="initial">Stock initial</option>
+                  <option value="">{t("inventory.mov.allTypes")}</option>
+                  <option value="sale">{t("inventory.mov.typeSale")}</option>
+                  <option value="restock">{t("inventory.mov.typeRestock")}</option>
+                  <option value="adjustment">{t("inventory.mov.typeAdjustment")}</option>
+                  <option value="return">{t("inventory.mov.typeReturn")}</option>
+                  <option value="damage">{t("inventory.mov.typeDamage")}</option>
+                  <option value="initial">{t("inventory.mov.typeInitial")}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Du</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("inventory.mov.from")}</label>
                 <input
                   type="date"
                   value={movFilterFrom}
@@ -2433,7 +2436,7 @@ export default function InventoryPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Au</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">{t("inventory.mov.to")}</label>
                 <input
                   type="date"
                   value={movFilterTo}
@@ -2450,7 +2453,7 @@ export default function InventoryPage() {
                 })}
               >
                 <RotateCcw className="w-4 h-4" />
-                Filtrer
+                {t("inventory.mov.filter")}
               </Button>
               {(movFilterProduct || movFilterType || movFilterFrom || movFilterTo) && (
                 <Button
@@ -2463,7 +2466,7 @@ export default function InventoryPage() {
                     fetchMovements();
                   }}
                 >
-                  Effacer
+                  {t("inventory.mov.clear")}
                 </Button>
               )}
             </div>
@@ -2475,22 +2478,22 @@ export default function InventoryPage() {
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-slate-500" />
                 <p className="text-sm font-bold text-slate-800">
-                  Historique des mouvements
+                  {t("inventory.mov.title")}
                   {movementsTotal > 0 && (
-                    <span className="ml-2 text-xs font-normal text-slate-500">({movementsTotal} au total)</span>
+                    <span className="ml-2 text-xs font-normal text-slate-500">({movementsTotal} {t("inventory.mov.total")})</span>
                   )}
                 </p>
               </div>
             </div>
 
             {movementsLoading ? (
-              <div className="py-12 text-center text-slate-500 text-sm">Chargement...</div>
+              <div className="py-12 text-center text-slate-500 text-sm">{t("inventory.mov.loading")}</div>
             ) : movements.length === 0 ? (
               <div className="py-12 text-center">
                 <History className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">Aucun mouvement enregistré</p>
+                <p className="text-slate-500 font-medium">{t("inventory.mov.empty")}</p>
                 <p className="text-slate-400 text-sm mt-1">
-                  Les mouvements apparaissent ici après chaque vente ou ajustement manuel.
+                  {t("inventory.mov.emptyDesc")}
                 </p>
               </div>
             ) : (
@@ -2498,12 +2501,12 @@ export default function InventoryPage() {
                 {movements.map((mv) => {
                   const isIn = mv.quantity_change > 0;
                   const typeLabels: Record<string, { label: string; color: string }> = {
-                    sale:       { label: "Vente",               color: "bg-red-100 text-red-700" },
-                    restock:    { label: "Réappro.",            color: "bg-green-100 text-green-700" },
-                    adjustment: { label: "Ajustement",          color: "bg-blue-100 text-blue-700" },
-                    return:     { label: "Retour",              color: "bg-purple-100 text-purple-700" },
-                    damage:     { label: "Perte",               color: "bg-orange-100 text-orange-700" },
-                    initial:    { label: "Stock initial",       color: "bg-slate-100 text-slate-600" },
+                    sale:       { label: t("inventory.mov.typeSale"),       color: "bg-red-100 text-red-700" },
+                    restock:    { label: t("inventory.mov.typeRestock"),    color: "bg-green-100 text-green-700" },
+                    adjustment: { label: t("inventory.mov.typeAdjustment"), color: "bg-blue-100 text-blue-700" },
+                    return:     { label: t("inventory.mov.typeReturn"),     color: "bg-purple-100 text-purple-700" },
+                    damage:     { label: t("inventory.mov.typeDamage"),     color: "bg-orange-100 text-orange-700" },
+                    initial:    { label: t("inventory.mov.typeInitial"),    color: "bg-slate-100 text-slate-600" },
                   };
                   const typeInfo = typeLabels[mv.movement_type] ?? { label: mv.movement_type, color: "bg-slate-100 text-slate-600" };
 
@@ -2581,7 +2584,7 @@ export default function InventoryPage() {
                 <div className="p-2 rounded-lg bg-blue-100">
                   <SlidersHorizontal className="w-4 h-4 text-blue-600" />
                 </div>
-                <h2 className="text-base font-bold text-slate-900">Ajuster le stock</h2>
+                <h2 className="text-base font-bold text-slate-900">{t("inventory.mov.adjustTitle")}</h2>
               </div>
               <button
                 onClick={() => setShowAdjustModal(false)}
@@ -2592,13 +2595,13 @@ export default function InventoryPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Produit *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t("inventory.mov.productRequired")}</label>
                 <select
                   value={adjustForm.product_id}
                   onChange={(e) => setAdjustForm({ ...adjustForm, product_id: e.target.value, variant_id: "" })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
                 >
-                  <option value="">— Sélectionner un produit —</option>
+                  <option value="">{t("inventory.mov.selectProduct")}</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -2608,13 +2611,13 @@ export default function InventoryPage() {
               {/* Show variant selector if product has variants */}
               {adjustForm.product_id && products.find(p => p.id === adjustForm.product_id)?.has_variants && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Format / Variante *</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t("inventory.mov.variantRequired")}</label>
                   <select
                     value={adjustForm.variant_id}
                     onChange={(e) => setAdjustForm({ ...adjustForm, variant_id: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm"
                   >
-                    <option value="">— Sélectionner un format —</option>
+                    <option value="">{t("inventory.mov.selectVariant")}</option>
                     {products.find(p => p.id === adjustForm.product_id)?.variants?.map((v) => (
                       <option key={v.id} value={v.id}>{v.label} (stock: {v.stock_quantity})</option>
                     ))}
@@ -2623,26 +2626,26 @@ export default function InventoryPage() {
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Type de mouvement *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t("inventory.mov.movementTypeRequired")}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {([
-                    { id: "restock",    label: "Réappro.",   desc: "Nouveau stock reçu",     color: "border-green-300 bg-green-50 text-green-700" },
-                    { id: "adjustment", label: "Ajustement", desc: "Correction d'inventaire", color: "border-blue-300 bg-blue-50 text-blue-700" },
-                    { id: "return",     label: "Retour",     desc: "Retour client",           color: "border-purple-300 bg-purple-50 text-purple-700" },
-                    { id: "damage",     label: "Perte",      desc: "Produit endommagé",       color: "border-orange-300 bg-orange-50 text-orange-700" },
-                  ] as { id: "restock" | "adjustment" | "return" | "damage"; label: string; desc: string; color: string }[]).map((t) => (
+                    { id: "restock",    label: t("inventory.mov.typeRestock"),    desc: t("inventory.mov.restockDesc"),    color: "border-green-300 bg-green-50 text-green-700" },
+                    { id: "adjustment", label: t("inventory.mov.typeAdjustment"), desc: t("inventory.mov.adjustmentDesc"), color: "border-blue-300 bg-blue-50 text-blue-700" },
+                    { id: "return",     label: t("inventory.mov.typeReturn"),     desc: t("inventory.mov.returnDesc"),     color: "border-purple-300 bg-purple-50 text-purple-700" },
+                    { id: "damage",     label: t("inventory.mov.typeDamage"),     desc: t("inventory.mov.damageDesc"),     color: "border-orange-300 bg-orange-50 text-orange-700" },
+                  ] as { id: "restock" | "adjustment" | "return" | "damage"; label: string; desc: string; color: string }[]).map((mt) => (
                     <button
-                      key={t.id}
+                      key={mt.id}
                       type="button"
-                      onClick={() => setAdjustForm({ ...adjustForm, movement_type: t.id })}
+                      onClick={() => setAdjustForm({ ...adjustForm, movement_type: mt.id })}
                       className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                        adjustForm.movement_type === t.id
-                          ? t.color + " border-current"
+                        adjustForm.movement_type === mt.id
+                          ? mt.color + " border-current"
                           : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
-                      <p className="text-xs font-bold">{t.label}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{t.desc}</p>
+                      <p className="text-xs font-bold">{mt.label}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{mt.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -2650,9 +2653,9 @@ export default function InventoryPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Quantité *
+                  {t("inventory.mov.quantityRequired")}
                   <span className="font-normal text-slate-400 ml-1">
-                    ({adjustForm.movement_type === "damage" ? "sera déduite" : "sera ajoutée"})
+                    ({adjustForm.movement_type === "damage" ? t("inventory.mov.willDeduct") : t("inventory.mov.willAdd")})
                   </span>
                 </label>
                 <input
@@ -2661,17 +2664,17 @@ export default function InventoryPage() {
                   value={adjustForm.quantity}
                   onChange={(e) => setAdjustForm({ ...adjustForm, quantity: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm"
-                  placeholder="Ex: 50"
+                  placeholder={t("inventory.mov.quantityPlaceholder")}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Notes (optionnel)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t("inventory.mov.notes")}</label>
                 <textarea
                   value={adjustForm.notes}
                   onChange={(e) => setAdjustForm({ ...adjustForm, notes: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white text-sm h-16 resize-none"
-                  placeholder="Raison de l'ajustement..."
+                  placeholder={t("inventory.mov.notesPlaceholder")}
                 />
               </div>
 
@@ -2681,13 +2684,13 @@ export default function InventoryPage() {
                   onClick={() => setShowAdjustModal(false)}
                   className="flex-1"
                 >
-                  Annuler
+                  {t("inventory.cancel")}
                 </Button>
                 <Button
                   onClick={handleAdjustStock}
                   className="flex-1"
                 >
-                  Enregistrer
+                  {t("inventory.save")}
                 </Button>
               </div>
             </div>
