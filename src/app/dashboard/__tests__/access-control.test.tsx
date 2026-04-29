@@ -62,6 +62,7 @@ jest.mock("@/components", () => ({
     </div>
   ),
   PageIcon: () => null,
+  LoadingSpinner: () => <div data-testid="loading-spinner" />,
 }));
 
 // ─── Permission sets ───────────────────────────────────────────────────────────
@@ -133,9 +134,9 @@ describe("DashboardPage — Access Control", () => {
   // 1. État de chargement
   // ══════════════════════════════════════════════════════════════════
   describe("État de chargement", () => {
-    it("affiche 'Cargando...' pendant le chargement des features", async () => {
+    it("affiche le spinner pendant le chargement des features", async () => {
       await renderDashboard(ADMIN_PERMISSIONS, ALL_FEATURES, true);
-      expect(screen.getByText("Cargando...")).toBeInTheDocument();
+      expect(screen.getByTestId("loading-spinner")).toBeInTheDocument();
       expect(screen.queryByText("Caja")).not.toBeInTheDocument();
     });
   });

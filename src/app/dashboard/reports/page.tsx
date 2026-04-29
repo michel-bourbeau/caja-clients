@@ -5,7 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, DashboardHeader } from "@/components";
+import { PageIcon, DashboardHeader, EmptyState } from "@/components";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -255,8 +255,13 @@ export default function ReportsPage() {
           </Alert>
         )}
 
+        {/* Loading state */}
+        {loading && (
+          <EmptyState state="loading" message="Cargando reportes..." />
+        )}
+
         {/* Summary Cards */}
-        {salesData && (
+        {!loading && salesData && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-4">
               <p className="text-sm text-blue-700 font-semibold mb-1">Total de Ventas</p>

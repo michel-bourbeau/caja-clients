@@ -5,7 +5,7 @@ import { DEFAULT_PERMISSIONS, ADMIN_ONLY_PERMISSIONS, Permission } from "@/lib/t
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { IconButton, Dialog } from "@/components";
+import { IconButton, Dialog, LoadingSpinner } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -331,11 +331,7 @@ export default function RolesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-64 text-slate-400">
-            <svg className="w-6 h-6 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Cargando...
+            <LoadingSpinner size="md" />
           </div>
         ) : (
           <>

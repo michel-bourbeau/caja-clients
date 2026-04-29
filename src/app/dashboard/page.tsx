@@ -22,7 +22,7 @@ import {
   Button,
 } from "@/components/StripeUIComponents";
 import Link from "next/link";
-import { PageIcon, DashboardHeader } from "@/components";
+import { PageIcon, DashboardHeader, LoadingSpinner } from "@/components";
 import {
   ShoppingCart,
   ReceiptText,
@@ -386,7 +386,7 @@ export default function DashboardPage() {
     return (
       <Container>
         <div className="flex items-center justify-center h-64">
-          <p className="text-slate-500">Cargando...</p>
+          <LoadingSpinner size="lg" />
         </div>
       </Container>
     );

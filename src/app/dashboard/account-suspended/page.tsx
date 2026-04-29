@@ -12,6 +12,7 @@ import {
   Alert,
   Button,
 } from "@/components/StripeUIComponents";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import Link from "next/link";
 import { AlertCircle, Mail, Phone, DollarSign, Calendar } from "lucide-react";
 
@@ -62,7 +63,7 @@ export default function AccountSuspendedPage() {
     return (
       <Container>
         <div className="flex items-center justify-center min-h-[80vh]">
-          <p className="text-slate-600">Cargando...</p>
+          <LoadingSpinner size="lg" />
         </div>
       </Container>
     );

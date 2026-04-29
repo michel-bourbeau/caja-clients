@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui";
-import { Dialog, DialogFooter } from "@/components";
+import { Dialog, DialogFooter, EmptyState } from "@/components";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { LoyalCustomerStats, LoyaltyReward, LoyaltyTransaction } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -124,7 +124,7 @@ export default function CustomerDetailsPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Cargando...</div>;
+    return <EmptyState state="loading" />;
   }
 
   if (!customer) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, Button } from "@/components/ui";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 
 interface LoyaltyConfig {
@@ -83,7 +84,7 @@ export default function LoyaltySettingsPage() {
   if (featuresLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-slate-500">Cargando...</p>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -121,7 +122,7 @@ export default function LoyaltySettingsPage() {
       <div className="space-y-6 max-w-2xl">
         <Card title="Configuracion de Fidelización">
           {loading ? (
-            <p className="text-sm text-slate-500">Cargando...</p>
+            <LoadingSpinner size="sm" />
           ) : (
             <div className="space-y-6">
               <div>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { useTenantId } from "@/lib/utils/tenant";
 import { FeatureGuard } from "@/components/FeatureGuard";
+import { EmptyState, LoadingSpinner } from "@/components";
 
 export default function LoyaltySettingsPage() {
   const tenantId = useTenantId();
@@ -61,7 +62,7 @@ export default function LoyaltySettingsPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Cargando...</div>;
+    return <EmptyState state="loading" />;
   }
 
   return (

@@ -7,6 +7,7 @@ import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 interface PlanDetails {
   label: string;
@@ -261,8 +262,7 @@ export default function SettingsPage() {
         {paymentLoading ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-slate-600">Cargando información de pago...</p>
+              <LoadingSpinner size="lg" />
             </CardContent>
           </Card>
         ) : (
@@ -314,7 +314,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               {loadingPayment ? (
-                <p className="text-sm text-slate-500">Cargando...</p>
+                <LoadingSpinner size="sm" />
               ) : paymentInfo ? (
                 <div className="space-y-6">
                   <div className="p-4 rounded-lg bg-red-50 border border-red-200">
@@ -387,7 +387,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             {loadingSettings ? (
-              <p className="text-sm text-slate-500">Cargando...</p>
+              <LoadingSpinner size="sm" />
             ) : (
               <div className="space-y-4">
                 <Field
@@ -485,7 +485,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               {featuresLoading || loadingSettings || loadingPayment ? (
-                <p className="text-sm text-slate-500">Cargando...</p>
+                <LoadingSpinner size="sm" />
               ) : (
                 <div className="space-y-6">
                   {/* Plan Badge */}

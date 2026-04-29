@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ShoppingCart, AlertCircle } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
 import { SUPERADMIN_IMPERSONATION_KEY, EMPLOYEE_IMPERSONATION_KEY, ImpersonationSession, EmployeeImpersonationSession } from "@/context/AuthContext";
@@ -135,7 +136,7 @@ export default function DashboardLayout({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <p>Cargando...</p>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }

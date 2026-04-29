@@ -5,7 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { PageIcon, ButtonGroup, DashboardHeader, Dialog, DialogFooter } from "@/components";
+import { PageIcon, ButtonGroup, DashboardHeader, Dialog, DialogFooter, EmptyState } from "@/components";
 
 const TZ = "America/Managua";
 
@@ -900,7 +900,7 @@ export default function AttendancePage() {
 
           {/* Content Section */}
           {historyLoading ? (
-            <div className="py-10 text-center text-slate-400 text-sm">Cargando...</div>
+            <EmptyState state="loading" message="Cargando historial..." />
           ) : visibleHistoryEntries.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <p className="text-3xl mb-2">📋</p>

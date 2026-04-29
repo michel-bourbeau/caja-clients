@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
-import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
+import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, EmptyState } from "@/components";
 import { Pencil, Package, Trash2 } from "lucide-react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 
@@ -1743,7 +1743,7 @@ export default function InventoryPage() {
         </div>
 
         {loading ? (
-          <p className="p-6 text-slate-500">Cargando...</p>
+          <EmptyState state="loading" message="Cargando inventario..." />
         ) : filteredProducts.length === 0 ? (
           <p className="p-12 text-center text-slate-400">
             {products.length === 0

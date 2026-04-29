@@ -56,6 +56,7 @@ jest.mock("@/components", () => ({
   ),
   Dialog:       ({ children, isOpen }: any) => isOpen ? <div role="dialog">{children}</div> : null,
   DialogFooter: ({ children }: any) => <div>{children}</div>,
+  EmptyState:   ({ message }: any) => <div data-testid="empty-state">{message}</div>,
 }));
 
 import { useTenantId } from "@/lib/utils/tenant";

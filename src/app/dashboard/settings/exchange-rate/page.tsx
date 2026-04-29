@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
-import { PageIcon } from "@/components";
+import { PageIcon, LoadingSpinner } from "@/components";
 import { DollarSign } from "lucide-react";
 
 interface ExchangeSettings {
@@ -87,7 +87,7 @@ export default function ExchangeRatePage() {
     return (
       <Container>
         <div className="flex items-center justify-center h-64">
-          <p className="text-slate-500">Cargando...</p>
+          <LoadingSpinner size="lg" />
         </div>
       </Container>
     );

@@ -12,6 +12,7 @@ export { Dialog, DialogFooter } from "./Dialog";
 export { FlashMessage, useFlash } from "./FlashMessage";
 export type { FlashState, FlashVariant } from "./FlashMessage";
 export { EmptyState } from "./EmptyState";
+export { LoadingSpinner } from "./LoadingSpinner";
 export { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 export { ReceiptModal } from "./ReceiptModal";
 export type { ReceiptSettings } from "./ReceiptModal";

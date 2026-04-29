@@ -10,7 +10,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter, ReceiptModal, type ReceiptSettings } from "@/components";
+import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter, ReceiptModal, EmptyState, type ReceiptSettings } from "@/components";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 type Currency = "NIO" | "USD";
@@ -1281,7 +1281,7 @@ export default function POSPage() {
 
         <div className="space-y-2">
           {loadingLoyalCustomers ? (
-            <p className="text-sm text-slate-500 text-center py-4">Cargando...</p>
+            <EmptyState state="loading" message="Cargando clientes..." />
           ) : loyalCustomers.length === 0 ? (
             <p className="text-sm text-slate-500 text-center py-4">No hay clientes</p>
           ) : (
