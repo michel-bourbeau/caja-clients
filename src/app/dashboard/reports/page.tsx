@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { PageIcon, DashboardHeader, EmptyState, Dialog } from "@/components";
@@ -68,6 +69,7 @@ const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
 export default function ReportsPage() {
   const tenantId = useTenantId();
   const { user, hasPermission } = useAuth();
+  const { t } = useLanguage();
 
   const [periodType, setPeriodType] = useState<PeriodType>("MONTH");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -256,7 +258,7 @@ export default function ReportsPage() {
   if (!hasPermission("reports.view")) {
     return (
       <div className="py-20 text-center text-slate-500">
-        <p className="text-lg font-medium">No tienes permisos para ver reportes.</p>
+        <p className="text-lg font-medium">{t("reports.noPermission")}</p>
       </div>
     );
   }
@@ -266,8 +268,8 @@ export default function ReportsPage() {
       <Section>
         <DashboardHeader
           pageType="reports"
-          title="Reportes de Ventas"
-          subtitle="Análisis de desempeño y tendencias"
+          title={t("reports.title")}
+          subtitle={t("reports.subtitle")}
         />
 
         {/* Period Selector */}
@@ -285,7 +287,7 @@ export default function ReportsPage() {
                       : "bg-transparent text-slate-700 hover:bg-slate-300"
                   }`}
                 >
-                  {period === "WEEK" ? "Semana" : period === "MONTH" ? "Mes" : "Año"}
+                  {period === "WEEK" ? t("reports.period.week") : period === "MONTH" ? t("reports.period.month") : t("reports.period.year")}
                 </button>
               ))}
             </div>
@@ -298,7 +300,7 @@ export default function ReportsPage() {
                 onClick={() => navigatePeriod(-1)}
                 className="px-2 py-1 text-xs"
               >
-                ← Anterior
+                {t("reports.period.prev")}
               </Button>
               <span className="text-sm font-semibold text-slate-900 min-w-40 text-center capitalize">
                 {formatPeriodLabel()}
@@ -310,7 +312,7 @@ export default function ReportsPage() {
                 className="px-2 py-1 text-xs"
                 disabled={periodType === "YEAR" && currentDate.getFullYear() === new Date().getFullYear()}
               >
-                Siguiente →
+                {t("reports.period.next")}
               </Button>
             </div>
           </div>
@@ -324,36 +326,36 @@ export default function ReportsPage() {
 
         {/* Loading state */}
         {loading && (
-          <EmptyState state="loading" message="Cargando reportes..." />
+          <EmptyState state="loading" message={t("reports.loading")} />
         )}
 
         {/* Summary Cards */}
         {!loading && salesData && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-4">
-              <p className="text-sm text-blue-700 font-semibold mb-1">Total de Ventas</p>
+              <p className="text-sm text-blue-700 font-semibold mb-1">{t("reports.summary.totalSales")}</p>
               <p className="text-3xl font-bold text-blue-900">C$ {salesData.summary.totalSales.toFixed(2)}</p>
-              <p className="text-xs text-blue-600 mt-2">{salesData.summary.totalTransactions} transacciones</p>
+              <p className="text-xs text-blue-600 mt-2">{salesData.summary.totalTransactions} {t("reports.summary.transactions")}</p>
             </div>
 
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-4">
-              <p className="text-sm text-green-700 font-semibold mb-1">Promedio por Venta</p>
+              <p className="text-sm text-green-700 font-semibold mb-1">{t("reports.summary.avgSale")}</p>
               <p className="text-3xl font-bold text-green-900">C$ {salesData.summary.averageTransaction.toFixed(2)}</p>
-              <p className="text-xs text-green-600 mt-2">({salesData.summary.totalTransactions} ventas)</p>
+              <p className="text-xs text-green-600 mt-2">({salesData.summary.totalTransactions} {t("reports.summary.sales")})</p>
             </div>
 
             <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200 p-4">
-              <p className="text-sm text-orange-700 font-semibold mb-1">Descuentos</p>
+              <p className="text-sm text-orange-700 font-semibold mb-1">{t("reports.summary.discounts")}</p>
               <p className="text-3xl font-bold text-orange-900">C$ {salesData.summary.totalDiscount.toFixed(2)}</p>
               <p className="text-xs text-orange-600 mt-2">
-                {((salesData.summary.totalDiscount / (salesData.summary.totalSales + salesData.summary.totalDiscount)) * 100).toFixed(1)}% del total
+                {t("reports.summary.pctOfTotal", { pct: ((salesData.summary.totalDiscount / (salesData.summary.totalSales + salesData.summary.totalDiscount)) * 100).toFixed(1) })}
               </p>
             </div>
 
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-4">
-              <p className="text-sm text-purple-700 font-semibold mb-1">Total Clientes</p>
+              <p className="text-sm text-purple-700 font-semibold mb-1">{t("reports.summary.totalClients")}</p>
               <p className="text-3xl font-bold text-purple-900">{salesData.summary.totalTransactions}</p>
-              <p className="text-xs text-purple-600 mt-2">ventas únicas en {formatPeriodLabel()}</p>
+              <p className="text-xs text-purple-600 mt-2">{t("reports.summary.uniqueSales", { period: formatPeriodLabel() })}</p>
             </div>
           </div>
         )}
@@ -368,9 +370,9 @@ export default function ReportsPage() {
           const avgClients = activePeriods > 0
             ? Math.round(salesData.summary.totalTransactions / activePeriods)
             : 0;
-          const periodLabel = periodType === "YEAR" ? "por mes" : periodType === "WEEK" ? "por día" : "por día activo";
-          const peakLabel = periodType === "YEAR" ? "Mejor Mes" : "Mejor Día";
-          const chartTitle = periodType === "YEAR" ? "Clientes por Mes" : periodType === "WEEK" ? "Clientes por Día (Semana)" : "Clientes por Día";
+          const periodLabel = periodType === "YEAR" ? t("reports.clients.perMonth") : periodType === "WEEK" ? t("reports.clients.perDay") : t("reports.clients.perActiveDay");
+          const peakLabel = periodType === "YEAR" ? t("reports.clients.bestMonth") : t("reports.clients.bestDay");
+          const chartTitle = periodType === "YEAR" ? t("reports.clients.byMonth") : periodType === "WEEK" ? t("reports.clients.byWeek") : t("reports.clients.byDay");
 
           return (
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
@@ -379,19 +381,19 @@ export default function ReportsPage() {
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-3 mb-5">
                 <div className="bg-purple-50 rounded-lg p-3 text-center border border-purple-100">
-                  <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">Total</p>
+                  <p className="text-xs text-purple-600 font-medium uppercase tracking-wide">{t("reports.clients.total")}</p>
                   <p className="text-2xl font-bold text-purple-900">{salesData.summary.totalTransactions}</p>
-                  <p className="text-xs text-purple-500 mt-0.5">clientes</p>
+                  <p className="text-xs text-purple-500 mt-0.5">{t("reports.clients.clients")}</p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-100">
-                  <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">Promedio</p>
+                  <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">{t("reports.clients.average")}</p>
                   <p className="text-2xl font-bold text-blue-900">{avgClients}</p>
                   <p className="text-xs text-blue-500 mt-0.5">{periodLabel}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
                   <p className="text-xs text-green-600 font-medium uppercase tracking-wide">{peakLabel}</p>
                   <p className="text-2xl font-bold text-green-900">{peakPeriod.label}</p>
-                  <p className="text-xs text-green-500 mt-0.5">{peakPeriod.clients} clientes</p>
+                  <p className="text-xs text-green-500 mt-0.5">{peakPeriod.clients} {t("reports.clients.clients")}</p>
                 </div>
               </div>
 
@@ -402,11 +404,11 @@ export default function ReportsPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                    <Tooltip formatter={(value) => [value, "Clientes"]} />
+                    <Tooltip formatter={(value) => [value, t("reports.clients.clients")]} />
                     <Bar
                       dataKey="clients"
                       fill="#8B5CF6"
-                      name="Clientes"
+                      name={t("reports.clients.clients")}
                       radius={[4, 4, 0, 0]}
                       cursor={periodType !== "YEAR" ? "pointer" : "default"}
                       onClick={periodType !== "YEAR" ? (data: any) => fetchDayDetail(data.key) : undefined}
@@ -425,7 +427,7 @@ export default function ReportsPage() {
                   >
                     <p className="font-medium text-slate-900">{d.label}</p>
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
-                      {d.clients} clientes
+                      {d.clients} {t("reports.clients.clients")}
                     </span>
                   </div>
                 ))}
@@ -437,7 +439,7 @@ export default function ReportsPage() {
         {/* Sales by Hour Chart */}
         {salesData && salesData.byHour && salesData.byHour.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Ventas por Hora</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-4">{t("reports.hourly.title")}</h2>
             
             {/* Desktop Chart */}
             <div className="hidden sm:block">
@@ -451,11 +453,11 @@ export default function ReportsPage() {
                   />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip 
-                    formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, "Ventas"]}
+                    formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, t("reports.hourly.sales")]}
                     labelFormatter={(label) => `${String(label).padStart(2, "0")}:00`}
                   />
                   <Legend />
-                  <Bar dataKey="sales" fill="#3B82F6" name="Ventas" />
+                  <Bar dataKey="sales" fill="#3B82F6" name={t("reports.hourly.sales")} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -466,7 +468,7 @@ export default function ReportsPage() {
                 <div key={hour.hour} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
                   <div>
                     <p className="font-medium text-slate-900">{String(hour.hour).padStart(2, "0")}:00</p>
-                    <p className="text-xs text-slate-600">{hour.transactions} transacciones</p>
+                    <p className="text-xs text-slate-600">{hour.transactions} {t("reports.hourly.transactions")}</p>
                   </div>
                   <p className="font-bold text-blue-900">C$ {hour.sales.toFixed(2)}</p>
                 </div>
@@ -478,7 +480,7 @@ export default function ReportsPage() {
         {/* Sales by Day Chart */}
         {salesData && salesData.byDay.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Ventas Diarias</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-4">{t("reports.daily.title")}</h2>
             
             {/* Desktop Chart */}
             <div className="hidden sm:block">
@@ -492,7 +494,7 @@ export default function ReportsPage() {
                   />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip
-                    formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, "Ventas"]}
+                    formatter={(value) => [`C$ ${Number(value).toFixed(2)}`, t("reports.daily.sales")]}
                     labelFormatter={(label) => new Date(label).toLocaleDateString("es-NI")}
                   />
                   <Legend />
@@ -502,7 +504,7 @@ export default function ReportsPage() {
                     stroke="#3B82F6"
                     strokeWidth={2}
                     dot={false}
-                    name="Ventas"
+                    name={t("reports.daily.sales")}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -518,7 +520,7 @@ export default function ReportsPage() {
                 >
                   <div>
                     <p className="font-medium text-slate-900">{new Date(day.date).toLocaleDateString("es-NI", { month: "short", day: "numeric" })}</p>
-                    <p className="text-xs text-slate-600">{day.transactions} transacciones</p>
+                    <p className="text-xs text-slate-600">{day.transactions} {t("reports.daily.transactions")}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-blue-900">C$ {day.sales.toFixed(2)}</p>
@@ -533,7 +535,7 @@ export default function ReportsPage() {
           {/* Payment Method Breakdown */}
           {paymentData && (
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Métodos de Pago</h2>
+              <h2 className="text-lg font-bold text-slate-900 mb-4">{t("reports.payment.title")}</h2>
               {paymentData.breakdown.length > 0 ? (
                 <>
                   {/* Desktop Pie Chart */}
@@ -576,7 +578,7 @@ export default function ReportsPage() {
                   </div>
                 </>
               ) : (
-                <p className="text-slate-500 text-center py-8">No hay datos</p>
+                <p className="text-slate-500 text-center py-8">{t("reports.payment.noData")}</p>
               )}
             </div>
           )}
@@ -584,7 +586,7 @@ export default function ReportsPage() {
           {/* Top Products by Revenue */}
           {productData && (
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Top 10 Productos (Ingresos)</h2>
+              <h2 className="text-lg font-bold text-slate-900 mb-4">{t("reports.topRevenue.title")}</h2>
               {productData.topByRevenue.length > 0 ? (
                 <>
                   {/* Desktop Bar Chart */}
@@ -601,7 +603,7 @@ export default function ReportsPage() {
                         />
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip formatter={(value) => `C$ ${Number(value).toFixed(2)}`} />
-                        <Bar dataKey="revenue" fill="#10B981" name="Ingresos" />
+                        <Bar dataKey="revenue" fill="#10B981" name={t("reports.topRevenue.revenue")} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -612,7 +614,7 @@ export default function ReportsPage() {
                       <div key={`revenue-${prod.productId}-${i}`} className="flex justify-between items-start p-3 bg-slate-50 rounded-lg border border-slate-200">
                         <div className="flex-1">
                           <p className="font-medium text-slate-900 text-sm">#{i + 1} {prod.name}</p>
-                          <p className="text-xs text-slate-600 mt-0.5">{prod.quantity} unidades</p>
+                          <p className="text-xs text-slate-600 mt-0.5">{prod.quantity} {t("reports.topRevenue.units")}</p>
                         </div>
                         <p className="font-bold text-green-900 text-sm">C$ {prod.revenue.toFixed(2)}</p>
                       </div>
@@ -620,7 +622,7 @@ export default function ReportsPage() {
                   </div>
                 </>
               ) : (
-                <p className="text-slate-500 text-center py-8">No hay datos</p>
+                <p className="text-slate-500 text-center py-8">{t("reports.topRevenue.noData")}</p>
               )}
             </div>
           )}
@@ -629,7 +631,7 @@ export default function ReportsPage() {
         {/* Top Products by Quantity */}
         {productData && (
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Top 10 Productos (Cantidad)</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-4">{t("reports.topQuantity.title")}</h2>
             {productData.topByQuantity.length > 0 ? (
               <>
                 {/* Desktop Table */}
@@ -637,10 +639,10 @@ export default function ReportsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-900 text-white uppercase text-xs font-semibold">
-                        <th className="px-4 py-3 text-left text-white">Producto</th>
-                        <th className="px-4 py-3 text-right text-white">Cantidad</th>
-                        <th className="px-4 py-3 text-right text-white">Ingresos</th>
-                        <th className="px-4 py-3 text-right text-white">Precio Promedio</th>
+                        <th className="px-4 py-3 text-left text-white">{t("reports.topQuantity.colProduct")}</th>
+                        <th className="px-4 py-3 text-right text-white">{t("reports.topQuantity.colQuantity")}</th>
+                        <th className="px-4 py-3 text-right text-white">{t("reports.topQuantity.colRevenue")}</th>
+                        <th className="px-4 py-3 text-right text-white">{t("reports.topQuantity.colAvgPrice")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -674,15 +676,15 @@ export default function ReportsPage() {
                         <p className="text-right font-bold text-slate-900">C$ {prod.revenue.toFixed(2)}</p>
                       </div>
                       <div className="flex justify-between items-center text-xs text-slate-600 pt-2 border-t border-slate-200">
-                        <span>{prod.quantity} unidades</span>
-                        <span>Precio promedio: C$ {(prod.revenue / prod.quantity).toFixed(2)}</span>
+                        <span>{prod.quantity} {t("reports.topQuantity.units")}</span>
+                        <span>{t("reports.topQuantity.avgPrice")} C$ {(prod.revenue / prod.quantity).toFixed(2)}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <p className="text-slate-500 text-center py-8">No hay datos</p>
+              <p className="text-slate-500 text-center py-8">{t("reports.topQuantity.noData")}</p>
             )}
           </div>
         )}
@@ -714,33 +716,33 @@ export default function ReportsPage() {
           return (
             <Dialog
               isOpen={dayDialogOpen}
-              title={`Análisis de Clientes — ${dayTitle}`}
+              title={t("reports.dayDetail.title", { day: dayTitle })}
               onClose={() => { setDayDialogOpen(false); setSelectedTx(null); }}
             >
               {dayLoading ? (
                 <div className="py-12 flex items-center justify-center">
-                  <EmptyState state="loading" message="Cargando ventas del día..." />
+                  <EmptyState state="loading" message={t("reports.dayDetail.loading")} />
                 </div>
               ) : dayTransactions.length === 0 ? (
-                <div className="py-12 text-center text-slate-500">No hay ventas registradas para este día.</div>
+                <div className="py-12 text-center text-slate-500">{t("reports.dayDetail.empty")}</div>
               ) : (
                 <div>
                   {/* Summary */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5 pb-4 border-b border-slate-200">
                     <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wide">Clientes</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">{t("reports.dayDetail.clients")}</p>
                       <p className="text-2xl font-bold text-slate-900">{clientCount}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wide">Total Bruto</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">{t("reports.dayDetail.grossTotal")}</p>
                       <p className="text-2xl font-bold text-slate-900">C${totalBruto.toFixed(0)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wide">Total Neto</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">{t("reports.dayDetail.netTotal")}</p>
                       <p className="text-2xl font-bold text-slate-900">C${totalNeto.toFixed(0)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 uppercase tracking-wide">Promedio/Cliente</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">{t("reports.dayDetail.avgPerClient")}</p>
                       <p className="text-2xl font-bold text-slate-900">C${clientCount > 0 ? (totalNeto / clientCount).toFixed(0) : "0"}</p>
                     </div>
                   </div>
@@ -749,13 +751,13 @@ export default function ReportsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-slate-900 text-white text-xs uppercase font-semibold">
-                          <th className="px-3 py-2 text-left">Hora</th>
-                          <th className="px-3 py-2 text-left">Empleado</th>
-                          <th className="px-3 py-2 text-right">Productos</th>
-                          <th className="px-3 py-2 text-right">Total</th>
-                          <th className="px-3 py-2 text-right">Descuento</th>
-                          <th className="px-3 py-2 text-right">Neto</th>
-                          <th className="px-3 py-2 text-center">Detalles</th>
+                          <th className="px-3 py-2 text-left">{t("reports.dayDetail.colTime")}</th>
+                          <th className="px-3 py-2 text-left">{t("reports.dayDetail.colEmployee")}</th>
+                          <th className="px-3 py-2 text-right">{t("reports.dayDetail.colProducts")}</th>
+                          <th className="px-3 py-2 text-right">{t("reports.dayDetail.colTotal")}</th>
+                          <th className="px-3 py-2 text-right">{t("reports.dayDetail.colDiscount")}</th>
+                          <th className="px-3 py-2 text-right">{t("reports.dayDetail.colNet")}</th>
+                          <th className="px-3 py-2 text-center">{t("reports.dayDetail.colDetails")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -797,7 +799,7 @@ export default function ReportsPage() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 border-slate-300 bg-slate-50">
-                          <td className="px-3 py-2 text-right text-xs text-slate-500 font-semibold" colSpan={6}>Total clientes:</td>
+                          <td className="px-3 py-2 text-right text-xs text-slate-500 font-semibold" colSpan={6}>{t("reports.dayDetail.totalClients")}</td>
                           <td className="px-3 py-2 text-center font-bold text-slate-900">{clientCount}</td>
                         </tr>
                       </tfoot>
@@ -813,10 +815,10 @@ export default function ReportsPage() {
         {selectedTx && (
           <Dialog
             isOpen
-            title={`Detalle · ${(() => {
+            title={t("reports.itemDetail.title", { time: (() => {
               const local = new Date(new Date(selectedTx.created_at).getTime() - 6 * 60 * 60 * 1000);
-              return `${String(local.getUTCHours()).padStart(2, "0")}:${String(local.getUTCMinutes()).padStart(2, "0")} — ${selectedTx.cashier_name || "—"}`;
-            })()}`}
+              return `${String(local.getUTCHours()).padStart(2, "0")}:${String(local.getUTCMinutes()).padStart(2, "0")}`;
+            })(), cashier: selectedTx.cashier_name || "—" })}
             onClose={() => setSelectedTx(null)}
             maxWidth="md"
           >
@@ -835,7 +837,7 @@ export default function ReportsPage() {
                 </div>
               ))}
               <div className="flex justify-between items-center px-3 py-2.5 rounded-lg bg-slate-900 text-white mt-3">
-                <span className="font-semibold">Total</span>
+                <span className="font-semibold">{t("reports.itemDetail.total")}</span>
                 <span className="font-bold">C${Number(selectedTx.total).toFixed(2)}</span>
               </div>
             </div>

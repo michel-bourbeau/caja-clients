@@ -678,5 +678,94 @@
     "success": {
       "saleComplete": "\u2713 Vente enregistr\u00e9e avec succ\u00e8s !",
       "customerCreated": "\u2713 Client fid\u00e8le cr\u00e9\u00e9 et s\u00e9lectionn\u00e9"
-    }  }
+    }
+  },
+
+  "reports": {
+    "noPermission": "Vous n\u2019avez pas la permission de voir les rapports.",
+    "title": "Rapports de Ventes",
+    "subtitle": "Analyse des performances et tendances",
+    "period": {
+      "week": "Semaine",
+      "month": "Mois",
+      "year": "Ann\u00e9e",
+      "prev": "\u2190 Pr\u00e9c\u00e9dent",
+      "next": "Suivant \u2192"
+    },
+    "loading": "Chargement des rapports...",
+    "summary": {
+      "totalSales": "Total des Ventes",
+      "transactions": "transactions",
+      "avgSale": "Moyenne par Vente",
+      "sales": "ventes",
+      "discounts": "Remises",
+      "pctOfTotal": "{{pct}}% du total",
+      "totalClients": "Total Clients",
+      "uniqueSales": "ventes uniques en {{period}}"
+    },
+    "clients": {
+      "byMonth": "Clients par Mois",
+      "byWeek": "Clients par Jour (Semaine)",
+      "byDay": "Clients par Jour",
+      "total": "Total",
+      "clients": "clients",
+      "average": "Moyenne",
+      "perMonth": "par mois",
+      "perDay": "par jour",
+      "perActiveDay": "par jour actif",
+      "bestMonth": "Meilleur Mois",
+      "bestDay": "Meilleur Jour"
+    },
+    "hourly": {
+      "title": "Ventes par Heure",
+      "sales": "Ventes",
+      "transactions": "transactions"
+    },
+    "daily": {
+      "title": "Ventes Journali\u00e8res",
+      "sales": "Ventes",
+      "transactions": "transactions"
+    },
+    "payment": {
+      "title": "M\u00e9thodes de Paiement",
+      "noData": "Aucune donn\u00e9e"
+    },
+    "topRevenue": {
+      "title": "Top 10 Produits (Revenus)",
+      "revenue": "Revenus",
+      "units": "unit\u00e9s",
+      "noData": "Aucune donn\u00e9e"
+    },
+    "topQuantity": {
+      "title": "Top 10 Produits (Quantit\u00e9)",
+      "colProduct": "Produit",
+      "colQuantity": "Quantit\u00e9",
+      "colRevenue": "Revenus",
+      "colAvgPrice": "Prix Moyen",
+      "units": "unit\u00e9s",
+      "avgPrice": "Prix moyen\u00a0:",
+      "noData": "Aucune donn\u00e9e"
+    },
+    "dayDetail": {
+      "title": "Analyse Clients \u2014 {{day}}",
+      "loading": "Chargement des ventes du jour...",
+      "empty": "Aucune vente enregistr\u00e9e pour ce jour.",
+      "clients": "Clients",
+      "grossTotal": "Total Brut",
+      "netTotal": "Total Net",
+      "avgPerClient": "Moy./Client",
+      "colTime": "Heure",
+      "colEmployee": "Employ\u00e9",
+      "colProducts": "Produits",
+      "colTotal": "Total",
+      "colDiscount": "Remise",
+      "colNet": "Net",
+      "colDetails": "D\u00e9tails",
+      "totalClients": "Total clients\u00a0:"
+    },
+    "itemDetail": {
+      "title": "D\u00e9tail \u00b7 {{time}} \u2014 {{cashier}}",
+      "total": "Total"
+    }
+  }
 }

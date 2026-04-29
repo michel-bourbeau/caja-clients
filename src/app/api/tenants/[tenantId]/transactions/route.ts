@@ -298,7 +298,7 @@ export async function POST(
               reference_id:    transactionId,
               notes:           null,
               created_by:      cashierName || cashierId,
-            }]).then(() => {}).catch(() => {});
+            }]).then(() => {}, () => {});
           } catch { /* table may not exist yet */ }
         } else {
           const current = productMap.get(item.productId);
@@ -324,7 +324,7 @@ export async function POST(
               reference_id:    transactionId,
               notes:           null,
               created_by:      cashierName || cashierId,
-            }]).then(() => {}).catch(() => {});
+            }]).then(() => {}, () => {});
           } catch { /* table may not exist yet */ }
         }
       })

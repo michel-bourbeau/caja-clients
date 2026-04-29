@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale } from "@/i18n/config";
+import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, getFlagUrl, Locale } from "@/i18n/config";
 import { Globe } from "lucide-react";
 
 interface LanguageSwitcherProps {
@@ -40,10 +40,15 @@ export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
         aria-expanded={open}
       >
         <Globe className="w-4 h-4 text-slate-500 flex-shrink-0" />
-        <span className="text-base leading-none">{localeFlag}</span>
-        {!compact && (
-          <span className="hidden sm:inline font-medium">{localeLabel}</span>
-        )}
+        <img
+          src={getFlagUrl(localeFlag)}
+          srcSet={`${getFlagUrl(localeFlag, 40)} 2x`}
+          alt={localeLabel}
+          width={20}
+          height={15}
+          className="rounded-sm object-cover flex-shrink-0"
+        />
+        <span className={`font-medium ${compact ? "hidden" : ""}`}>{localeLabel}</span>
         <svg className={`w-3 h-3 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -63,7 +68,14 @@ export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
                   : "text-slate-700"
               }`}
             >
-              <span className="text-lg leading-none">{opt.flag}</span>
+              <img
+                src={getFlagUrl(opt.flag)}
+                srcSet={`${getFlagUrl(opt.flag, 40)} 2x`}
+                alt={opt.label}
+                width={24}
+                height={18}
+                className="rounded-sm object-cover flex-shrink-0"
+              />
               <span>{opt.label}</span>
               {locale === opt.locale && (
                 <svg className="w-4 h-4 ml-auto text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

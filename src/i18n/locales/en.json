@@ -678,5 +678,93 @@
       "saleComplete": "\u2713 Sale recorded successfully!",
       "customerCreated": "\u2713 Loyal customer created and selected"
     }
+  },
+
+  "reports": {
+    "noPermission": "You do not have permission to view reports.",
+    "title": "Sales Reports",
+    "subtitle": "Performance analysis and trends",
+    "period": {
+      "week": "Week",
+      "month": "Month",
+      "year": "Year",
+      "prev": "\u2190 Previous",
+      "next": "Next \u2192"
+    },
+    "loading": "Loading reports...",
+    "summary": {
+      "totalSales": "Total Sales",
+      "transactions": "transactions",
+      "avgSale": "Average per Sale",
+      "sales": "sales",
+      "discounts": "Discounts",
+      "pctOfTotal": "{{pct}}% of total",
+      "totalClients": "Total Clients",
+      "uniqueSales": "unique sales in {{period}}"
+    },
+    "clients": {
+      "byMonth": "Clients per Month",
+      "byWeek": "Clients per Day (Week)",
+      "byDay": "Clients per Day",
+      "total": "Total",
+      "clients": "clients",
+      "average": "Average",
+      "perMonth": "per month",
+      "perDay": "per day",
+      "perActiveDay": "per active day",
+      "bestMonth": "Best Month",
+      "bestDay": "Best Day"
+    },
+    "hourly": {
+      "title": "Sales by Hour",
+      "sales": "Sales",
+      "transactions": "transactions"
+    },
+    "daily": {
+      "title": "Daily Sales",
+      "sales": "Sales",
+      "transactions": "transactions"
+    },
+    "payment": {
+      "title": "Payment Methods",
+      "noData": "No data"
+    },
+    "topRevenue": {
+      "title": "Top 10 Products (Revenue)",
+      "revenue": "Revenue",
+      "units": "units",
+      "noData": "No data"
+    },
+    "topQuantity": {
+      "title": "Top 10 Products (Quantity)",
+      "colProduct": "Product",
+      "colQuantity": "Quantity",
+      "colRevenue": "Revenue",
+      "colAvgPrice": "Average Price",
+      "units": "units",
+      "avgPrice": "Average price:",
+      "noData": "No data"
+    },
+    "dayDetail": {
+      "title": "Client Analysis \u2014 {{day}}",
+      "loading": "Loading day's sales...",
+      "empty": "No sales recorded for this day.",
+      "clients": "Clients",
+      "grossTotal": "Gross Total",
+      "netTotal": "Net Total",
+      "avgPerClient": "Avg/Client",
+      "colTime": "Time",
+      "colEmployee": "Employee",
+      "colProducts": "Products",
+      "colTotal": "Total",
+      "colDiscount": "Discount",
+      "colNet": "Net",
+      "colDetails": "Details",
+      "totalClients": "Total clients:"
+    },
+    "itemDetail": {
+      "title": "Detail \u00b7 {{time}} \u2014 {{cashier}}",
+      "total": "Total"
+    }
   }
 }

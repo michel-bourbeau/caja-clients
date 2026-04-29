@@ -678,6 +678,92 @@
     "success": {
       "saleComplete": "✓ ¡Venta registrada exitosamente!",
       "customerCreated": "✓ Cliente fiel creado y seleccionado"
-    }
-  }
+    }  },
+
+  "reports": {
+    "noPermission": "No tienes permisos para ver reportes.",
+    "title": "Reportes de Ventas",
+    "subtitle": "An\u00e1lisis de desempe\u00f1o y tendencias",
+    "period": {
+      "week": "Semana",
+      "month": "Mes",
+      "year": "A\u00f1o",
+      "prev": "\u2190 Anterior",
+      "next": "Siguiente \u2192"
+    },
+    "loading": "Cargando reportes...",
+    "summary": {
+      "totalSales": "Total de Ventas",
+      "transactions": "transacciones",
+      "avgSale": "Promedio por Venta",
+      "sales": "ventas",
+      "discounts": "Descuentos",
+      "pctOfTotal": "{{pct}}% del total",
+      "totalClients": "Total Clientes",
+      "uniqueSales": "ventas \u00fanicas en {{period}}"
+    },
+    "clients": {
+      "byMonth": "Clientes por Mes",
+      "byWeek": "Clientes por D\u00eda (Semana)",
+      "byDay": "Clientes por D\u00eda",
+      "total": "Total",
+      "clients": "clientes",
+      "average": "Promedio",
+      "perMonth": "por mes",
+      "perDay": "por d\u00eda",
+      "perActiveDay": "por d\u00eda activo",
+      "bestMonth": "Mejor Mes",
+      "bestDay": "Mejor D\u00eda"
+    },
+    "hourly": {
+      "title": "Ventas por Hora",
+      "sales": "Ventas",
+      "transactions": "transacciones"
+    },
+    "daily": {
+      "title": "Ventas Diarias",
+      "sales": "Ventas",
+      "transactions": "transacciones"
+    },
+    "payment": {
+      "title": "M\u00e9todos de Pago",
+      "noData": "No hay datos"
+    },
+    "topRevenue": {
+      "title": "Top 10 Productos (Ingresos)",
+      "revenue": "Ingresos",
+      "units": "unidades",
+      "noData": "No hay datos"
+    },
+    "topQuantity": {
+      "title": "Top 10 Productos (Cantidad)",
+      "colProduct": "Producto",
+      "colQuantity": "Cantidad",
+      "colRevenue": "Ingresos",
+      "colAvgPrice": "Precio Promedio",
+      "units": "unidades",
+      "avgPrice": "Precio promedio:",
+      "noData": "No hay datos"
+    },
+    "dayDetail": {
+      "title": "An\u00e1lisis de Clientes \u2014 {{day}}",
+      "loading": "Cargando ventas del d\u00eda...",
+      "empty": "No hay ventas registradas para este d\u00eda.",
+      "clients": "Clientes",
+      "grossTotal": "Total Bruto",
+      "netTotal": "Total Neto",
+      "avgPerClient": "Promedio/Cliente",
+      "colTime": "Hora",
+      "colEmployee": "Empleado",
+      "colProducts": "Productos",
+      "colTotal": "Total",
+      "colDiscount": "Descuento",
+      "colNet": "Neto",
+      "colDetails": "Detalles",
+      "totalClients": "Total clientes:"
+    },
+    "itemDetail": {
+      "title": "Detalle \u00b7 {{time}} \u2014 {{cashier}}",
+      "total": "Total"
+    }  }
 }
