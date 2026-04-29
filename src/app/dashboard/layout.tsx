@@ -5,6 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { ShoppingCart, AlertCircle } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/context/LanguageContext";
+import { LOCALES } from "@/i18n/config";
 import { useAuth } from "@/context/AuthContext";
 import { TenantProvider } from "@/context/TenantContext";
 import { SUPERADMIN_IMPERSONATION_KEY, EMPLOYEE_IMPERSONATION_KEY, ImpersonationSession, EmployeeImpersonationSession } from "@/context/AuthContext";
@@ -22,6 +25,23 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const { setTenantDefault } = useLanguage();
+
+  // Load tenant's default language (applies only if user has no personal preference)
+  useEffect(() => {
+    const tenantId = typeof window !== "undefined" ? sessionStorage.getItem("defaultTenantId") : null;
+    if (!tenantId) return;
+    fetch(`/api/tenants/${tenantId}/settings`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => {
+        if (s?.language && Object.values(LOCALES).includes(s.language)) {
+          setTenantDefault(s.language);
+        }
+      })
+      .catch(() => { /* silent */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   // POS page manages its own full-height layout — no outer padding or scroll
   const isFullHeightPage = pathname === '/dashboard/pos';
@@ -262,6 +282,9 @@ export default function DashboardLayout({
 
             {/* User info - right side */}
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
+              {/* Language switcher */}
+              <LanguageSwitcher compact />
+
               {/* Bouton Caja global */}
               <button
                 onClick={() => router.push('/dashboard/pos')}

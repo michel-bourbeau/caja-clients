@@ -3,6 +3,7 @@
 import React from "react";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
@@ -51,6 +52,7 @@ import { useRouter } from "next/navigation";
 export default function DashboardPage() {
   const router = useRouter();
   const { user, hasPermission } = useAuth();
+  const { t } = useLanguage();
   const { features, loading } = useTenantFeatures();
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
@@ -198,9 +200,9 @@ export default function DashboardPage() {
   const statCards = [
     {
       id: "pos",
-      title: "Caja",
+      title: t("dashboard.modules.pos.title"),
       icon: ShoppingCart,
-      description: "Crear nueva transacción de venta",
+      description: t("dashboard.modules.pos.description"),
       href: "/dashboard/pos",
       color: "bg-blue-50 border-blue-200 text-blue-800",
       iconBg: "bg-blue-100",
@@ -209,9 +211,9 @@ export default function DashboardPage() {
     },
     {
       id: "transactions",
-      title: "Transacciones",
+      title: t("dashboard.modules.transactions.title"),
       icon: ReceiptText,
-      description: "Historial de ventas y movimientos",
+      description: t("dashboard.modules.transactions.description"),
       href: "/dashboard/transactions",
       color: "bg-slate-50 border-slate-200 text-slate-800",
       iconBg: "bg-slate-100",
@@ -220,9 +222,9 @@ export default function DashboardPage() {
     },
     {
       id: "cierre",
-      title: "Cierre de Caja",
+      title: t("dashboard.modules.cierre.title"),
       icon: Lock,
-      description: "Cierre de caja del día",
+      description: t("dashboard.modules.cierre.description"),
       href: "/dashboard/pos/cierre",
       color: "bg-orange-50 border-orange-200 text-orange-800",
       iconBg: "bg-orange-100",
@@ -231,9 +233,9 @@ export default function DashboardPage() {
     },
     {
       id: "inventory",
-      title: "Inventario",
+      title: t("dashboard.modules.inventory.title"),
       icon: Package,
-      description: "Gestión de productos y stock",
+      description: t("dashboard.modules.inventory.description"),
       href: "/dashboard/inventory",
       color: "bg-green-50 border-green-200 text-green-800",
       iconBg: "bg-green-100",
@@ -242,9 +244,9 @@ export default function DashboardPage() {
     },
     {
       id: "loyalty",
-      title: "Clientes Fieles",
+      title: t("dashboard.modules.loyalty.title"),
       icon: CreditCard,
-      description: "Programa de fidelización",
+      description: t("dashboard.modules.loyalty.description"),
       href: "/dashboard/loyalty",
       color: "bg-rose-50 border-rose-200 text-rose-800",
       iconBg: "bg-rose-100",
@@ -253,9 +255,9 @@ export default function DashboardPage() {
     },
     {
       id: "profits",
-      title: "Ganancias",
+      title: t("dashboard.modules.profits.title"),
       icon: TrendingUp,
-      description: "Análisis de ganancias por período",
+      description: t("dashboard.modules.profits.description"),
       href: "/dashboard/profits",
       color: "bg-emerald-50 border-emerald-200 text-emerald-800",
       iconBg: "bg-emerald-100",
@@ -264,9 +266,9 @@ export default function DashboardPage() {
     },
     {
       id: "bilan",
-      title: "Bilan Financiero",
+      title: t("dashboard.modules.bilan.title"),
       icon: BarChart3,
-      description: "Ganancia neta: ventas − gastos − salarios",
+      description: t("dashboard.modules.bilan.description"),
       href: "/dashboard/bilan",
       color: "bg-blue-50 border-blue-200 text-blue-800",
       iconBg: "bg-blue-100",
@@ -275,9 +277,9 @@ export default function DashboardPage() {
     },
     {
       id: "reports",
-      title: "Reportes",
+      title: t("dashboard.modules.reports.title"),
       icon: TrendingUp,
-      description: "Análisis y reportes de ventas",
+      description: t("dashboard.modules.reports.description"),
       href: "/dashboard/reports",
       color: "bg-cyan-50 border-cyan-200 text-cyan-800",
       iconBg: "bg-cyan-100",
@@ -286,9 +288,9 @@ export default function DashboardPage() {
     },
     {
       id: "expenses",
-      title: "Gastos",
+      title: t("dashboard.modules.expenses.title"),
       icon: DollarSign,
-      description: "Registro de gastos y proveedores",
+      description: t("dashboard.modules.expenses.description"),
       href: "/dashboard/expenses",
       color: "bg-yellow-50 border-yellow-200 text-yellow-800",
       iconBg: "bg-yellow-100",
@@ -297,9 +299,9 @@ export default function DashboardPage() {
     },
     {
       id: "employees",
-      title: "Empleados",
+      title: t("dashboard.modules.employees.title"),
       icon: Users,
-      description: "Gestión de personal",
+      description: t("dashboard.modules.employees.description"),
       href: "/dashboard/employees",
       color: "bg-purple-50 border-purple-200 text-purple-800",
       iconBg: "bg-purple-100",
@@ -308,9 +310,9 @@ export default function DashboardPage() {
     },
     {
       id: "schedules",
-      title: "Asistencia",
+      title: t("dashboard.modules.schedules.title"),
       icon: Clock,
-      description: "Control de horarios y asistencia",
+      description: t("dashboard.modules.schedules.description"),
       href: "/dashboard/schedules",
       color: "bg-amber-50 border-amber-200 text-amber-800",
       iconBg: "bg-amber-100",
@@ -319,9 +321,9 @@ export default function DashboardPage() {
     },
     {
       id: "payroll-periods",
-      title: "Períodos",
+      title: t("dashboard.modules.payrollPeriods.title"),
       icon: Calendar,
-      description: "Períodos de pago",
+      description: t("dashboard.modules.payrollPeriods.description"),
       href: "/dashboard/payroll/periods",
       color: "bg-emerald-50 border-emerald-200 text-emerald-800",
       iconBg: "bg-emerald-100",
@@ -330,9 +332,9 @@ export default function DashboardPage() {
     },
     {
       id: "payroll-receipts",
-      title: "Recibos",
+      title: t("dashboard.modules.payrollReceipts.title"),
       icon: FileText,
-      description: "Recibos de pago",
+      description: t("dashboard.modules.payrollReceipts.description"),
       href: "/dashboard/payroll/receipts",
       color: "bg-lime-50 border-lime-200 text-lime-800",
       iconBg: "bg-lime-100",
@@ -341,9 +343,9 @@ export default function DashboardPage() {
     },
     {
       id: "contacts",
-      title: "Contactos",
+      title: t("dashboard.modules.contacts.title"),
       icon: BookOpen,
-      description: "Contactos importantes de la empresa",
+      description: t("dashboard.modules.contacts.description"),
       href: "/dashboard/contacts",
       color: "bg-indigo-50 border-indigo-200 text-indigo-800",
       iconBg: "bg-indigo-100",
@@ -352,9 +354,9 @@ export default function DashboardPage() {
     },
     {
       id: "taxes",
-      title: "Impuestos",
+      title: t("dashboard.modules.taxes.title"),
       icon: AlertCircle,
-      description: "Gestión de impuestos",
+      description: t("dashboard.modules.taxes.description"),
       href: "/dashboard/settings/taxes",
       color: "bg-red-50 border-red-200 text-red-800",
       iconBg: "bg-red-100",
@@ -363,9 +365,9 @@ export default function DashboardPage() {
     },
     {
       id: "roles",
-      title: "Gestionar Roles",
+      title: t("dashboard.modules.roles.title"),
       icon: Shield,
-      description: "Permisos y roles de usuario",
+      description: t("dashboard.modules.roles.description"),
       href: "/dashboard/admin/roles",
       color: "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-800",
       iconBg: "bg-fuchsia-100",
@@ -374,9 +376,9 @@ export default function DashboardPage() {
     },
     {
       id: "settings",
-      title: "Configuración",
+      title: t("dashboard.modules.settings.title"),
       icon: Settings,
-      description: "Ajustes del sistema",
+      description: t("dashboard.modules.settings.description"),
       href: "/dashboard/settings",
       color: "bg-indigo-50 border-indigo-200 text-indigo-800",
       iconBg: "bg-indigo-100",
@@ -386,10 +388,10 @@ export default function DashboardPage() {
   ];
 
   const moduleGroups = [
-    { id: "ventas",   label: "Ventas" },
-    { id: "finanzas", label: "Finanzas & Reportes" },
-    { id: "rrhh",     label: "Nómina & RRHH" },
-    { id: "admin",    label: "Administración" },
+    { id: "ventas",   label: t("dashboard.groups.ventas")   },
+    { id: "finanzas", label: t("dashboard.groups.finanzas") },
+    { id: "rrhh",     label: t("dashboard.groups.rrhh")     },
+    { id: "admin",    label: t("dashboard.groups.admin")    },
   ];
 
   const visibleCards = statCards.filter((c) => c.show);
@@ -409,8 +411,12 @@ export default function DashboardPage() {
       {/* Welcome Section with Icon */}
       <DashboardHeader
         pageType="dashboard"
-        title="Dashboard"
-        subtitle={`${roleName} — acceso a ${visibleCards.length} módulo${visibleCards.length !== 1 ? "s" : ""}`}
+        title={t("dashboard.pageTitle")}
+        subtitle={
+          visibleCards.length === 1
+            ? t("dashboard.subtitleOne", { role: roleName })
+            : t("dashboard.subtitleMany", { role: roleName, count: visibleCards.length })
+        }
       />
 
       {/* Modules — grouped by category */}
@@ -418,8 +424,8 @@ export default function DashboardPage() {
           <Card>
             <CardContent className="text-center py-12">
               <Lock className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-lg font-semibold text-slate-900">Sin acceso a módulos</p>
-              <p className="text-slate-600 mt-2">Contacta con tu administrador para obtener permisos.</p>
+              <p className="text-lg font-semibold text-slate-900">{t("dashboard.noModules")}</p>
+              <p className="text-slate-600 mt-2">{t("dashboard.noModulesDesc")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -467,16 +473,14 @@ export default function DashboardPage() {
             <div className="flex items-start gap-3">
               <Package className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-blue-900">Sin productos con stock bajo</h3>
-                <p className="text-sm text-blue-800 mt-1">
-                  Todos los productos están con stock por encima del mínimo requerido o no tienen mínimo configurado.
-                </p>
+                <h3 className="font-semibold text-blue-900">{t("dashboard.noLowStock")}</h3>
+                <p className="text-sm text-blue-800 mt-1">{t("dashboard.noLowStockDesc")}</p>
                 <button
                   onClick={() => fetchLowStockProducts()}
                   className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded hover:bg-blue-50 transition-all"
                 >
                   <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
-                  Actualizar
+                  {t("dashboard.refresh")}
                 </button>
               </div>
             </div>
@@ -486,7 +490,7 @@ export default function DashboardPage() {
 
       {/* Low stock products section */}
       {lowStockProducts.length > 0 && (
-        <Section className="mt-12" title="Productos con Stock Bajo">
+        <Section className="mt-12" title={t("dashboard.lowStockTitle")}>
           {/* Low stock products grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
             {lowStockProducts.map((p) => {
@@ -535,7 +539,7 @@ export default function DashboardPage() {
                       {/* Progress bar */}
                       <div>
                         <div className="flex justify-between text-base text-slate-600 mb-2">
-                          <span>Stock: <strong>{currentQuantity}</strong> / {p.min_stock} Mínimo Requerido</span>
+                          <span>{t("dashboard.stockInfo", { qty: String(currentQuantity), min: p.min_stock })}</span>
                           <span>{pct}%</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
@@ -551,7 +555,7 @@ export default function DashboardPage() {
                       {/* Suggestion to order */}
                       {!isEditing && (
                         <p className="text-base text-slate-600 pt-2">
-                          Pedir <strong className="text-slate-900">{Math.max(0, p.min_stock - p.quantity)}</strong> unidades para reponer
+                          {t("dashboard.reorderSuggestion", { qty: Math.max(0, p.min_stock - p.quantity) })}
                         </p>
                       )}
 
@@ -559,7 +563,7 @@ export default function DashboardPage() {
                       {isEditing && (
                         <div className="flex gap-2 items-end pt-2">
                           <div className="flex-1">
-                            <label className="block text-xs font-medium text-slate-600 mb-1">Nueva cantidad</label>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">{t("dashboard.newQuantity")}</label>
                             <input
                               type="number"
                               min="0"
@@ -605,9 +609,9 @@ export default function DashboardPage() {
           {/* Footer info */}
           <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
             <p>
-              El stock mínimo se configura en cada producto desde{" "}
+              {t("dashboard.inventoryLink")}{" "}
               <Link href="/dashboard/inventory" className="text-blue-600 hover:underline font-medium">
-                Gestión de Inventario
+                {t("dashboard.inventoryManagement")}
               </Link>.
             </p>
           </div>

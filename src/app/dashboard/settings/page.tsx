@@ -8,6 +8,8 @@ import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useLanguage } from "@/context/LanguageContext";
+import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale } from "@/i18n/config";
 
 interface PlanDetails {
   label: string;
@@ -53,6 +55,7 @@ interface Settings {
   companyWebsite: string;
   companyRuc: string;
   currency: string;
+  language: Locale;
   posConfig: { roundTotal: boolean; printReceipt: boolean };
   payrollConfig: PayrollConfig;
 }
@@ -80,12 +83,14 @@ const DEFAULT_SETTINGS: Settings = {
   companyWebsite: "",
   companyRuc: "",
   currency: "NIO",
+  language: LOCALES.ES_NI,
   posConfig: { roundTotal: false, printReceipt: true },
   payrollConfig: { frequency: "weekly", weekStartDay: 1, monthStartDay: 1 },
 };
 
 export default function SettingsPage() {
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
+  const { setTenantDefault } = useLanguage();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(true);
@@ -94,6 +99,7 @@ export default function SettingsPage() {
   const [savingCompany, setSavingCompany] = useState(false);
   const [savingPOS, setSavingPOS] = useState(false);
   const [savingPayroll, setSavingPayroll] = useState(false);
+  const [savingLanguage, setSavingLanguage] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -121,6 +127,7 @@ export default function SettingsPage() {
       if (settingsRes.ok) {
         const s = await settingsRes.json();
         const cur = s.currency ?? "NIO";
+        const lang = (s.language ?? LOCALES.ES_NI) as Locale;
         setSettings({
           companyName:    s.companyName    ?? "",
           companyPhone:   s.companyPhone   ?? "",
@@ -128,10 +135,12 @@ export default function SettingsPage() {
           companyWebsite: s.companyWebsite ?? "",
           companyRuc:     s.companyRuc     ?? "",
           currency:       cur,
+          language:       lang,
           posConfig:      s.posConfig      ?? DEFAULT_SETTINGS.posConfig,
           payrollConfig:  s.payrollConfig  ?? DEFAULT_SETTINGS.payrollConfig,
         });
         broadcastCurrencyChange(cur);
+        setTenantDefault(lang);
       }
       if (paymentRes.ok) {
         const p = await paymentRes.json();
@@ -207,6 +216,29 @@ export default function SettingsPage() {
       showMessage("error", "Error de conexion");
     } finally {
       setSavingPayroll(false);
+    }
+  };
+
+  const saveLanguage = async (lang: Locale) => {
+    if (!tenantId) return;
+    setSavingLanguage(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: lang }),
+      });
+      if (res.ok) {
+        setSettings((s) => ({ ...s, language: lang }));
+        setTenantDefault(lang);
+        showMessage("success", "Langue par défaut enregistrée");
+      } else {
+        showMessage("error", "Error al guardar");
+      }
+    } catch {
+      showMessage("error", "Error de conexion");
+    } finally {
+      setSavingLanguage(false);
     }
   };
 
@@ -476,6 +508,55 @@ export default function SettingsPage() {
 
         {/* Theme Font Size Settings */}
         <ThemeFontSizeSettings />
+
+        {/* Language Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>🌐 Langue par Défaut de l&apos;Interface</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600 mb-4">
+              Choisissez la langue par défaut pour tous les utilisateurs de ce compte.
+              Chaque utilisateur peut la modifier via le sélecteur en haut à droite.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {([
+                { locale: LOCALES.ES_NI, flag: LOCALE_FLAGS["es-ni"], label: LOCALE_LABELS["es-ni"] },
+                { locale: LOCALES.EN,    flag: LOCALE_FLAGS["en"],    label: LOCALE_LABELS["en"]    },
+                { locale: LOCALES.FR,    flag: LOCALE_FLAGS["fr"],    label: LOCALE_LABELS["fr"]    },
+              ] as { locale: Locale; flag: string; label: string }[]).map((opt) => (
+                <label
+                  key={opt.locale}
+                  className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    settings.language === opt.locale
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="language"
+                    value={opt.locale}
+                    checked={settings.language === opt.locale}
+                    onChange={() => saveLanguage(opt.locale as Locale)}
+                    className="accent-blue-600"
+                    disabled={savingLanguage}
+                  />
+                  <span className="text-xl leading-none">{opt.flag}</span>
+                  <span className="text-sm font-semibold text-slate-900">{opt.label}</span>
+                  {settings.language === opt.locale && (
+                    <span className="ml-auto text-xs text-blue-600 font-medium">✓ Actif</span>
+                  )}
+                </label>
+              ))}
+            </div>
+            {savingLanguage && (
+              <p className="text-xs text-slate-500 mt-3 flex items-center gap-1.5">
+                <LoadingSpinner size="sm" /> Enregistrement...
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="space-y-6">
           {/* Payment Information Card */}

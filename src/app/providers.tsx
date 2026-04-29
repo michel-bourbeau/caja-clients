@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { SuperAdminProvider } from "@/context/SuperAdminContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { TenantFeaturesProvider } from "@/context/TenantFeaturesContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 import { restoreTenantIdFromStorage } from "@/lib/utils/session";
 
 export function RootProviders({ children }: { children: React.ReactNode }) {
@@ -14,14 +15,16 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthProvider>
-      <SuperAdminProvider>
-        <ThemeProvider>
-          <TenantFeaturesProvider>
-            {children}
-          </TenantFeaturesProvider>
-        </ThemeProvider>
-      </SuperAdminProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <SuperAdminProvider>
+          <ThemeProvider>
+            <TenantFeaturesProvider>
+              {children}
+            </TenantFeaturesProvider>
+          </ThemeProvider>
+        </SuperAdminProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
