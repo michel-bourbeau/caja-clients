@@ -10,6 +10,29 @@ jest.mock("@/context/AuthContext");
 jest.mock("@/lib/utils/tenantFeatures");
 jest.mock("@/lib/utils/tenant");
 jest.mock("@/lib/utils/useCurrency");
+
+jest.mock("@/context/LanguageContext", () => ({
+  useLanguage: () => ({
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    t: (key: string, vars?: Record<string, string>) => {
+      const esNi = require("../../../../src/i18n/locales/es-ni.json");
+      const parts = key.split(".");
+      let val: any = esNi;
+      for (const part of parts) {
+        if (val == null) return key;
+        val = val[part];
+      }
+      if (typeof val !== "string") return key;
+      if (vars) {
+        return val.replace(/\{\{(\w+)\}\}/g, (_: string, name: string) => vars[name] ?? name);
+      }
+      return val;
+    },
+    locale: "es-ni",
+    setLocale: jest.fn(),
+    setTenantDefault: jest.fn(),
+  }),
+}));
 jest.mock("@/components/ui", () => ({
   Card: ({ children, className }: any) => <div className={className}>{children}</div>,
 }));

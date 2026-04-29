@@ -9,6 +9,7 @@ import { CartItem, Product, LoyalCustomer, LoyalCustomerStats, Transaction } fro
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
 import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter, ReceiptModal, EmptyState, type ReceiptSettings } from "@/components";
 
@@ -36,6 +37,7 @@ export default function POSPage() {
   const tenantId = useTenantId();
   const { fmt, symbol } = useCurrency();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -90,7 +92,7 @@ export default function POSPage() {
     setProductsLoading(true);
     POSService.fetchProducts(tenantId)
       .then((data) => setProducts(data))
-      .catch((err) => setMessage(err instanceof Error ? err.message : "Error cargando productos"))
+      .catch((err) => setMessage(err instanceof Error ? err.message : t("pos.errors.loadingProducts")))
       .finally(() => setProductsLoading(false));
 
     // Load categories + taxes in background (non-blocking)
@@ -306,7 +308,7 @@ export default function POSPage() {
     const rows: TableRow[] = [];
     const uncategorized = productsByCategory["uncategorized"] ?? [];
     if (uncategorized.length) {
-      rows.push({ type: "header", catId: "uncategorized", catName: "Sin categoría" });
+      rows.push({ type: "header", catId: "uncategorized", catName: t("pos.uncategorized") });
       uncategorized.forEach((p) => rows.push({ type: "product", product: p }));
     }
     categories.forEach((cat) => {
@@ -444,7 +446,7 @@ export default function POSPage() {
       setNewLoyalCustomerForm({ card_number: "", name: "", phone: "", email: "" });
       setShowCreateLoyalCustomerModal(false);
       
-      setMessage("✓ Cliente fiel creado y seleccionado");
+      setMessage(t("pos.success.customerCreated"));
       setMessageType("success");
       
       // Reload customer list
@@ -453,7 +455,7 @@ export default function POSPage() {
 
       setTimeout(() => setMessage(null), 3000);
     } catch (error: any) {
-      setMessage(error.message || "Error creando cliente fiel");
+      setMessage(error.message || t("pos.errors.creatingCustomer"));
       setMessageType("error");
     } finally {
       setLoading(false);
@@ -462,13 +464,13 @@ export default function POSPage() {
 
   const handleCompleteSale = async () => {
     if (!tenantId) {
-      setMessage("No hay tenant seleccionado.");
+      setMessage(t("pos.errors.noTenant"));
       setMessageType("error");
       return;
     }
 
     if (cart.length === 0) {
-      setMessage("El carrito está vacío.");
+      setMessage(t("pos.errors.emptyCart"));
       setMessageType("error");
       return;
     }
@@ -476,14 +478,14 @@ export default function POSPage() {
     // Validate amount received is required for CASH payments
     if (paymentMethod === "CASH") {
       if (amountReceived === 0 || amountReceived < 0) {
-        setMessage("Monto Recibido es obligatorio para pagos en efectivo.");
+        setMessage(t("pos.errors.cashAmountRequired"));
         setMessageType("error");
         return;
       }
 
       // Check if payment is sufficient
       if (changeCalculation.isInsufficientAmount) {
-        setMessage("Monto insuficiente. El cliente debe pagar más.");
+        setMessage(t("pos.errors.insufficientAmount"));
         setMessageType("error");
         return;
       }
@@ -521,7 +523,7 @@ export default function POSPage() {
           await LoyaltyService.recordPurchase(tenantId, selectedLoyalCustomer.id, {
             amount: cartTotal.total,
             transaction_id: transaction.id,
-            description: `Venta registrada - ${cart.length} producto(s)`,
+            description: t("pos.loyaltyPurchaseDesc", { count: String(cart.length) }),
           });
         } catch (err) {
           console.error('Error recording loyal customer purchase:', err);
@@ -534,7 +536,7 @@ export default function POSPage() {
       setSelectedCurrency("NIO");
       setSelectedLoyalCustomer(null);
       setIsCartOpen(false); // Close cart drawer on mobile after successful sale
-      setMessage("✓ ¡Venta registrada exitosamente!");
+      setMessage(t("pos.success.saleComplete"));
       setMessageType("success");
 
       // Show receipt modal
@@ -550,7 +552,7 @@ export default function POSPage() {
         setMessageType(null);
       }, 3000);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Error en la transacción";
+      const errorMsg = error instanceof Error ? error.message : t("pos.errors.transaction");
       
       // Check if this is a migration error
       if (errorMsg.includes("MIGRATION_REQUIRED") || errorMsg.includes("discount column")) {
@@ -573,27 +575,27 @@ export default function POSPage() {
 
       {/* Mobile header — compact single row */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 xl:hidden">
-        <span className="text-base font-bold text-slate-900">Caja</span>
+        <span className="text-base font-bold text-slate-900">{t("pos.title")}</span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.location.reload()}
             className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-            title="Recargar Caja"
-            aria-label="Recargar Caja"
+            title={t("pos.reload")}
+            aria-label={t("pos.reload")}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsCartOpen(true)}
             className="btn-primary relative flex items-center gap-1.5 px-3 py-1.5 text-sm"
-            aria-label="Abrir carrito"
+            aria-label={t("pos.cart")}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 7h12.8M7 13H5.4M10 21a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"
               />
             </svg>
-            <span className="font-semibold">Carrito</span>
+            <span className="font-semibold">{t("pos.cart")}</span>
             {cartItemCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-5 h-5 text-xs font-bold bg-red-500 text-white rounded-full">
                 {cartItemCount > 99 ? "99+" : cartItemCount}
@@ -605,12 +607,12 @@ export default function POSPage() {
 
       {/* Desktop header — full DashboardHeader */}
       <div className="flex-shrink-0 px-4 pt-4 hidden xl:block">
-        <DashboardHeader pageType="pos" title="Caja">
+        <DashboardHeader pageType="pos" title={t("pos.title")}>
           <button
             onClick={() => window.location.reload()}
             className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center"
-            title="Recargar Caja"
-            aria-label="Recargar Caja"
+            title={t("pos.reload")}
+            aria-label={t("pos.reload")}
           >
             <RefreshCw className="w-5 h-5" />
           </button>
@@ -622,7 +624,7 @@ export default function POSPage() {
             <div className="pointer-events-auto max-w-md w-full">
               <Alert
                 variant={messageType === "success" ? "success" : "warning"}
-                title={messageType === "success" ? "✓ Éxito" : "⚠ Aviso"}
+                title={messageType === "success" ? t("pos.successTitle") : t("pos.warningTitle")}
                 className="shadow-lg"
               >
                 {message}
@@ -644,7 +646,7 @@ export default function POSPage() {
                 <SearchInput
                   value={search}
                   onChange={(value) => setSearch(value)}
-                  placeholder="Buscar producto..."
+                  placeholder={t("pos.search")}
                   className="flex-1"
                 />
 
@@ -661,7 +663,7 @@ export default function POSPage() {
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
-                    <span>Lista</span>
+                    <span>{t("pos.viewList")}</span>
                   </button>
                   <button
                     onClick={() => setViewMode("card")}
@@ -674,7 +676,7 @@ export default function POSPage() {
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" />
                     </svg>
-                    <span>Tarjetas</span>
+                    <span>{t("pos.viewCards")}</span>
                   </button>
                 </div>
               </div>
@@ -686,7 +688,7 @@ export default function POSPage() {
                   onChange={(e) => setSelectedCategory(e.target.value || null)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Todas las categorías</option>
+                  <option value="">{t("pos.allCategories")}</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
@@ -722,7 +724,7 @@ export default function POSPage() {
                 )}
               </div>
             ) : displayedProducts.length === 0 ? (
-              <p className="text-slate-500 text-center py-12">Sin resultados.</p>
+              <p className="text-slate-500 text-center py-12">{t("pos.noResults")}</p>
             ) : viewMode === "card" ? (
               // CARD VIEW
               <>
@@ -755,7 +757,7 @@ export default function POSPage() {
                           <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          <p className="text-xs text-slate-400 text-center px-1">Imagen</p>
+                          <p className="text-xs text-slate-400 text-center px-1">{t("pos.image")}</p>
                         </div>
                       )}
                     </div>
@@ -807,7 +809,7 @@ export default function POSPage() {
                               : "bg-blue-600 hover:bg-blue-700 text-white"
                           }`}
                         >
-                          {inCart ? `${inCart.quantity} en carrito` : outOfStock && !hasVariants ? "Agotado" : fmt(product.price)}
+                          {inCart ? t("pos.inCart", { qty: String(inCart.quantity) }) : outOfStock && !hasVariants ? t("pos.outOfStock") : fmt(product.price)}
                         </button>
                       )}
                     </div>
@@ -816,7 +818,7 @@ export default function POSPage() {
               })}
             </div>
             <div className="px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
-              {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
+              {displayedProducts.length} {t(displayedProducts.length !== 1 ? "pos.products" : "pos.product")}
             </div>
           </>
         ) : (
@@ -825,8 +827,8 @@ export default function POSPage() {
             <table className="w-full text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs sm:text-sm font-semibold uppercase tracking-wide">
-                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left text-white">Producto</th>
-                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left hidden md:table-cell text-white">Categoría</th>
+                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left text-white">{t("pos.colProduct")}</th>
+                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left hidden md:table-cell text-white">{t("pos.colCategory")}</th>
                   <th className="w-full"></th>
                   <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-right"></th>
                 </tr>
@@ -898,9 +900,9 @@ export default function POSPage() {
                             })}
                           </div>
                         ) : outOfStock ? (
-                          <span className="text-xs sm:text-sm text-slate-400 font-medium">Agotado</span>
+                        <span className="text-xs sm:text-sm text-slate-400 font-medium">{t("pos.outOfStock")}</span>
                         ) : stockReached ? (
-                          <span className="text-xs sm:text-sm text-amber-600 font-medium">Máx. {product.quantity}</span>
+                          <span className="text-xs sm:text-sm text-amber-600 font-medium">{t("pos.maxStock", { qty: String(product.quantity) })}</span>
                         ) : (
                           <button
                             onClick={() => handleAddProduct(product)}
@@ -919,7 +921,7 @@ export default function POSPage() {
               </tbody>
             </table>
             <div className="px-2 sm:px-4 py-2 border-t border-slate-100 text-xs sm:text-sm text-slate-400 bg-slate-50">
-              {displayedProducts.length} producto{displayedProducts.length !== 1 ? "s" : ""}
+              {displayedProducts.length} {t(displayedProducts.length !== 1 ? "pos.products" : "pos.product")}
             </div>
           </>
         )}
@@ -947,9 +949,9 @@ export default function POSPage() {
               />
             </svg>
             <div className="flex flex-col">
-              <h2 className="font-semibold text-sm text-white">Carrito</h2>
+              <h2 className="font-semibold text-sm text-white">{t("pos.cart")}</h2>
               {user && (
-                <p className="text-xs text-white">Cajero: {user.firstName} {user.lastName}</p>
+                <p className="text-xs text-white">{t("pos.cashierLabel")}: {user.firstName} {user.lastName}</p>
               )}
             </div>
             {cartItemCount > 0 && (
@@ -972,7 +974,7 @@ export default function POSPage() {
         {/* Single scrollable content area — items + totals + payment */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
           {cart.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center mt-8">Carrito vacío</p>
+            <p className="text-sm text-slate-500 text-center mt-8">{t("pos.emptyCart")}</p>
           ) : (
             cart.map((item) => {
               const product = products.find((p) => p.id === item.productId);
@@ -991,7 +993,7 @@ export default function POSPage() {
                       onClick={() => handleRemoveItem(item.productId, item.variantId)}
                       className="text-sm text-red-600 hover:underline"
                     >
-                      Eliminar
+                      {t("pos.remove")}
                     </button>
                   </div>
                 </div>
@@ -1003,13 +1005,13 @@ export default function POSPage() {
           <div className="border-t border-slate-200 mt-2 pt-3 space-y-3">
             <div className="space-y-1">
               <div className="flex justify-between text-sm text-slate-600">
-                <span>Subtotal</span>
+                <span>{t("pos.subtotal")}</span>
                 <span>{fmtCurrency(cartTotal.subtotal)}</span>
               </div>
 
               {/* Discount */}
               <div className="border-t pt-1 mt-1">
-                <label className="text-sm font-semibold text-slate-600 block mb-1">Descuento ({getCurrencySymbol()})</label>
+                <label className="text-sm font-semibold text-slate-600 block mb-1">{t("pos.discount", { symbol: getCurrencySymbol() })}</label>
                 <input
                   ref={discountInputRef}
                   type="number"
@@ -1039,7 +1041,7 @@ export default function POSPage() {
 
               {cartTotal.discount > 0 && (
                 <div className="flex justify-between text-sm text-slate-600 pt-0.5">
-                  <span>Después de descuento</span>
+                  <span>{t("pos.afterDiscount")}</span>
                   <span>{fmtCurrency(cartTotal.subtotalAfterDiscount)}</span>
                 </div>
               )}
@@ -1053,29 +1055,29 @@ export default function POSPage() {
                 ))
               ) : (
                 <p className="text-sm text-gray-500 italic">
-                  Sin impuestos.{" "}
+                  {t("pos.noTaxes")}{" "}
                   <a href="/dashboard/settings/taxes" className="text-blue-600 hover:underline">
-                    Configurar
+                    {t("pos.configureTaxes")}
                   </a>
                 </p>
               )}
 
               <div className="flex justify-between text-sm font-bold text-slate-900 border-t pt-1">
-                <span>Total</span>
+                <span>{t("pos.total")}</span>
                 <span>{fmtCurrency(cartTotal.total)}</span>
               </div>
 
               {/* Profit Summary */}
               {(cartTotal as any).costOfGoodsSold !== undefined && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-2">
-                  <div className="text-xs text-slate-600 mb-1 font-semibold">Análisis de ganancia:</div>
+                  <div className="text-xs text-slate-600 mb-1 font-semibold">{t("pos.profitAnalysis")}</div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <p className="text-slate-600">Costo total</p>
+                      <p className="text-slate-600">{t("pos.totalCost")}</p>
                       <p className="font-bold text-slate-900">{fmtCurrency((cartTotal as any).costOfGoodsSold)}</p>
                     </div>
                     <div>
-                      <p className="text-slate-600">Ganancia</p>
+                      <p className="text-slate-600">{t("pos.profit")}</p>
                       <p className="font-bold text-green-700">{fmtCurrency((cartTotal as any).profit)}</p>
                     </div>
                   </div>
@@ -1090,7 +1092,7 @@ export default function POSPage() {
                   <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="text-xs font-semibold text-purple-600 uppercase">Cliente Fiel</p>
+                        <p className="text-xs font-semibold text-purple-600 uppercase">{t("pos.loyalCustomerLabel")}</p>
                         <p className="text-sm font-semibold text-purple-900">{selectedLoyalCustomer.name}</p>
                         <p className="text-xs text-purple-700">📞 {selectedLoyalCustomer.phone || "N/A"}</p>
                       </div>
@@ -1102,9 +1104,9 @@ export default function POSPage() {
                       </button>
                     </div>
                     <div className="space-y-1 text-xs text-purple-700">
-                      <p>Tarjeta: <span className="font-semibold">{selectedLoyalCustomer.card_number}</span></p>
-                      <p>Total Gastado: <span className="font-semibold">{fmt(selectedLoyalCustomer.total_accumulated)}</span></p>
-                      <p>Visitas: <span className="font-semibold">{selectedLoyalCustomer.total_visits}</span></p>
+                      <p>{t("pos.cardLabel")} <span className="font-semibold">{selectedLoyalCustomer.card_number}</span></p>
+                      <p>{t("pos.totalSpentLabel")} <span className="font-semibold">{fmt(selectedLoyalCustomer.total_accumulated)}</span></p>
+                      <p>{t("pos.visitsLabel")} <span className="font-semibold">{selectedLoyalCustomer.total_visits}</span></p>
                     </div>
                   </div>
                 ) : (
@@ -1112,7 +1114,7 @@ export default function POSPage() {
                     onClick={() => setShowLoyalCustomerModal(true)}
                     className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white text-sm font-bold rounded-lg transition-colors shadow-md text-center"
                   >
-                    Agregar Cliente Fiel
+                    {t("pos.addLoyalCustomer")}
                   </button>
                 )}
               </div>
@@ -1123,15 +1125,15 @@ export default function POSPage() {
               onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
               className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
             >
-              <option value="CASH">EFECTIVO</option>
-              <option value="CARD">TARJETA</option>
-              <option value="TRANSFER">TRANSFERENCIA</option>
+              <option value="CASH">{t("pos.paymentCash")}</option>
+              <option value="CARD">{t("pos.paymentCard")}</option>
+              <option value="TRANSFER">{t("pos.paymentTransfer")}</option>
             </select>
 
             {/* Currency selector — only show for CASH payments */}
             {paymentMethod === "CASH" && (
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 block">Moneda de Pago</label>
+                <label className="text-sm font-semibold text-slate-700 block">{t("pos.paymentCurrency")}</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedCurrency("NIO")}
@@ -1141,7 +1143,7 @@ export default function POSPage() {
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    NIO (Córdoba)
+                    {t("pos.nioCurrency")}
                   </button>
                   <button
                     onClick={() => setSelectedCurrency("USD")}
@@ -1151,22 +1153,22 @@ export default function POSPage() {
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    USD ($)
+                    {t("pos.usdCurrency")}
                   </button>
                 </div>
                 
                 {/* Exchange rate info */}
                 {selectedCurrency === "USD" && (
                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-xs font-semibold text-green-700 uppercase mb-1">Tasa de Cambio</p>
+                    <p className="text-xs font-semibold text-green-700 uppercase mb-1">{t("pos.exchangeRate")}</p>
                     <p className="text-sm text-green-900">
                       1 USD = <span className="font-bold">{fmt(usdExchangeRate)}</span>
                     </p>
                     <p className="text-xs text-green-700 mt-2">
-                      Total en USD: <span className="font-semibold">${fmt(convertAmount(cartTotal.total))}</span>
+                      {t("pos.totalInUsd")} <span className="font-semibold">${fmt(convertAmount(cartTotal.total))}</span>
                     </p>
                     <p className="text-xs text-green-700 mt-1">
-                      Total en NIO: <span className="font-semibold">{fmt(cartTotal.total)}</span>
+                      {t("pos.totalInNio")} <span className="font-semibold">{fmt(cartTotal.total)}</span>
                     </p>
                   </div>
                 )}
@@ -1177,7 +1179,7 @@ export default function POSPage() {
             {paymentMethod === "CASH" && (
               <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <label htmlFor="amountReceived" className="text-sm font-semibold text-slate-700 block">
-                  Monto Recibido ({selectedCurrency === "USD" ? "$" : "C$"})
+                  {t("pos.amountReceived", { symbol: selectedCurrency === "USD" ? "$" : "C$" })}
                 </label>
                 <input
                   ref={amountReceivedInputRef}
@@ -1205,19 +1207,19 @@ export default function POSPage() {
                   <div className="space-y-2 pt-2 border-t border-blue-200">
                     {changeCalculation.isInsufficientAmount ? (
                       <div className="p-2 bg-red-100 rounded border border-red-300">
-                        <p className="text-xs font-semibold text-red-700 uppercase">⚠ Monto Insuficiente</p>
+                        <p className="text-xs font-semibold text-red-700 uppercase">{t("pos.insufficient")}</p>
                         <p className="text-sm text-red-800 font-bold">
-                          Falta: {fmt(Math.abs(changeCalculation.change))}
+                          {t("pos.missing")} {fmt(Math.abs(changeCalculation.change))}
                         </p>
                       </div>
                     ) : changeCalculation.isExactAmount ? (
                       <div className="p-2 bg-green-100 rounded border border-green-300">
-                        <p className="text-xs font-semibold text-green-700 uppercase">✓ Monto Exacto</p>
-                        <p className="text-sm text-green-800 font-bold">Sin vuelto</p>
+                        <p className="text-xs font-semibold text-green-700 uppercase">{t("pos.exactAmount")}</p>
+                        <p className="text-sm text-green-800 font-bold">{t("pos.noChange")}</p>
                       </div>
                     ) : (
                       <div className="p-2 bg-green-100 rounded border border-green-300">
-                        <p className="text-xs font-semibold text-green-700 uppercase">Vuelto</p>
+                        <p className="text-xs font-semibold text-green-700 uppercase">{t("pos.changeLabel")}</p>
                         <p className="text-lg text-green-900 font-bold">{fmt(changeCalculation.change)}</p>
                       </div>
                     )}
@@ -1229,7 +1231,7 @@ export default function POSPage() {
             {/* Cashier info */}
             {user && (
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-xs font-semibold text-slate-600 uppercase">Cajero</p>
+                <p className="text-xs font-semibold text-slate-600 uppercase">{t("pos.cashierLabel")}</p>
                 <p className="text-sm text-slate-900 font-medium">{user.firstName} {user.lastName}</p>
               </div>
             )}
@@ -1243,7 +1245,7 @@ export default function POSPage() {
             className="w-full"
             disabled={cart.length === 0 || loading}
           >
-            {loading ? "Procesando..." : "Completar Venta"}
+            {loading ? t("pos.processing") : t("pos.completeSale")}
           </Button>
           <Button
             variant="secondary"
@@ -1255,7 +1257,7 @@ export default function POSPage() {
             }}
             disabled={cart.length === 0 || loading}
           >
-            Cancelar
+            {t("pos.cancel")}
           </Button>
         </div>
         </div>
@@ -1264,7 +1266,7 @@ export default function POSPage() {
       {/* Loyal Customer Modal */}
       <Dialog
         isOpen={showLoyalCustomerModal}
-        title="Seleccionar Cliente Fiel"
+        title={t("pos.selectLoyalCustomer")}
         onClose={() => setShowLoyalCustomerModal(false)}
         maxWidth="md"
         scrollable={true}
@@ -1272,7 +1274,7 @@ export default function POSPage() {
         <div>
           <input
             type="text"
-            placeholder="Buscar por nombre, teléfono o tarjeta..."
+            placeholder={t("pos.searchCustomer")}
             value={loyalCustomerSearch}
             onChange={(e) => setLoyalCustomerSearch(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900"
@@ -1281,9 +1283,9 @@ export default function POSPage() {
 
         <div className="space-y-2">
           {loadingLoyalCustomers ? (
-            <EmptyState state="loading" message="Cargando clientes..." />
+            <EmptyState state="loading" message={t("pos.loadingCustomers")} />
           ) : loyalCustomers.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">No hay clientes</p>
+            <p className="text-sm text-slate-500 text-center py-4">{t("pos.noCustomers")}</p>
           ) : (
             <div className="space-y-2">
               {loyalCustomers.map((customer) => (
@@ -1300,7 +1302,7 @@ export default function POSPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-semibold text-purple-700">{fmt(customer.total_accumulated)}</p>
-                      <p className="text-xs text-slate-500">{customer.total_visits} visitas</p>
+                      <p className="text-xs text-slate-500">{t("pos.visitsCount", { count: String(customer.total_visits) })}</p>
                     </div>
                   </div>
                 </button>
@@ -1326,7 +1328,7 @@ export default function POSPage() {
                 }}
                 className="btn-primary w-full"
               >
-                + Crear Nuevo Cliente
+                {t("pos.createNewCustomer")}
               </button>
         </div>
       </Dialog>
@@ -1334,13 +1336,13 @@ export default function POSPage() {
       {/* Create Loyal Customer Modal */}
       <Dialog
         isOpen={showCreateLoyalCustomerModal}
-        title="Crear Cliente Fiel"
+        title={t("pos.createLoyalCustomerTitle")}
         onClose={() => setShowCreateLoyalCustomerModal(false)}
         maxWidth="md"
       >
         <form onSubmit={handleCreateLoyalCustomer} className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-2">Número de Tarjeta</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">{t("pos.cardNumber")}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1364,7 +1366,7 @@ export default function POSPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-2">Nombre *</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">{t("pos.nameRequired")}</label>
                 <input
                   type="text"
                   required
@@ -1378,7 +1380,7 @@ export default function POSPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-2">Teléfono</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">{t("pos.phone")}</label>
                 <input
                   type="tel"
                   value={newLoyalCustomerForm.phone}
@@ -1391,7 +1393,7 @@ export default function POSPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-2">Correo</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-2">{t("pos.email")}</label>
                 <input
                   type="email"
                   value={newLoyalCustomerForm.email}
@@ -1409,7 +1411,7 @@ export default function POSPage() {
                   disabled={loading}
                   className="btn-primary whitespace-nowrap"
                 >
-                  {loading ? "Creando..." : "Crear"}
+                  {loading ? t("pos.creating") : t("pos.create")}
                 </button>
               </div>
             </form>
