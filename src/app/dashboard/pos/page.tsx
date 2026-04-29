@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { ShoppingCart, RefreshCw } from "lucide-react";
 import { POSService } from "@/features/pos/services";
-import { TaxService, type Tax } from "@/features/taxes/services";
+import { TaxService } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
-import { CartItem, Product, LoyalCustomer, LoyalCustomerStats, Transaction } from "@/lib/types";
+import { CartItem, Product, LoyalCustomer, LoyalCustomerStats, Transaction, Tax } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";

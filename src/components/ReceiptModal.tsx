@@ -1,15 +1,8 @@
 "use client";
 
-import { Transaction } from "@/lib/types";
+import { Transaction, ReceiptSettings } from "@/lib/types";
 import { Dialog } from "@/components/Dialog";
 import { Printer, X } from "lucide-react";
-
-export interface ReceiptSettings {
-  companyName?: string;
-  companyPhone?: string;
-  companyRuc?: string;
-  logoUrl?: string;
-}
 
 interface ReceiptModalProps {
   isOpen: boolean;

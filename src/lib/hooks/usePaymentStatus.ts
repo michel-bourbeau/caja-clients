@@ -1,14 +1,5 @@
 import { useState, useEffect } from 'react';
-
-export interface PaymentStatus {
-  paid_until: string | null;
-  daysUntilExpiration: number;
-  isExpired: boolean;
-  isExpiredMoreThan3Days: boolean;
-  isExpiringWithin7Days: boolean;
-  isSuspended: boolean;
-  status: 'active' | 'expiring-soon' | 'expired' | 'suspended';
-}
+import { PaymentStatus } from '@/lib/types';
 
 function calculateStatus(paidUntilStr: string | null): PaymentStatus {
   // If paid_until is NULL, tenant is suspended (payment cancelled)

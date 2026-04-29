@@ -1,5 +1,7 @@
 // Validation utilities
 
+import { ValidationError } from "@/lib/types";
+
 export const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -22,11 +24,6 @@ export const validatePrice = (price: number): boolean => {
 export const validateQuantity = (quantity: number): boolean => {
   return Number.isInteger(quantity) && quantity > 0;
 };
-
-export interface ValidationError {
-  field: string;
-  message: string;
-}
 
 export const validateProductData = (data: any): ValidationError[] => {
   const errors: ValidationError[] = [];

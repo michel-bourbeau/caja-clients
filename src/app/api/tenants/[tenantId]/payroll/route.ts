@@ -10,22 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface PayrollConfig {
-  frequency: "weekly" | "biweekly" | "monthly";
-  weekStartDay: number;   // 0=Sun  1=Mon … 6=Sat
-  monthStartDay: number;  // 1–28
-}
-
-export interface PeriodInfo {
-  id: string;       // startDate "YYYY-MM-DD"
-  startDate: string;
-  endDate: string;
-  label: string;
-  isCurrent: boolean;
-}
+import { PayrollConfig, PeriodInfo } from "@/lib/types";
 
 // ─── Date helpers (Nicaragua = UTC-6, no DST) ─────────────────────────────────
 

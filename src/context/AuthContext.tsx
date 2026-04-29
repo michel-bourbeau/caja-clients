@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { User, AuthContextType } from "@/lib/types";
+import { User, AuthContextType, ImpersonationSession, EmployeeImpersonationSession } from "@/lib/types";
 import { saveSession, getStoredSession, clearSession, isSessionValid } from "@/lib/utils/session";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
@@ -96,19 +96,6 @@ async function fetchTenantRolePermissions(tenantId: string, roleId: string): Pro
 
 export const SUPERADMIN_IMPERSONATION_KEY = "superadmin_impersonation";
 export const EMPLOYEE_IMPERSONATION_KEY = "employee_impersonation";
-
-export interface ImpersonationSession {
-  tenantId: string;
-  tenantName: string;
-  superadmin: true;
-}
-
-export interface EmployeeImpersonationSession {
-  tenantId: string;
-  employeeId: string;
-  employeeName: string;
-  superadmin: false;
-}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

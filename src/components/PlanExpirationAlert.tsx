@@ -3,7 +3,7 @@
 import { Alert, Button } from "@/components/StripeUIComponents";
 import Link from "next/link";
 import { AlertTriangle, Clock, AlertCircle, CreditCard } from "lucide-react";
-import { PaymentStatus } from "@/lib/hooks/usePaymentStatus";
+import { PaymentStatus } from "@/lib/types";
 
 interface PlanExpirationAlertProps {
   status: PaymentStatus | null;

@@ -1,9 +1,4 @@
-export interface Tax {
-  id: string;
-  name: string;
-  rate: number;
-  is_active: boolean;
-}
+import { Tax } from "@/lib/types";
 
 export class TaxService {
   static async fetchTaxes(tenantId: string): Promise<Tax[]> {

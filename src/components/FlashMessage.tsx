@@ -2,15 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { X } from "lucide-react";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type FlashVariant = "success" | "error" | "warning" | "info";
-
-export interface FlashState {
-  variant: FlashVariant;
-  message: string;
-}
+import { FlashVariant, FlashState } from "@/lib/types";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 

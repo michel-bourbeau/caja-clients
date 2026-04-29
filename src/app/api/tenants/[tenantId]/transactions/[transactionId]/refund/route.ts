@@ -118,7 +118,7 @@ export async function POST(
             .eq("tenant_id", tenantId);
 
           try {
-            supabase.from("stock_movements").insert([{
+            await supabase.from("stock_movements").insert([{
               tenant_id:       tenantId,
               product_id:      item.productId,
               variant_id:      item.variantId,
@@ -131,7 +131,7 @@ export async function POST(
               reference_id:    refundId,
               notes:           reason || null,
               created_by:      original.cashier_name || original.cashier_id,
-            }]).then(() => {}).catch(() => {});
+            }]);
           } catch { /* table may not exist yet */ }
         } else if (item.productId) {
           // Restore product stock
@@ -152,7 +152,7 @@ export async function POST(
             .eq("tenant_id", tenantId);
 
           try {
-            supabase.from("stock_movements").insert([{
+            await supabase.from("stock_movements").insert([{
               tenant_id:       tenantId,
               product_id:      item.productId,
               variant_id:      null,
@@ -165,7 +165,7 @@ export async function POST(
               reference_id:    refundId,
               notes:           reason || null,
               created_by:      original.cashier_name || original.cashier_id,
-            }]).then(() => {}).catch(() => {});
+            }]);
           } catch { /* table may not exist yet */ }
         }
       })

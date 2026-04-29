@@ -1,0 +1,246 @@
+/**
+ * Domain types for the POS system
+ *
+ * Contains all core business domain types: Products, Transactions, Employees,
+ * Payroll, Loyalty, and Expenses.
+ */
+
+// ========== Product/Inventory ==========
+
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  cost_price: number;
+  quantity: number;
+  category: string;
+  description?: string;
+  image?: string;
+  sort_order?: number;
+  min_stock?: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  sort_order?: number;
+}
+
+export interface InventoryMovement {
+  id: string;
+  productId: string;
+  quantity: number;
+  type: "IN" | "OUT" | "ADJUSTMENT";
+  reason: string;
+  timestamp: Date;
+  userId: string;
+}
+
+// ========== POS/Transactions ==========
+
+export interface CartItem {
+  productId: string;
+  variantId?: string;
+  name?: string;
+  quantity: number;
+  price: number;
+  total: number;
+  cost_price?: number;
+}
+
+export interface Transaction {
+  id: string;
+  items: CartItem[];
+  subtotal: number;
+  discount?: number;
+  tax: number;
+  tax_breakdown?: Array<{ name: string; rate: number; amount: number }>;
+  total: number;
+  paymentMethod: "CASH" | "CARD" | "TRANSFER";
+  timestamp: Date;
+  cashierId: string;
+  cashierName?: string;
+  status: "COMPLETED" | "CANCELLED" | "REFUND";
+  reference_id?: string;
+  amount_received?: number;
+  change?: number;
+  currency_paid?: "NIO" | "USD";
+  usd_amount_received?: number;
+  usd_exchange_rate?: number;
+  cash_closing_id?: string;
+  cost_of_goods_sold?: number;
+  profit?: number;
+}
+
+// ========== Employees ==========
+
+export interface Employee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  roleId: string;
+  hireDate: Date;
+  salary: number;
+  status: "ACTIVE" | "INACTIVE";
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmployeeSchedule {
+  id: string;
+  employeeId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isWorking: boolean;
+}
+
+export interface TimeEntry {
+  id: string;
+  employeeId: string;
+  checkInTime: Date;
+  checkOutTime?: Date;
+  date: Date;
+}
+
+// ========== Payroll ==========
+
+export interface PayrollPeriod {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  status: "PENDING" | "PROCESSED" | "PAID";
+}
+
+export interface Payroll {
+  id: string;
+  employeeId: string;
+  periodId: string;
+  baseSalary: number;
+  hoursWorked: number;
+  bonuses: number;
+  deductions: number;
+  total: number;
+  status: "DRAFT" | "APPROVED" | "PAID";
+}
+
+// ========== Auth ==========
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roleId: string;
+  permissions: string[];
+  tenantId?: string;
+  hasPermission?: (permission: string) => boolean;
+}
+
+// ========== Loyalty/Customers ==========
+
+export interface LoyalCustomer {
+  id: string;
+  tenant_id: string;
+  card_number: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  total_accumulated: number;
+  total_visits: number;
+  last_purchase_date?: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface LoyalCustomerStats extends LoyalCustomer {
+  current_counter?: number;
+  next_reward_amount?: number;
+  last_reward_date?: Date;
+}
+
+export interface LoyaltyReward {
+  id: string;
+  loyal_customer_id: string;
+  reward_date: Date;
+  amount_at_reward: number;
+  reward_type: string;
+  reward_value?: number;
+  notes?: string;
+  created_at: Date;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  loyal_customer_id: string;
+  transaction_id?: string;
+  amount: number;
+  purchase_date: Date;
+  description?: string;
+}
+
+// ========== Expenses ==========
+
+export interface Supplier {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  contact?: string;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ExpenseCategory {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  sort_order?: number;
+  status: "ACTIVE" | "INACTIVE";
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Expense {
+  id: string;
+  tenant_id: string;
+  supplier_id?: string;
+  supplier?: Supplier;
+  created_by: string;
+  creator?: User;
+  amount: number;
+  description?: string;
+  category?: string;
+  expense_date: Date;
+  is_recurring: boolean;
+  recurring_frequency?: "weekly" | "biweekly" | "monthly";
+  recurring_day_of_month?: number;
+  fixed_expense_id?: string;
+  status: "RECORDED" | "APPROVED" | "PAID";
+  notes?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface FixedExpense {
+  id: string;
+  tenant_id: string;
+  name: string;
+  amount: number;
+  category?: string;
+  supplier_id?: string;
+  supplier?: Supplier;
+  day_of_month: number;
+  is_active: boolean;
+  notes?: string;
+  created_at: Date;
+  updated_at: Date;
+}
