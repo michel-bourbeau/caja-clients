@@ -105,9 +105,15 @@ jest.mock("@/components", () => ({
       placeholder={placeholder}
     />
   ),
-  Dialog:      ({ children, open }: any) => open ? <div role="dialog">{children}</div> : null,
-  DialogFooter:({ children }: any) => <div>{children}</div>,
-  ButtonGroup: ({ children }: any) => <div>{children}</div>,
+  Dialog:       ({ children, open }: any) => open ? <div role="dialog">{children}</div> : null,
+  DialogFooter: ({ children }: any) => <div>{children}</div>,
+  ButtonGroup:  ({ children }: any) => <div>{children}</div>,
+  ExportButton: ({ onPrint, onCsv, disabled }: any) => (
+    <div data-testid="export-button">
+      {onPrint && <button onClick={onPrint} disabled={disabled} data-testid="btn-print">Imprimir</button>}
+      {onCsv   && <button onClick={onCsv}   disabled={disabled} data-testid="btn-csv">CSV</button>}
+    </div>
+  ),
 }));
 
 import { useTenantId } from "@/lib/utils/tenant";

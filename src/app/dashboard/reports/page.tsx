@@ -7,6 +7,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { PageIcon, DashboardHeader, EmptyState, Dialog } from "@/components";
+import { buildPrintDocument, openPrintWindow, escHtml } from "@/lib/export";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -157,18 +158,22 @@ export default function ReportsPage() {
     if (!salesData?.byDay) return [];
 
     if (periodType === "YEAR") {
+      const year = currentDate.getFullYear();
+      // Pre-populate all 12 months with 0 so empty months still appear
       const monthMap = new Map<string, { key: string; label: string; clients: number }>();
+      for (let mo = 1; mo <= 12; mo++) {
+        const key = `${year}-${String(mo).padStart(2, "0")}`;
+        const label = new Date(year, mo - 1, 1).toLocaleDateString("es-NI", { month: "short" });
+        monthMap.set(key, { key, label, clients: 0 });
+      }
       salesData.byDay.forEach((day) => {
         const [y, m] = day.date.split("-");
         const key = `${y}-${m}`;
-        if (!monthMap.has(key)) {
-          const d = new Date(Number(y), Number(m) - 1, 1);
-          const label = d.toLocaleDateString("es-NI", { month: "short" });
-          monthMap.set(key, { key, label, clients: 0 });
+        if (monthMap.has(key)) {
+          monthMap.get(key)!.clients += day.transactions;
         }
-        monthMap.get(key)!.clients += day.transactions;
       });
-      return Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
+      return Array.from(monthMap.values());
     }
 
     if (periodType === "WEEK") {
@@ -255,6 +260,188 @@ export default function ReportsPage() {
     loadReports();
   }, [tenantId, currentDate, periodType]);
 
+  // ── Print report ────────────────────────────────────────────────────────────
+  const handlePrintReport = () => {
+    if (!salesData) return;
+
+    const periodLabel = formatPeriodLabel();
+    const printedAt = new Intl.DateTimeFormat("es-NI", {
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date());
+
+    const s = salesData.summary;
+    const fmtNum = (n: number) => n.toLocaleString("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ── Stats cards ────────────────────────────────────────────────────────
+    const statsHtml = `
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">${t("reports.summary.totalSales")}</div>
+    <div class="stat-value">C$ ${fmtNum(s.totalSales)}</div>
+    <div class="stat-sub">${s.totalTransactions} ${t("reports.summary.transactions")}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">${t("reports.summary.avgSale")}</div>
+    <div class="stat-value">C$ ${fmtNum(s.averageTransaction)}</div>
+  </div>
+  ${s.totalDiscount > 0 ? `
+  <div class="stat-card">
+    <div class="stat-label">${t("reports.summary.discounts")}</div>
+    <div class="stat-value" style="color:#b45309">-C$ ${fmtNum(s.totalDiscount)}</div>
+  </div>` : ""}
+  ${s.totalTax > 0 ? `
+  <div class="stat-card">
+    <div class="stat-label">Impuestos</div>
+    <div class="stat-value">C$ ${fmtNum(s.totalTax)}</div>
+  </div>` : ""}
+</div>`;
+
+    // ── Sales by day / month table ─────────────────────────────────────────
+    const isYear = periodType === "YEAR";
+    let periodRows: string[] = [];
+
+    if (isYear) {
+      // Group by month
+      const year = currentDate.getFullYear();
+      const monthMap = new Map<string, { label: string; sales: number; transactions: number; discount: number }>();
+      for (let mo = 1; mo <= 12; mo++) {
+        const key = `${year}-${String(mo).padStart(2, "0")}`;
+        const label = new Date(year, mo - 1, 1).toLocaleDateString("es-NI", { month: "long" });
+        monthMap.set(key, { label, sales: 0, transactions: 0, discount: 0 });
+      }
+      salesData.byDay.forEach((d) => {
+        const key = d.date.substring(0, 7);
+        if (monthMap.has(key)) {
+          const m = monthMap.get(key)!;
+          m.sales += d.sales;
+          m.transactions += d.transactions;
+          m.discount += d.discount;
+        }
+      });
+      periodRows = Array.from(monthMap.entries()).map(([, v]) => `
+        <tr>
+          <td style="text-transform:capitalize">${escHtml(v.label)}</td>
+          <td class="right">${v.transactions}</td>
+          <td class="right">${v.discount > 0 ? `-C$ ${fmtNum(v.discount)}` : "—"}</td>
+          <td class="right">C$ ${fmtNum(v.sales)}</td>
+        </tr>`);
+    } else {
+      periodRows = salesData.byDay.map((d) => {
+        const [y, mo, day] = d.date.split("-").map(Number);
+        const label = new Date(y, mo - 1, day).toLocaleDateString("es-NI", {
+          weekday: "short", day: "numeric", month: "short",
+        });
+        return `<tr>
+          <td style="text-transform:capitalize">${escHtml(label)}</td>
+          <td class="right">${d.transactions}</td>
+          <td class="right">${d.discount > 0 ? `-C$ ${fmtNum(d.discount)}` : "—"}</td>
+          <td class="right">C$ ${fmtNum(d.sales)}</td>
+        </tr>`;
+      });
+    }
+
+    const periodTableHtml = `
+<h2 class="section-title">${isYear ? "Ventas por Mes" : "Ventas por Día"}</h2>
+<table>
+  <thead>
+    <tr>
+      <th>${isYear ? "Mes" : "Fecha"}</th>
+      <th class="right">${t("reports.summary.transactions")}</th>
+      <th class="right">${t("reports.summary.discounts")}</th>
+      <th class="right">Total</th>
+    </tr>
+  </thead>
+  <tbody>${periodRows.join("")}</tbody>
+</table>`;
+
+    // ── Best hour table ─────────────────────────────────────────────────────
+    const topHours = salesData.byHour
+      .filter((h) => h.sales > 0)
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 8);
+
+    const hourTableHtml = topHours.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">${t("reports.hourly.title")}</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Hora</th>
+      <th class="right">${t("reports.summary.transactions")}</th>
+      <th class="right">Ventas</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${topHours.map((h) => `<tr>
+      <td>${String(h.hour).padStart(2, "0")}:00 – ${String(h.hour + 1).padStart(2, "0")}:00</td>
+      <td class="right">${h.transactions}</td>
+      <td class="right">C$ ${fmtNum(h.sales)}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>` : "";
+
+    // ── Payment breakdown ───────────────────────────────────────────────────
+    const paymentTableHtml = paymentData && paymentData.breakdown.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">${t("reports.payment.title")}</h2>
+<table>
+  <thead>
+    <tr>
+      <th>${t("reports.payment.title")}</th>
+      <th class="right">${t("reports.summary.transactions")}</th>
+      <th class="right">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${paymentData.breakdown.map((p) => `<tr>
+      <td>${escHtml(p.method)}</td>
+      <td class="right">${p.count}</td>
+      <td class="right">C$ ${fmtNum(p.amount)}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>` : "";
+
+    // ── Top products ────────────────────────────────────────────────────────
+    const topProductsHtml = productData && productData.topByRevenue.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">${t("reports.topRevenue.title")}</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="right">Cant.</th>
+      <th class="right">Ingresos</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${productData.topByRevenue.map((p, i) => `<tr>
+      <td>#${i + 1} ${escHtml(p.name)}</td>
+      <td class="right">${p.quantity}</td>
+      <td class="right">C$ ${fmtNum(p.revenue)}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>` : "";
+
+    const bodyHtml = `
+<div class="report-header">
+  <h1>${escHtml(t("reports.title"))}</h1>
+  <div class="meta">${escHtml(periodLabel)} &nbsp;·&nbsp; ${printedAt}</div>
+</div>
+${statsHtml}
+${periodTableHtml}
+${hourTableHtml}
+${paymentTableHtml}
+${topProductsHtml}
+<div class="report-footer">${printedAt}</div>
+`;
+
+    openPrintWindow(
+      buildPrintDocument(bodyHtml, {
+        title: `${t("reports.title")} — ${periodLabel}`,
+        layout: "a4",
+        extraStyles: `.section-title { font-size:13px; font-weight:700; color:#0f172a; margin:16px 0 6px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; }`,
+      })
+    );
+  };
+
   if (!hasPermission("reports.view")) {
     return (
       <div className="py-20 text-center text-slate-500">
@@ -270,7 +457,17 @@ export default function ReportsPage() {
           pageType="reports"
           title={t("reports.title")}
           subtitle={t("reports.subtitle")}
-        />
+        >
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handlePrintReport}
+            disabled={!salesData || loading}
+            title="Imprimer le rapport"
+          >
+            🖨 Imprimer
+          </Button>
+        </DashboardHeader>
 
         {/* Period Selector */}
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-6">

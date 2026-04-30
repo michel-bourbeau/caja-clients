@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye, Trash2, RefreshCw, RotateCcw } from "lucide-react";
 import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
-import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
+import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, ExportButton } from "@/components";
+import { buildPrintDocument, openPrintWindow, exportCsv } from "@/lib/export";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useLanguage } from "@/context/LanguageContext";
@@ -54,6 +55,7 @@ export default function TransactionsPage() {
   const [refundingId, setRefundingId] = useState<string | null>(null);
   const [showRefundModal, setShowRefundModal] = useState<Transaction | null>(null);
   const [refundReason, setRefundReason] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   // Calculate date range based on period type
   const getDateRange = (date: Date, type: PeriodType): { from: string; to: string } => {
@@ -340,6 +342,285 @@ export default function TransactionsPage() {
     }
   };
 
+  // ── Shared filter helper (used by export functions) ──────────────────────
+  const applyLocalFilters = (list: Transaction[]): Transaction[] => {
+    let result = list;
+    if (filters.paymentMethod !== "ALL") {
+      result = result.filter((tx) => tx.paymentMethod === filters.paymentMethod);
+    }
+    if (filters.search.trim()) {
+      const q = filters.search.toLowerCase();
+      result = result.filter(
+        (tx) =>
+          tx.id.toLowerCase().includes(q) ||
+          tx.items?.some((item: any) => (item.name || "").toLowerCase().includes(q))
+      );
+    }
+    return result;
+  };
+
+  // ── Print / PDF export ────────────────────────────────────────────────────
+  const handlePrint = async () => {
+    if (!tenantId || isExporting) return;
+    setIsExporting(true);
+    try {
+      const all = await TransactionService.fetchTransactionsAll(tenantId, dateRange.from, dateRange.to);
+      const filtered = applyLocalFilters(all);
+
+      // Sort oldest → newest for grouping
+      const sorted = [...filtered].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      // ── Group by month → day ────────────────────────────────────────────
+      type DayGroup   = { dateKey: string; txs: Transaction[] };
+      type MonthGroup = { monthKey: string; monthLabel: string; days: DayGroup[] };
+      const months: MonthGroup[] = [];
+      const monthMap = new Map<string, MonthGroup>();
+
+      for (const tx of sorted) {
+        const d = new Date(tx.timestamp);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const dayKey   = toNicaraguaDateString(d);
+
+        if (!monthMap.has(monthKey)) {
+          const label = new Intl.DateTimeFormat("es-NI", { year: "numeric", month: "long" }).format(d);
+          const mg: MonthGroup = { monthKey, monthLabel: label, days: [] };
+          monthMap.set(monthKey, mg);
+          months.push(mg);
+        }
+        const mg = monthMap.get(monthKey)!;
+        const dg = mg.days.find((x) => x.dateKey === dayKey);
+        if (dg) dg.txs.push(tx);
+        else mg.days.push({ dateKey: dayKey, txs: [tx] });
+      }
+
+      // ── Grand totals ────────────────────────────────────────────────────
+      const completedTxs  = filtered.filter((tx) => tx.status !== "REFUND");
+      const refundTxs     = filtered.filter((tx) => tx.status === "REFUND");
+      const grandSales    = completedTxs.reduce((s, tx) => s + tx.total, 0);
+      const grandRefund   = refundTxs.reduce((s, tx) => s + Math.abs(tx.total), 0);
+      const grandNet      = grandSales - grandRefund;
+      const grandTax      = filtered.reduce((s, tx) => s + (tx.tax || 0), 0);
+      const multiMonth    = months.length > 1;
+      const colCount      = isTaxModuleEnabled ? 7 : 6;
+
+      const fmtTime = (ts: Date) =>
+        new Intl.DateTimeFormat("es-NI", { hour: "2-digit", minute: "2-digit", hour12: true }).format(ts);
+
+      // ── Build table rows ────────────────────────────────────────────────
+      const rows: string[] = [];
+
+      for (const mg of months) {
+        if (multiMonth) {
+          rows.push(
+            `<tr class="month-header"><td colspan="${colCount}">` +
+            `&#128197; ${mg.monthLabel.toUpperCase()}</td></tr>`
+          );
+        }
+
+        let mSales = 0, mRefund = 0, mTax = 0;
+
+        for (const dg of mg.days) {
+          const dayLabel = formatDateHeader(dg.dateKey);
+          rows.push(`<tr class="day-header"><td colspan="${colCount}">${dayLabel}</td></tr>`);
+
+          let dSales = 0, dRefund = 0, dTax = 0;
+
+          for (const tx of dg.txs) {
+            const isRefund = tx.status === "REFUND";
+            const txAmt    = Math.abs(tx.total);
+            if (isRefund) dRefund += txAmt; else dSales += txAmt;
+            dTax += tx.tax || 0;
+
+            const method    = isRefund ? "REFUND" : (PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod);
+            const mClass    = isRefund ? "badge badge-red"
+                            : tx.paymentMethod === "CASH"     ? "badge badge-green"
+                            : tx.paymentMethod === "CARD"     ? "badge badge-blue"
+                            : "badge badge-slate";
+            const totalStr  = isRefund ? `-${fmt(txAmt)}` : fmt(txAmt);
+            const totalStyle= isRefund ? ' style="color:#991b1b"' : "";
+            const products  = tx.items?.map((i: any) => `${i.quantity}× ${i.name || i.productId}`).join(", ") ?? "—";
+            const discount  = (tx.discount || 0) > 0 ? `-${fmt(tx.discount || 0)}` : "—";
+            const taxCell   = (tx.tax || 0) > 0 ? fmt(tx.tax || 0) : "—";
+
+            rows.push(`<tr>
+              <td class="muted">${fmtTime(tx.timestamp)}</td>
+              <td>${products}</td>
+              <td class="muted">${tx.cashierName ?? "—"}</td>
+              <td><span class="${mClass}">${method}</span></td>
+              <td class="right">${discount}</td>
+              ${isTaxModuleEnabled ? `<td class="right muted">${taxCell}</td>` : ""}
+              <td class="right"${totalStyle}>${totalStr}</td>
+            </tr>`);
+          }
+
+          mSales  += dSales;
+          mRefund += dRefund;
+          mTax    += dTax;
+          const dNet = dSales - dRefund;
+          const dMeta = [
+            `${dg.txs.length} transacci${dg.txs.length !== 1 ? "ones" : "ón"}`,
+            dRefund > 0 ? `ventas: ${fmt(dSales)} · remb.: -${fmt(dRefund)}` : null,
+            isTaxModuleEnabled && dTax > 0 ? `imp.: ${fmt(dTax)}` : null,
+          ].filter(Boolean).join(" · ");
+
+          rows.push(`<tr class="day-subtotal">
+            <td colspan="${colCount - 1}" class="right">
+              <span class="subtotal-meta">${dMeta}</span>
+            </td>
+            <td class="right">${fmt(dNet)}</td>
+          </tr>`);
+        }
+
+        if (multiMonth) {
+          const mNet  = mSales - mRefund;
+          const mMeta = [
+            `${mg.days.reduce((s, d) => s + d.txs.length, 0)} transacciones`,
+            mRefund > 0 ? `ventas: ${fmt(mSales)} · remb.: -${fmt(mRefund)}` : null,
+            isTaxModuleEnabled && mTax > 0 ? `imp.: ${fmt(mTax)}` : null,
+          ].filter(Boolean).join(" · ");
+
+          rows.push(`<tr class="month-subtotal">
+            <td colspan="${colCount - 1}">SUBTOTAL ${mg.monthLabel.toUpperCase()} · ${mMeta}</td>
+            <td class="right">${fmt(mNet)}</td>
+          </tr>`);
+        }
+      }
+
+      // Grand total row
+      const grandMeta = [
+        `${filtered.length} transacciones`,
+        grandRefund > 0 ? `ventas: ${fmt(grandSales)} · remb.: -${fmt(grandRefund)}` : null,
+        isTaxModuleEnabled && grandTax > 0 ? `imp.: ${fmt(grandTax)}` : null,
+      ].filter(Boolean).join(" · ");
+
+      rows.push(`<tr class="grand-total">
+        <td colspan="${colCount - 1}">TOTAL ${formatPeriodLabel().toUpperCase()} · ${grandMeta}</td>
+        <td class="right">${fmt(grandNet)}</td>
+      </tr>`);
+
+      // ── Stats header ────────────────────────────────────────────────────
+      const printedAt = new Intl.DateTimeFormat("es-NI", {
+        year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      }).format(new Date());
+
+      const statsCards = [
+        `<div class="stat-card">
+          <div class="stat-label">${t("transactions.stats.totalNet", { period: formatPeriodLabel() })}</div>
+          <div class="stat-value">${fmt(grandNet)}</div>
+          <div class="stat-sub">${completedTxs.length} ${t("transactions.subtitle_other")}</div>
+        </div>`,
+        grandRefund > 0
+          ? `<div class="stat-card">
+              <div class="stat-label">${t("transactions.stats.refunds", { count: String(refundTxs.length) })}</div>
+              <div class="stat-value" style="color:#991b1b">-${fmt(grandRefund)}</div>
+              <div class="stat-sub">${refundTxs.length} tx</div>
+            </div>`
+          : "",
+        isTaxModuleEnabled && grandTax > 0
+          ? `<div class="stat-card">
+              <div class="stat-label">${t("transactions.stats.taxes")}</div>
+              <div class="stat-value">${fmt(grandTax)}</div>
+            </div>`
+          : "",
+      ].join("");
+
+      const bodyHtml = `
+<div class="report-header">
+  <h1>${t("transactions.title")}</h1>
+  <div class="meta">${formatPeriodLabel()} &nbsp;·&nbsp; ${printedAt}</div>
+</div>
+<div class="stats-grid">${statsCards}</div>
+<table>
+  <thead>
+    <tr>
+      <th>Hora</th>
+      <th>${t("transactions.table.products")}</th>
+      <th>${t("transactions.table.cashier")}</th>
+      <th>${t("transactions.table.method")}</th>
+      <th class="right">${t("transactions.table.discount")}</th>
+      ${isTaxModuleEnabled ? `<th class="right">${t("transactions.table.tax")}</th>` : ""}
+      <th class="right">${t("transactions.table.total")}</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows.join("\n    ")}
+  </tbody>
+</table>
+<div class="report-footer">${printedAt}</div>
+`;
+
+      const extraStyles = `
+        tr.month-header td {
+          background: #0f172a; color: #fff;
+          padding: 7px 10px; font-size: 11px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.08em;
+        }
+        tr.day-header td {
+          background: #334155; color: #e2e8f0;
+          padding: 5px 10px; font-size: 10px; font-weight: 600;
+          border-top: 3px solid #0f172a;
+        }
+        tr.day-subtotal td {
+          background: #f1f5f9; border-top: 1px solid #cbd5e1;
+          padding: 4px 10px; font-size: 10px; font-weight: 700; color: #1e293b;
+        }
+        .subtotal-meta { font-weight: 400; color: #64748b; margin-right: 6px; font-size: 9.5px; }
+        tr.month-subtotal td {
+          background: #1e293b; color: #f8fafc;
+          padding: 6px 10px; font-size: 10px; font-weight: 700;
+          border-top: 2px solid #0f172a;
+        }
+        tr.month-subtotal td.right { text-align: right; }
+      `;
+
+      openPrintWindow(
+        buildPrintDocument(bodyHtml, {
+          title: t("transactions.title"),
+          layout: "a4-landscape",
+          extraStyles,
+        })
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al exportar");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ── CSV export ────────────────────────────────────────────────────────────
+  const handleExportCsv = async () => {
+    if (!tenantId || isExporting) return;
+    setIsExporting(true);
+    try {
+      const all = await TransactionService.fetchTransactionsAll(tenantId, dateRange.from, dateRange.to);
+      const filtered = applyLocalFilters(all);
+
+      exportCsv(
+        `transacciones-${dateRange.from}-${dateRange.to}.csv`,
+        [
+          { label: "Fecha/Hora", value: (tx) => formatDateTime(tx.timestamp) },
+          { label: "ID", value: (tx) => tx.id },
+          { label: t("transactions.table.products"), value: (tx) => tx.items?.map((i: any) => `${i.quantity}x ${i.name || i.productId}`).join("; ") ?? "" },
+          { label: t("transactions.table.cashier"), value: (tx) => tx.cashierName ?? "" },
+          { label: t("transactions.table.method"), value: (tx) => tx.status === "REFUND" ? "REFUND" : (PAYMENT_LABEL[tx.paymentMethod] ?? tx.paymentMethod) },
+          { label: t("transactions.table.subtotal"), value: (tx) => String(tx.subtotal) },
+          { label: t("transactions.table.discount"), value: (tx) => String(tx.discount || 0) },
+          { label: t("transactions.table.tax"), value: (tx) => String(tx.tax || 0) },
+          { label: t("transactions.table.total"), value: (tx) => tx.status === "REFUND" ? String(-Math.abs(tx.total)) : String(tx.total) },
+          { label: "Estado", value: (tx) => tx.status },
+        ],
+        filtered
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al exportar");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleRefund = async (tx: Transaction) => {
     if (!tenantId) return;
     setRefundingId(tx.id);
@@ -417,14 +698,22 @@ export default function TransactionsPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
-                  title={t("transactions.refresh")}
-                >
-                  <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <ExportButton
+                    onPrint={handlePrint}
+                    onCsv={handleExportCsv}
+                    disabled={isExporting || isLoading}
+                    size="sm"
+                  />
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isLoading || isExporting}
+                    className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-50"
+                    title={t("transactions.refresh")}
+                  >
+                    <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+                  </button>
+                </div>
               </div>
             </div>
             {/* Line 1: Search */}

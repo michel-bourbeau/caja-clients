@@ -6,7 +6,8 @@ import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, EmptyState } from "@/components";
-import { Pencil, Package, Trash2, History, TrendingUp, TrendingDown, SlidersHorizontal, RotateCcw } from "lucide-react";
+import { Pencil, Package, Trash2, History, TrendingUp, TrendingDown, SlidersHorizontal, RotateCcw, Printer } from "lucide-react";
+import { buildPrintDocument, openPrintWindow, escHtml } from "@/lib/export";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -945,6 +946,170 @@ export default function InventoryPage() {
     }
   };
 
+  // ── Print inventory ────────────────────────────────────────────────────────
+  const handlePrintInventory = () => {
+    // Build a snapshot of displayed products grouped by category
+    const allDisplayed = filteredProducts;
+
+    // Group by category
+    type CatGroup = { name: string; products: Product[] };
+    const grouped: CatGroup[] = [];
+    const catMap = new Map<string, CatGroup>();
+
+    for (const p of allDisplayed) {
+      const cat = categories.find((c) => c.id === p.category_id);
+      const catName = cat?.name ?? t("inventory.uncategorized");
+      const key = p.category_id ?? "__none__";
+      if (!catMap.has(key)) {
+        const g: CatGroup = { name: catName, products: [] };
+        catMap.set(key, g);
+        grouped.push(g);
+      }
+      catMap.get(key)!.products.push(p);
+    }
+
+    // Stats
+    const totalProducts   = allDisplayed.length;
+    const totalVariants   = allDisplayed.reduce((s, p) => s + (p.variants?.length ?? 0), 0);
+    const lowStock        = allDisplayed.filter((p) => {
+      if (p.has_variants && p.variants?.length) {
+        return p.variants.some((v) => v.stock_quantity <= (v.min_stock ?? 0));
+      }
+      return p.quantity <= (p.min_stock ?? 0);
+    });
+    const totalStockValue = allDisplayed.reduce((s, p) => {
+      if (p.has_variants && p.variants?.length) {
+        return s + p.variants.reduce((sv, v) => sv + v.stock_quantity * v.price, 0);
+      }
+      return s + p.quantity * p.price;
+    }, 0);
+
+    const printedAt = new Intl.DateTimeFormat("es-NI", {
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date());
+
+    // ── Stats header ─────────────────────────────────────────────────────────
+    const statsHtml = `
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">${t("inventory.products")}</div>
+    <div class="stat-value">${totalProducts}</div>
+    ${totalVariants > 0 ? `<div class="stat-sub">${totalVariants} formats</div>` : ""}
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Valeur totale stock</div>
+    <div class="stat-value">${fmt(totalStockValue)}</div>
+  </div>
+  ${lowStock.length > 0 ? `
+  <div class="stat-card">
+    <div class="stat-label">⚠ Stock bas</div>
+    <div class="stat-value" style="color:#b45309">${lowStock.length}</div>
+    <div class="stat-sub">produit(s) sous le minimum</div>
+  </div>` : ""}
+</div>`;
+
+    // ── Table rows ────────────────────────────────────────────────────────────
+    const colCount = 5; // Produit | SKU | Prix | Stock | Min
+    const rows: string[] = [];
+
+    for (const g of grouped) {
+      rows.push(`<tr class="cat-header"><td colspan="${colCount}">${escHtml(g.name.toUpperCase())}</td></tr>`);
+      for (const p of g.products) {
+        const hasVariants = p.has_variants && (p.variants?.length ?? 0) > 0;
+        const stockClass  = p.quantity <= (p.min_stock ?? 0) && !hasVariants ? ' style="color:#b45309;font-weight:700"' : "";
+        const varBadge    = hasVariants
+          ? ` <span class="badge badge-slate">${p.variants!.length} formats</span>`
+          : "";
+
+        rows.push(`<tr class="product-row">
+          <td><span class="product-name">${escHtml(p.name)}</span>${varBadge}</td>
+          <td class="muted">${escHtml(p.sku || "—")}</td>
+          <td class="right">${fmt(p.price)}</td>
+          <td class="right"${hasVariants ? ' class="muted"' : ""}${stockClass}>${hasVariants ? "—" : p.quantity}</td>
+          <td class="right muted">${p.min_stock ?? 0}</td>
+        </tr>`);
+
+        if (hasVariants) {
+          for (const v of p.variants!) {
+            const vLow    = v.stock_quantity <= (v.min_stock ?? 0);
+            const vStyle  = vLow ? ' style="color:#b45309;font-weight:700"' : "";
+            rows.push(`<tr class="variant-row">
+              <td class="variant-label">↳ ${escHtml(v.label)}</td>
+              <td class="muted">${escHtml(v.sku || "—")}</td>
+              <td class="right muted">${fmt(v.price)}</td>
+              <td class="right"${vStyle}>${v.stock_quantity}</td>
+              <td class="right muted">${v.min_stock ?? 0}</td>
+            </tr>`);
+          }
+        }
+      }
+
+      // Category subtotal row
+      const catStock = g.products.reduce((s, p) => {
+        if (p.has_variants && p.variants?.length) return s + p.variants.reduce((sv, v) => sv + v.stock_quantity, 0);
+        return s + p.quantity;
+      }, 0);
+      rows.push(`<tr class="cat-subtotal">
+        <td colspan="${colCount - 1}">${g.products.length} produit(s)</td>
+        <td class="right">${catStock} unités</td>
+      </tr>`);
+    }
+
+    const bodyHtml = `
+<div class="report-header">
+  <h1>${escHtml(t("inventory.title"))}</h1>
+  <div class="meta">${printedAt}</div>
+</div>
+${statsHtml}
+<table>
+  <thead>
+    <tr>
+      <th>${t("inventory.colProduct")}</th>
+      <th>${t("inventory.sku")}</th>
+      <th class="right">${t("inventory.price")}</th>
+      <th class="right">${t("inventory.stock")}</th>
+      <th class="right">${t("inventory.colMin")}</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${rows.join("\n    ")}
+  </tbody>
+</table>
+<div class="report-footer">${printedAt}</div>
+`;
+
+    const extraStyles = `
+      tr.cat-header td {
+        background: #0f172a; color: #fff;
+        padding: 6px 10px; font-size: 11px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.08em;
+      }
+      tr.product-row td { padding: 5px 10px; font-size: 10.5px; }
+      .product-name { font-weight: 600; color: #1e293b; }
+      tr.variant-row td {
+        padding: 3px 10px 3px 24px; font-size: 10px;
+        background: #f8fafc; color: #475569;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .variant-label { color: #6366f1; font-style: italic; }
+      tr.cat-subtotal td {
+        background: #f1f5f9; color: #475569;
+        padding: 3px 10px; font-size: 9.5px;
+        border-top: 1px solid #cbd5e1; border-bottom: 2px solid #94a3b8;
+      }
+      tr.cat-subtotal td.right { text-align: right; font-weight: 700; color: #1e293b; }
+    `;
+
+    openPrintWindow(
+      buildPrintDocument(bodyHtml, {
+        title: t("inventory.title"),
+        layout: "a4",
+        extraStyles,
+      })
+    );
+  };
+
   const filteredProducts = useMemo(() => {
     let list = filterCategory
       ? products.filter((p) => p.category_id === filterCategory)
@@ -1343,6 +1508,9 @@ export default function InventoryPage() {
         </Button>
         {activeTab === "productos" && (
           <>
+            <Button variant="secondary" onClick={handlePrintInventory} title="Imprimer l'inventaire">
+              <Printer className="w-4 h-4" />
+            </Button>
             <Button variant="primary" onClick={() => setShowAddCategory(true)}>
               {t("inventory.addCategory")}
             </Button>

@@ -14,6 +14,8 @@ export { EmptyState } from "./EmptyState";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 export { ReceiptModal } from "./ReceiptModal";
+export { ExportButton } from "./ExportButton";
+export type { ExportButtonProps } from "./ExportButton";
 
 // Re-export types from centralized types module
 export type { FlashState, FlashVariant, ReceiptSettings } from "@/lib/types";
