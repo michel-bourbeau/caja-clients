@@ -11,8 +11,10 @@ jest.mock("@/lib/utils/tenant");
 jest.mock("@/lib/utils/useCurrency");
 
 jest.mock("@/lib/utils/formatters", () => ({
-  toNicaraguaDateString: (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+  toNicaraguaDateString: (date: any) => {
+    const d = date instanceof Date ? date : new Date(String(date));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  },
 }));
 
 jest.mock("@/features/transactions/services", () => ({
@@ -160,14 +162,10 @@ describe("ProfitsPage", () => {
   // ── Data fetching ────────────────────────────────────────────────────────────
 
   describe("Data fetching", () => {
-    it("fetches transactions on mount with tenantId and date range strings", async () => {
+    it("fetches transactions on mount with tenantId only (no date args — client-side filtering)", async () => {
       render(<ProfitsPage />);
       await waitFor(() => {
-        expect(mockFetchTransactions).toHaveBeenCalledWith(
-          "tenant-123",
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
-        );
+        expect(mockFetchTransactions).toHaveBeenCalledWith("tenant-123");
       });
     });
 

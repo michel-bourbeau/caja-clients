@@ -197,7 +197,7 @@ export default function TransactionsPage() {
       );
     }
     return list;
-  }, [transactions, filters, dateRange]);
+  }, [allTransactions, filters, dateRange]);
 
   const groupedByDate = useMemo(() => {
     const grouped: Record<string, Transaction[]> = {};
@@ -653,7 +653,7 @@ export default function TransactionsPage() {
             <div className="px-3 lg:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {totals.count} {totals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}
               {(filters.search || filters.paymentMethod !== "ALL") &&
-                ` ${t("transactions.filteredFrom", { total: String(transactions.length) })}`}
+                ` ${t("transactions.filteredFrom", { total: String(allTransactions.length) })}`}
             </div>
           </div>
           )}

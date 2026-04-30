@@ -17,27 +17,11 @@ interface PlanDetails {
   description: string;
 }
 
-const PLAN_LABELS: Record<string, PlanDetails> = {
-  basic: {
-    label: "Basico",
-    color: "bg-slate-100 text-slate-700 border-slate-300",
-    description: "POS + Inventario",
-  },
-  professional: {
-    label: "Profesional",
-    color: "bg-blue-100 text-blue-700 border-blue-300",
-    description: "POS + Inventario + Empleados, Horarios, Reportes",
-  },
-  enterprise: {
-    label: "Empresarial",
-    color: "bg-purple-100 text-purple-700 border-purple-300",
-    description: "Todos los modulos incluidos",
-  },
-  custom: {
-    label: "Personalizado",
-    color: "bg-orange-100 text-orange-700 border-orange-300",
-    description: "Configuracion personalizada",
-  },
+const PLAN_COLORS: Record<string, string> = {
+  basic: "bg-slate-100 text-slate-700 border-slate-300",
+  professional: "bg-blue-100 text-blue-700 border-blue-300",
+  enterprise: "bg-purple-100 text-purple-700 border-purple-300",
+  custom: "bg-orange-100 text-orange-700 border-orange-300",
 };
 
 type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
@@ -107,6 +91,19 @@ export default function SettingsPage() {
   const { paymentStatus, loading: paymentLoading } = usePaymentStatus(tenantId);
   const isSuspended = paymentStatus?.isSuspended ?? false;
 
+  const getPlanInfo = useCallback((): PlanDetails | null => {
+    if (!tenantPlan) return null;
+    const keys: Record<string, [string, string]> = {
+      basic: [t("settings.planBasic"), t("settings.planBasicDesc")],
+      professional: [t("settings.planPro"), t("settings.planProDesc")],
+      enterprise: [t("settings.planBusiness"), t("settings.planBusinessDesc")],
+      custom: [t("settings.planCustom"), t("settings.planCustomDesc")],
+    };
+    const entry = keys[tenantPlan];
+    if (!entry) return null;
+    return { label: entry[0], color: PLAN_COLORS[tenantPlan] ?? "bg-slate-100 text-slate-700 border-slate-300", description: entry[1] };
+  }, [tenantPlan, t]);
+
   const showMessage = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3500);
@@ -174,10 +171,10 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         broadcastCurrencyChange(settings.currency);
-        showMessage("success", "Informacion guardada correctamente");
-      } else showMessage("error", "Error al guardar");
+        showMessage("success", t("settings.messages.companySaved"));
+      } else showMessage("error", t("settings.messages.saveError"));
     } catch {
-      showMessage("error", "Error de conexion");
+      showMessage("error", t("settings.messages.connectionError"));
     } finally {
       setSavingCompany(false);
     }
@@ -192,10 +189,10 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ posConfig: settings.posConfig }),
       });
-      if (res.ok) showMessage("success", "Configuracion de Cajas guardada");
-      else showMessage("error", "Error al guardar");
+      if (res.ok) showMessage("success", t("settings.messages.posSaved"));
+      else showMessage("error", t("settings.messages.saveError"));
     } catch {
-      showMessage("error", "Error de conexion");
+      showMessage("error", t("settings.messages.connectionError"));
     } finally {
       setSavingPOS(false);
     }
@@ -210,10 +207,10 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payrollConfig: settings.payrollConfig }),
       });
-      if (res.ok) showMessage("success", "Configuracion de Nomina guardada");
-      else showMessage("error", "Error al guardar");
+      if (res.ok) showMessage("success", t("settings.messages.payrollSaved"));
+      else showMessage("error", t("settings.messages.saveError"));
     } catch {
-      showMessage("error", "Error de conexion");
+      showMessage("error", t("settings.messages.connectionError"));
     } finally {
       setSavingPayroll(false);
     }
@@ -231,12 +228,12 @@ export default function SettingsPage() {
       if (res.ok) {
         setSettings((s) => ({ ...s, language: lang }));
         setTenantDefault(lang);
-        showMessage("success", "Langue par défaut enregistrée");
+        showMessage("success", t("settings.messages.langSaved"));
       } else {
-        showMessage("error", "Error al guardar");
+        showMessage("error", t("settings.messages.saveError"));
       }
     } catch {
-      showMessage("error", "Error de conexion");
+      showMessage("error", t("settings.messages.connectionError"));
     } finally {
       setSavingLanguage(false);
     }
@@ -258,34 +255,34 @@ export default function SettingsPage() {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-      showMessage("success", `Respaldo descargado: ${filename}`);
+      showMessage("success", `${t("settings.messages.backupSuccess")}: ${filename}`);
     } catch {
-      showMessage("error", "Error al generar el respaldo");
+      showMessage("error", t("settings.messages.backupError"));
     } finally {
       setBackupLoading(false);
     }
   };
 
-  const planInfo = tenantPlan ? PLAN_LABELS[tenantPlan] : null;
+  const planInfo = getPlanInfo();
 
   return (
     <Container>
       <div className="space-y-8">
         {/* Header */}
         <Section
-          title="Configuración General"
-          description="Gestiona tu información de empresa, plan y módulos activos"
+          title={t("settings.pageTitle")}
+          description={t("settings.pageSubtitle")}
         />
 
         {/* Acceso rápido a módulos */}
         <Card>
           <CardHeader>
-            <CardTitle>⚙️ Gestión de Módulos</CardTitle>
+            <CardTitle>{t("settings.modulesCardTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-slate-600 mb-4">Activa o desactiva los módulos disponibles según tu plan</p>
+            <p className="text-sm text-slate-600 mb-4">{t("settings.modulesCardDesc")}</p>
             <Link href="/dashboard/settings/modules">
-              <Button variant="primary">Ir a Módulos →</Button>
+              <Button variant="primary">{t("settings.modulesCardBtn")}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -303,14 +300,14 @@ export default function SettingsPage() {
         {isSuspended && (
           <Alert
             variant="error"
-            title="🔴 CUENTA SUSPENDIDA"
+            title={t("settings.suspendedTitle")}
           >
             <div className="space-y-3 mt-2">
-              <p className="font-semibold">Tu suscripción ha expirado hace más de 3 días.</p>
-              <p className="text-sm">Todos los módulos, usuarios y empleados han sido desactivados temporalmente.</p>
-              <p className="text-sm font-semibold">✅ Se reactivarán automáticamente cuando registres un pago.</p>
+              <p className="font-semibold">{t("settings.suspendedMsg1")}</p>
+              <p className="text-sm">{t("settings.suspendedMsg2")}</p>
+              <p className="text-sm font-semibold">{t("settings.suspendedMsg3")}</p>
               <div className="mt-4 pt-4 border-t border-red-200">
-                <p className="text-sm mb-3">Para reactivar tu cuenta inmediatamente, contacta con el administrador del sistema:</p>
+                <p className="text-sm mb-3">{t("settings.suspendedReactivate")}</p>
                 <Button 
                   variant="secondary"
                   onClick={() => {
@@ -320,7 +317,7 @@ export default function SettingsPage() {
                     window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
                   }}
                 >
-                  📧 Enviar Email al Soporte
+                  {t("settings.suspendedEmailBtn")}
                 </Button>
               </div>
             </div>
@@ -331,7 +328,7 @@ export default function SettingsPage() {
         {message && (
           <Alert
             variant={message.type === "success" ? "success" : "error"}
-            title={message.type === "success" ? "Éxito" : "Error"}
+            title={message.type === "success" ? t("settings.msgSuccess") : t("settings.msgError")}
           >
             {message.text}
           </Alert>
@@ -342,7 +339,7 @@ export default function SettingsPage() {
           // When suspended: show ONLY payment information
           <Card>
             <CardHeader>
-              <CardTitle>Información de Pago y Reactivación</CardTitle>
+              <CardTitle>{t("settings.paymentReactivationTitle")}</CardTitle>
             </CardHeader>
             <CardContent>
               {loadingPayment ? (
@@ -350,11 +347,11 @@ export default function SettingsPage() {
               ) : paymentInfo ? (
                 <div className="space-y-6">
                   <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-                    <p className="text-sm text-slate-700 mb-2 font-semibold">Estado Actual:</p>
-                    <p className="text-lg text-red-700 font-bold">❌ SUSPENDIDO</p>
+                    <p className="text-sm text-slate-700 mb-2 font-semibold">{t("settings.currentStatus")}</p>
+                    <p className="text-lg text-red-700 font-bold">{t("settings.suspendedStatus")}</p>
                     {paymentInfo.paid_until && (
                       <p className="text-sm text-slate-600 mt-2">
-                        Expirado desde: {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
+                        {t("settings.expiredSince")} {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',
@@ -366,16 +363,16 @@ export default function SettingsPage() {
                   {/* Payment History */}
                   {paymentInfo.history && paymentInfo.history.length > 0 && (
                     <div>
-                      <h4 className="font-medium text-slate-900 mb-3">Historial de Pagos</h4>
+                      <h4 className="font-medium text-slate-900 mb-3">{t("settings.paymentHistoryTitle")}</h4>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-slate-200">
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Fecha de Pago</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Plan</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Monto</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Válido Hasta</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Método</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colPayDate")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colPlan")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colAmount")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colValidUntil")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colMethod")}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -399,13 +396,13 @@ export default function SettingsPage() {
                   )}
 
                   <div className="pt-4 border-t border-slate-200">
-                    <Alert variant="info" title="ℹ️ Nota">
-                      Para registrar un pago y reactivar tu cuenta, contacta con el administrador o usa la opción de email arriba.
+                    <Alert variant="info" title={t("settings.noteTitle")}>
+                      {t("settings.noteMsg")}
                     </Alert>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">No hay información de pago disponible</p>
+                <p className="text-sm text-slate-500">{t("settings.noPaymentInfo")}</p>
               )}
             </CardContent>
           </Card>
@@ -415,7 +412,7 @@ export default function SettingsPage() {
         {/* Company Info Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Información de la Empresa</CardTitle>
+            <CardTitle>{t("settings.companyInfoTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingSettings ? (
@@ -423,49 +420,49 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-4">
                 <Field
-                  label="Nombre de la empresa"
+                  label={t("settings.companyNameLabel")}
                   value={settings.companyName}
                   onChange={(v) => setSettings((s) => ({ ...s, companyName: v }))}
-                  placeholder="Mi Negocio S.A."
+                  placeholder={t("settings.companyNamePlaceholder")}
                   required
                 />
                 <Field
-                  label="Numero RUC"
+                  label={t("settings.companyRucLabel")}
                   value={settings.companyRuc}
                   onChange={(v) => setSettings((s) => ({ ...s, companyRuc: v }))}
-                  placeholder="J0310000000001"
-                  hint="Registro Unico del Contribuyente"
+                  placeholder={t("settings.companyRucPlaceholder")}
+                  hint={t("settings.companyRucHint")}
                 />
                 <Field
-                  label="Correo electronico"
+                  label={t("settings.companyEmailLabel")}
                   value={settings.companyEmail}
                   onChange={(v) => setSettings((s) => ({ ...s, companyEmail: v }))}
-                  placeholder="contacto@miempresa.com.ni"
+                  placeholder={t("settings.companyEmailPlaceholder")}
                   type="email"
                 />
                 <Field
-                  label="Numero de telefono"
+                  label={t("settings.companyPhoneLabel")}
                   value={settings.companyPhone}
                   onChange={(v) => setSettings((s) => ({ ...s, companyPhone: v }))}
-                  placeholder="+505 2222-0000"
+                  placeholder={t("settings.companyPhonePlaceholder")}
                   type="tel"
                 />
                 <Field
-                  label="Sitio web"
+                  label={t("settings.companyWebsiteLabel")}
                   value={settings.companyWebsite}
                   onChange={(v) => setSettings((s) => ({ ...s, companyWebsite: v }))}
-                  placeholder="https://miempresa.com.ni"
+                  placeholder={t("settings.companyWebsitePlaceholder")}
                   type="url"
                 />
                 <div>
                   <label className="block text-sm font-medium text-slate-900 mb-1">
-                    Moneda
+                    {t("settings.currencyLabel")}
                   </label>
-                  <p className="text-xs text-slate-500 mb-3">Moneda usada en precios, recibos y reportes</p>
+                  <p className="text-xs text-slate-500 mb-3">{t("settings.currencyDesc")}</p>
                   <div className="flex gap-3">
                     {[
-                      { value: "NIO", label: "Cordoba (C$)", sublabel: "Nicaragua" },
-                      { value: "USD", label: "Dolar (US$)",  sublabel: "Estados Unidos" },
+                      { value: "NIO", label: t("settings.currencyNIO"), sublabel: t("settings.currencyNIOSub") },
+                      { value: "USD", label: t("settings.currencyUSD"), sublabel: t("settings.currencyUSDSub") },
                     ].map((opt) => (
                       <label
                         key={opt.value}
@@ -498,7 +495,7 @@ export default function SettingsPage() {
                     variant="primary"
                     loading={savingCompany}
                   >
-                    Guardar Cambios
+                    {t("settings.saveChanges")}
                   </Button>
                 </div>
               </div>
@@ -512,12 +509,11 @@ export default function SettingsPage() {
         {/* Language Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>🌐 Langue par Défaut de l&apos;Interface</CardTitle>
+            <CardTitle>{t("settings.langCardTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-slate-600 mb-4">
-              Choisissez la langue par défaut pour tous les utilisateurs de ce compte.
-              Chaque utilisateur peut la modifier via le sélecteur en haut à droite.
+              {t("settings.langCardDesc")}
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               {([
@@ -545,14 +541,14 @@ export default function SettingsPage() {
                   <span className="text-xl leading-none">{opt.flag}</span>
                   <span className="text-sm font-semibold text-slate-900">{opt.label}</span>
                   {settings.language === opt.locale && (
-                    <span className="ml-auto text-xs text-blue-600 font-medium">✓ Actif</span>
+                    <span className="ml-auto text-xs text-blue-600 font-medium">{t("settings.langActive")}</span>
                   )}
                 </label>
               ))}
             </div>
             {savingLanguage && (
               <p className="text-xs text-slate-500 mt-3 flex items-center gap-1.5">
-                <LoadingSpinner size="sm" /> Enregistrement...
+                <LoadingSpinner size="sm" /> {t("settings.langSaving")}
               </p>
             )}
           </CardContent>
@@ -655,7 +651,7 @@ export default function SettingsPage() {
           {/* Payment Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Información de Pago y Suscripción</CardTitle>
+              <CardTitle>{t("settings.subscriptionTitle")}</CardTitle>
             </CardHeader>
             <CardContent>
               {featuresLoading || loadingSettings || loadingPayment ? (
@@ -665,7 +661,7 @@ export default function SettingsPage() {
                   {/* Plan Badge */}
                   {planInfo && (
                     <div>
-                      <p className="text-sm font-medium text-slate-600 mb-2">Plan Actual:</p>
+                      <p className="text-sm font-medium text-slate-600 mb-2">{t("settings.currentPlan")}</p>
                       <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-lg border ${planInfo.color}`}>
                         <span className="text-base font-bold">{planInfo.label}</span>
                         <span className="text-sm opacity-75">— {planInfo.description}</span>
@@ -676,11 +672,11 @@ export default function SettingsPage() {
                   {/* Payment Status */}
                   {paymentInfo && (
                     <div className="border-t border-slate-200 pt-6">
-                      <h3 className="font-semibold text-slate-900 mb-4">Estado de la Suscripción</h3>
+                      <h3 className="font-semibold text-slate-900 mb-4">{t("settings.subscriptionStatus")}</h3>
                       
                       {paymentInfo.paid_until ? (
                         <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                          <p className="text-sm text-slate-600 mb-1">Válida hasta:</p>
+                          <p className="text-sm text-slate-600 mb-1">{t("settings.validUntil")}</p>
                           <p className="text-lg font-semibold text-slate-900">
                             {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
                               year: 'numeric',
@@ -690,13 +686,13 @@ export default function SettingsPage() {
                           </p>
                           <p className="text-xs text-slate-600 mt-2">
                             {new Date(paymentInfo.paid_until) > new Date() 
-                              ? `✅ Activa (${Math.ceil((new Date(paymentInfo.paid_until).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} días restantes)`
-                              : `❌ Expirada`}
+                              ? `${t("settings.subscriptionActive")} (${Math.ceil((new Date(paymentInfo.paid_until).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} ${t("settings.daysRemaining").replace("{{n}} ", "")})`
+                              : t("settings.subscriptionExpired")}
                           </p>
                         </div>
                       ) : (
                         <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
-                          <p className="text-sm text-slate-600">No hay pago registrado actualmente</p>
+                          <p className="text-sm text-slate-600">{t("settings.noPaymentRegistered")}</p>
                         </div>
                       )}
                     </div>
@@ -704,30 +700,30 @@ export default function SettingsPage() {
 
                   {/* How to Pay Info */}
                   <div className="border-t border-slate-200 pt-6">
-                    <h3 className="font-semibold text-slate-900 mb-4">💳 Métodos de Pago</h3>
+                    <h3 className="font-semibold text-slate-900 mb-4">{t("settings.paymentMethods")}</h3>
                     <div className="space-y-4">
                       <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                        <p className="font-medium text-slate-900 mb-2">Los pagos se realizan mediante:</p>
+                        <p className="font-medium text-slate-900 mb-2">{t("settings.paymentVia")}</p>
                         <ul className="space-y-2 text-sm text-slate-700">
                           <li className="flex items-start gap-2">
                             <span className="text-green-600 font-bold mt-0.5">✓</span>
                             <div>
-                              <p className="font-medium">Transferencia Bancaria</p>
-                              <p className="text-xs text-slate-600">Contacta con el administrador para los datos bancarios</p>
+                              <p className="font-medium">{t("settings.bankTransfer")}</p>
+                              <p className="text-xs text-slate-600">{t("settings.bankTransferDesc")}</p>
                             </div>
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="text-green-600 font-bold mt-0.5">✓</span>
                             <div>
-                              <p className="font-medium">Efectivo</p>
-                              <p className="text-xs text-slate-600">Entrega directa en persona</p>
+                              <p className="font-medium">{t("settings.cash")}</p>
+                              <p className="text-xs text-slate-600">{t("settings.cashDesc")}</p>
                             </div>
                           </li>
                         </ul>
                       </div>
 
-                      <Alert variant="info" title="📞 Contacta con el Administrador">
-                        Para procesar tu pago y renovar tu suscripción, por favor contacta directamente con el administrador del sistema:
+                      <Alert variant="info" title={t("settings.contactAdminTitle")}>
+                        {t("settings.contactAdminMsg")}
                         <div className="mt-3 space-y-1 text-sm">
                           <p>📧 Email: <span className="font-mono">michelbourbeau@gmail.com</span></p>
                           <p>📱 WhatsApp: (505) 5889 1314</p>
@@ -739,16 +735,16 @@ export default function SettingsPage() {
                   {/* Payment History */}
                   {paymentInfo?.history && paymentInfo.history.length > 0 && (
                     <div className="border-t border-slate-200 pt-6">
-                      <h3 className="font-semibold text-slate-900 mb-3">📋 Historial de Pagos</h3>
+                      <h3 className="font-semibold text-slate-900 mb-3">{t("settings.paymentHistoryTitle")}</h3>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-slate-200 bg-slate-50">
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Fecha de Pago</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Plan</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Monto</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Válido Hasta</th>
-                              <th className="text-left py-2 px-2 font-semibold text-slate-700">Método</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colPayDate")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colPlan")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colAmount")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colValidUntil")}</th>
+                              <th className="text-left py-2 px-2 font-semibold text-slate-700">{t("settings.colMethod")}</th>
                             </tr>
                           </thead>
                           <tbody>

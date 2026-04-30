@@ -172,15 +172,11 @@ describe("TransactionsPage", () => {
       });
     });
 
-    it("appelle fetchTransactions avec le tenantId et les dates de la semaine courante", async () => {
+    it("appelle fetchTransactions avec le tenantId uniquement (filtrage client-side)", async () => {
       setup();
       render(<TransactionsPage />);
       await waitFor(() => {
-        expect(TransactionService.fetchTransactions).toHaveBeenCalledWith(
-          "tenant-123",
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-          expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
-        );
+        expect(TransactionService.fetchTransactions).toHaveBeenCalledWith("tenant-123");
       });
     });
   });
@@ -273,32 +269,28 @@ describe("TransactionsPage", () => {
   });
 
   describe("Navigation de période", () => {
-    it("le bouton MONTH change la période et recharge les données", async () => {
+    it("le bouton MONTH filtre côté client sans nouvel appel API", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
-      const callsBefore = (TransactionService.fetchTransactions as jest.Mock).mock.calls.length;
+      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1));
 
       const monthBtn = screen.getAllByText("Mes")[0];
       await act(async () => { fireEvent.click(monthBtn); });
 
-      await waitFor(() => {
-        expect((TransactionService.fetchTransactions as jest.Mock).mock.calls.length).toBeGreaterThan(callsBefore);
-      });
+      // Filtrage client-side uniquement — pas de nouvel appel API
+      expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1);
     });
 
-    it("le bouton YEAR change la période et recharge les données", async () => {
+    it("le bouton YEAR filtre côté client sans nouvel appel API", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
-      const callsBefore = (TransactionService.fetchTransactions as jest.Mock).mock.calls.length;
+      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1));
 
       const yearBtn = screen.getAllByText("Año")[0];
       await act(async () => { fireEvent.click(yearBtn); });
 
-      await waitFor(() => {
-        expect((TransactionService.fetchTransactions as jest.Mock).mock.calls.length).toBeGreaterThan(callsBefore);
-      });
+      // Filtrage client-side uniquement — pas de nouvel appel API
+      expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1);
     });
   });
 

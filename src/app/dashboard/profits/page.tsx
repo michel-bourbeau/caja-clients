@@ -87,7 +87,11 @@ export default function ProfitsPage() {
   const transactions = useMemo(() => {
     const from = new Date(`${dateFrom}T00:00:00`);
     const to = new Date(`${dateTo}T23:59:59`);
-    return allTransactions.filter((tx) => tx.timestamp >= from && tx.timestamp <= to);
+    return allTransactions.filter((tx) => {
+      // tx.timestamp peut être un objet Date (production) ou une string (tests/api)
+      const ts = tx.timestamp instanceof Date ? tx.timestamp : new Date(String(tx.timestamp));
+      return ts >= from && ts <= to;
+    });
   }, [allTransactions, dateFrom, dateTo]);
 
   // ---- Profit calculations from transactions (client-side) ----
