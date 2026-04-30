@@ -7,7 +7,6 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Conta
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
-import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useLanguage } from "@/context/LanguageContext";
 import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale } from "@/i18n/config";
@@ -524,9 +523,6 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Theme Font Size Settings */}
-        <ThemeFontSizeSettings />
 
         {/* Language Settings */}
         <Card>
