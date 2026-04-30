@@ -7,6 +7,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ interface CashClosing {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function DiffBadge({ diff }: { diff: number }) {
+function DiffBadge({ diff, t }: { diff: number; t: (k: string) => string }) {
   const abs = Math.abs(diff);
   if (abs < 0.01) {
     return (
@@ -46,20 +47,20 @@ function DiffBadge({ diff }: { diff: number }) {
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
         </svg>
-        Cuadrado
+        {t("cierre.diffCuadrado")}
       </span>
     );
   }
   if (diff > 0) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
-        ▲ Sobrante
+        ▲ {t("cierre.diffSobrante")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">
-      ▼ Faltante
+      ▼ {t("cierre.diffFaltante")}
     </span>
   );
 }
@@ -79,6 +80,7 @@ function fmtLocalDate(dateStr: string): string {
 export default function CierreCajaPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
   const { user, hasPermission, refreshPermissions } = useAuth();
 
   // pos.cierre_review = see system totals, diffs and print (managers/admins)
@@ -234,7 +236,7 @@ export default function CierreCajaPage() {
       if (res.ok) {
         const saved = await res.json();
         setCurrent(saved);
-        setFormMessage({ type: "success", text: "✓ Cierre registrado exitosamente" });
+        setFormMessage({ type: "success", text: t("cierre.successSaved") });
         loadHistory();
         loadSystemTotals(); // Refresh system totals after closing
         // Clear form inputs and notes
@@ -245,10 +247,10 @@ export default function CierreCajaPage() {
         setTimeout(() => setFormMessage(null), 4000);
       } else {
         const err = await res.json();
-        setFormMessage({ type: "error", text: err.error || "Error al guardar" });
+        setFormMessage({ type: "error", text: err.error || t("cierre.errorSave") });
       }
     } catch {
-      setFormMessage({ type: "error", text: "Error de red" });
+      setFormMessage({ type: "error", text: t("cierre.errorNetwork") });
     } finally {
       setSaving(false);
     }
@@ -271,7 +273,7 @@ export default function CierreCajaPage() {
       <html lang="es">
       <head>
         <meta charset="UTF-8" />
-        <title>Cierre de Caja — ${selectedDate}</title>
+        <title>{t("cierre.title")} — ${selectedDate}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Courier New', monospace; font-size: 12px; padding: 16px; max-width: 380px; }
@@ -288,53 +290,53 @@ export default function CierreCajaPage() {
         </style>
       </head>
       <body>
-        <h1>CIERRE DE CAJA</h1>
+        <h1>${t("cierre.printTitle")}</h1>
         <p class="center">${fmtLocalDate(selectedDate)}</p>
-        ${current && current.closed_by ? `<p class="center">Cajero: ${current.closed_by}</p>` : ""}
+        ${current && current.closed_by ? `<p class="center">${t("cierre.printCashier").replace("{{name}}", current.closed_by)}</p>` : ""}
         <div class="divider"></div>
 
-        <p class="section-title">Ventas del sistema</p>
-        <div class="row"><span>Efectivo</span><span>${fmt(systemTotals.system_cash)}</span></div>
-        <div class="row"><span>Tarjeta</span><span>${fmt(systemTotals.system_card)}</span></div>
-        <div class="row"><span>Transferencia</span><span>${fmt(systemTotals.system_transfer)}</span></div>
-        <div class="row bold"><span>TOTAL SISTEMA</span><span>${fmt(systemTotals.system_total)}</span></div>
-
-        <div class="divider"></div>
-
-        <p class="section-title">Declarado por cajero</p>
-        <div class="row"><span>Efectivo contado</span><span>${fmt(dCash)}</span></div>
-        <div class="row"><span>Reporte tarjeta</span><span>${fmt(dCard)}</span></div>
-        <div class="row"><span>Transferencias</span><span>${fmt(dTransfer)}</span></div>
+        <p class="section-title">${t("cierre.printSystemSales")}</p>
+        <div class="row"><span>${t("cierre.labelCash").replace(" (CASH)","")}</span><span>${fmt(systemTotals.system_cash)}</span></div>
+        <div class="row"><span>${t("cierre.labelCard").replace(" (CARD)","")}</span><span>${fmt(systemTotals.system_card)}</span></div>
+        <div class="row"><span>${t("cierre.labelTransfer")}</span><span>${fmt(systemTotals.system_transfer)}</span></div>
+        <div class="row bold"><span>${t("cierre.labelSystemTotal")}</span><span>${fmt(systemTotals.system_total)}</span></div>
 
         <div class="divider"></div>
 
-        <p class="section-title">Diferencias</p>
+        <p class="section-title">${t("cierre.printDeclared")}</p>
+        <div class="row"><span>${t("cierre.printCashCounted")}</span><span>${fmt(dCash)}</span></div>
+        <div class="row"><span>${t("cierre.printCardReport")}</span><span>${fmt(dCard)}</span></div>
+        <div class="row"><span>${t("cierre.printTransfers")}</span><span>${fmt(dTransfer)}</span></div>
+
+        <div class="divider"></div>
+
+        <p class="section-title">${t("cierre.printDiffs")}</p>
         <div class="row">
-          <span>Efectivo</span>
+          <span>${t("cierre.labelCash").replace(" (CASH)","")}</span>
           <span class="${Math.abs(diffCash) < 0.01 ? "diff-ok" : diffCash < 0 ? "diff-bad" : "diff-over"}">
             ${diffCash >= 0 ? "+" : ""}${fmt(diffCash)}
-            ${Math.abs(diffCash) < 0.01 ? "✓" : diffCash < 0 ? "⚠ FALTANTE" : "▲ SOBRANTE"}
+            ${Math.abs(diffCash) < 0.01 ? "\u2713" : diffCash < 0 ? t("cierre.printShort") : t("cierre.printOver")}
           </span>
         </div>
         <div class="row">
-          <span>Tarjeta</span>
+          <span>${t("cierre.labelCard").replace(" (CARD)","")}</span>
           <span class="${Math.abs(diffCard) < 0.01 ? "diff-ok" : diffCard < 0 ? "diff-bad" : "diff-over"}">
             ${diffCard >= 0 ? "+" : ""}${fmt(diffCard)}
-            ${Math.abs(diffCard) < 0.01 ? "✓" : diffCard < 0 ? "⚠ FALTANTE" : "▲ SOBRANTE"}
+            ${Math.abs(diffCard) < 0.01 ? "\u2713" : diffCard < 0 ? t("cierre.printShort") : t("cierre.printOver")}
           </span>
         </div>
         <div class="row">
-          <span>Transferencia</span>
+          <span>${t("cierre.labelTransfer")}</span>
           <span class="${Math.abs(diffTransfer) < 0.01 ? "diff-ok" : diffTransfer < 0 ? "diff-bad" : "diff-over"}">
             ${diffTransfer >= 0 ? "+" : ""}${fmt(diffTransfer)}
-            ${Math.abs(diffTransfer) < 0.01 ? "✓" : diffTransfer < 0 ? "⚠ FALTANTE" : "▲ SOBRANTE"}
+            ${Math.abs(diffTransfer) < 0.01 ? "\u2713" : diffTransfer < 0 ? t("cierre.printShort") : t("cierre.printOver")}
           </span>
         </div>
 
-        ${current && current.notes ? `<div class="notes">Notas: ${current.notes}</div>` : ""}
+        ${current && current.notes ? `<div class="notes">${t("cierre.printNotes").replace("{{text}}", current.notes)}</div>` : ""}
 
         <div class="divider"></div>
-        <p class="center" style="font-size:10px;color:#555;">Impreso ${new Date().toLocaleString("es-NI")}</p>
+        <p class="center" style="font-size:10px;color:#555;">${t("cierre.printPrinted").replace("{{datetime}}", new Date().toLocaleString())}</p>
       </body>
       </html>
     `);
@@ -352,12 +354,12 @@ export default function CierreCajaPage() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <PageIcon type="cierre" size="lg" displayType="lucide" />
-            <h1 className="text-3xl font-bold text-slate-900">Cierre de Caja</h1>
+            <h1 className="text-3xl font-bold text-slate-900">{t("cierre.title")}</h1>
           </div>
           <p className="text-slate-600 text-sm">
             {isManager
-              ? "Reconciliación diaria — compara las ventas registradas con el efectivo contado y el reporte de la terminal de pago."
-              : "Cuenta el efectivo de la caja e ingresa el total del reporte de la terminal. No se muestran los montos del sistema hasta que un administrador revise el cierre."}
+              ? t("cierre.subtitleManager")
+              : t("cierre.subtitleCashier")}
           </p>
         </div>
 
@@ -367,7 +369,7 @@ export default function CierreCajaPage() {
           {/* Card header — date selector */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Fecha de cierre</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{t("cierre.dateLabel")}</p>
             <input
               type="date"
               value={selectedDate}
@@ -376,7 +378,7 @@ export default function CierreCajaPage() {
               className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-slate-400 mt-2">
-              Selecciona una fecha para cerrar caja
+              {t("cierre.datePlaceholder")}
             </p>
           </div>
         </div>
@@ -387,7 +389,7 @@ export default function CierreCajaPage() {
           {isManager && (
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 mb-3">
-                Ventas del Sistema
+                {t("cierre.systemSales")}
               </h2>
               {loadingTotals ? (
                 <div className="space-y-2 animate-pulse">
@@ -396,9 +398,9 @@ export default function CierreCajaPage() {
               ) : systemTotals && systemTotals.tx_count > 0 ? (
                 <div className="space-y-2">
                   {[
-                    { label: "Efectivo (CASH)", value: systemTotals.system_cash, color: "text-green-700", bg: "bg-green-50 border-green-200" },
-                    { label: "Tarjeta (CARD)", value: systemTotals.system_card, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
-                    { label: "Transferencia", value: systemTotals.system_transfer, color: "text-purple-700", bg: "bg-purple-50 border-purple-200" },
+                    { label: t("cierre.labelCash"), value: systemTotals.system_cash, color: "text-green-700", bg: "bg-green-50 border-green-200" },
+                    { label: t("cierre.labelCard"), value: systemTotals.system_card, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
+                    { label: t("cierre.labelTransfer"), value: systemTotals.system_transfer, color: "text-purple-700", bg: "bg-purple-50 border-purple-200" },
                   ].map(({ label, value, color, bg }) => (
                     <div key={label} className={`flex justify-between items-center px-4 py-2.5 rounded-lg border ${bg}`}>
                       <span className="text-sm font-medium text-slate-700">{label}</span>
@@ -406,11 +408,13 @@ export default function CierreCajaPage() {
                     </div>
                   ))}
                   <div className="flex justify-between items-center px-4 py-3 rounded-lg border border-slate-300 bg-slate-100">
-                    <span className="text-sm font-bold text-slate-800">TOTAL SISTEMA</span>
+                    <span className="text-sm font-bold text-slate-800">{t("cierre.labelSystemTotal")}</span>
                     <span className="text-base font-bold text-slate-900">{fmt(systemTotals.system_total)}</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
-                    Basado en {systemTotals.tx_count} transacción{systemTotals.tx_count !== 1 ? "es" : ""} completada{systemTotals.tx_count !== 1 ? "s" : ""} el {fmtLocalDate(selectedDate)}.
+                    {systemTotals.tx_count === 1
+                      ? t("cierre.basedOn").replace("{{count}}", String(systemTotals.tx_count)).replace("{{date}}", fmtLocalDate(selectedDate))
+                      : t("cierre.basedOnPlural").replace("{{count}}", String(systemTotals.tx_count)).replace("{{date}}", fmtLocalDate(selectedDate))}
                   </p>
                 </div>
               ) : (
@@ -418,7 +422,7 @@ export default function CierreCajaPage() {
                   <svg className="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2a4 4 0 014-4h0a4 4 0 014 4v2M9 17H5a2 2 0 01-2-2V9a2 2 0 012-2h14a2 2 0 012 2v6a2 2 0 01-2 2h-4M9 17h6" />
                   </svg>
-                  <p className="text-sm text-slate-500">No hay ventas registradas<br />para esta fecha.</p>
+                  <p className="text-sm text-slate-500">{t("cierre.noSales")}</p>
                 </div>
               )}
             </div>
@@ -427,7 +431,7 @@ export default function CierreCajaPage() {
           {/* Right: Cashier declaration — always visible */}
           <div className={isManager ? "" : "max-w-lg mx-auto w-full"}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 mb-3">
-              Declaración del Cajero
+              {t("cierre.cashDeclaration")}
             </h2>
             {/* Blind count notice for cashiers */}
             {!isManager && (
@@ -436,7 +440,7 @@ export default function CierreCajaPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                 </svg>
                 <p className="text-sm text-amber-800">
-                  <strong>Conteo a ciegas:</strong> los totales del sistema no son visibles para ti. Cuenta el efectivo y revisa tu terminal de tarjeta de forma independiente.
+                  <strong>{t("cierre.blindCountTitle")}:</strong> {t("cierre.blindCountNotice")}
                 </p>
               </div>
             )}
@@ -445,7 +449,7 @@ export default function CierreCajaPage() {
               {/* Cash */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  💵 Efectivo contado físicamente
+                  {t("cierre.inputCash")}
                 </label>
                 <input
                   ref={declaredCashRef}
@@ -477,12 +481,12 @@ export default function CierreCajaPage() {
                   }`}>
                     <span>
                       {Math.abs(preview.diff_cash) < 0.01
-                        ? "✓ Cuadra con el sistema"
+                        ? t("cierre.diffMatch")
                         : preview.diff_cash < 0
-                        ? `⚠ Faltante: ${fmt(Math.abs(preview.diff_cash))}`
-                        : `▲ Sobrante: ${fmt(preview.diff_cash)}`}
+                        ? t("cierre.diffShort").replace("{{amount}}", fmt(Math.abs(preview.diff_cash)))
+                        : t("cierre.diffOver").replace("{{amount}}", fmt(preview.diff_cash))}
                     </span>
-                    <span className="font-mono">Sistema: {fmt(systemTotals.system_cash)}</span>
+                    <span className="font-mono">{t("cierre.systemLabel").replace("{{amount}}", fmt(systemTotals.system_cash))}</span>
                   </div>
                 )}
               </div>
@@ -490,7 +494,7 @@ export default function CierreCajaPage() {
               {/* Card */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  💳 Total del reporte de la terminal de tarjeta
+                  {t("cierre.inputCard")}
                 </label>
                 <input
                   ref={declaredCardRef}
@@ -522,12 +526,12 @@ export default function CierreCajaPage() {
                   }`}>
                     <span>
                       {Math.abs(preview.diff_card) < 0.01
-                        ? "✓ Cuadra con el sistema"
+                        ? t("cierre.diffMatch")
                         : preview.diff_card < 0
-                        ? `⚠ Faltante: ${fmt(Math.abs(preview.diff_card))}`
-                        : `▲ Sobrante: ${fmt(preview.diff_card)}`}
+                        ? t("cierre.diffShort").replace("{{amount}}", fmt(Math.abs(preview.diff_card)))
+                        : t("cierre.diffOver").replace("{{amount}}", fmt(preview.diff_card))}
                     </span>
-                    <span className="font-mono">Sistema: {fmt(systemTotals.system_card)}</span>
+                    <span className="font-mono">{t("cierre.systemLabel").replace("{{amount}}", fmt(systemTotals.system_card))}</span>
                   </div>
                 )}
               </div>
@@ -535,7 +539,7 @@ export default function CierreCajaPage() {
               {/* Transfer */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  🏦 Transferencias bancarias declaradas
+                  {t("cierre.inputTransfer")}
                 </label>
                 <input
                   ref={declaredTransferRef}
@@ -561,12 +565,12 @@ export default function CierreCajaPage() {
               {/* Notes */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
-                  Notas (opcional)
+                  {t("cierre.notesLabel")}
                 </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Observaciones, explicación de diferencias..."
+                  placeholder={t("cierre.notesPlaceholder")}
                   rows={2}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
@@ -576,7 +580,7 @@ export default function CierreCajaPage() {
               {formMessage && (
                 <Alert
                   variant={formMessage.type === "success" ? "success" : "error"}
-                  title={formMessage.type === "success" ? "Éxito" : "Error"}
+                  title={formMessage.type === "success" ? t("cierre.successTitle") : t("cierre.errorTitle")}
                 >
                   {formMessage.text}
                 </Alert>
@@ -589,14 +593,14 @@ export default function CierreCajaPage() {
                   disabled={saving}
                   className="whitespace-nowrap"
                 >
-                  {saving ? "Guardando..." : "Cerrar caja"}
+                  {saving ? t("cierre.saving") : t("cierre.save")}
                 </Button>
                 {/* Print — MANAGER ONLY (report contains system totals) */}
                 {isManager && systemTotals && (
                   <Button
                     variant="secondary"
                     onClick={handlePrint}
-                    title="Imprimir reporte"
+                    title={t("cierre.print")}
                     className="flex items-center justify-center p-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -613,13 +617,13 @@ export default function CierreCajaPage() {
           {isManager && systemTotals && systemTotals.tx_count > 0 && (declaredCash !== "" || declaredCard !== "") && preview && (
             <div className="border-t border-slate-200 px-6 py-4 bg-slate-50 grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: "Efectivo", diff: preview.diff_cash },
-                { label: "Tarjeta", diff: preview.diff_card },
-                { label: "Transferencia", diff: preview.diff_transfer },
+                { label: t("cierre.summaryLabel"), diff: preview.diff_cash },
+                { label: t("cierre.summaryCard"), diff: preview.diff_card },
+                { label: t("cierre.summaryTransfer"), diff: preview.diff_transfer },
               ].map(({ label, diff }) => (
                 <div key={label} className="text-center">
                   <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">{label}</p>
-                  <DiffBadge diff={diff} />
+                  <DiffBadge diff={diff} t={t} />
                   <p className={`text-sm font-bold mt-1 ${
                     Math.abs(diff) < 0.01 ? "text-green-700" : diff < 0 ? "text-red-600" : "text-blue-700"
                   }`}>
@@ -628,7 +632,7 @@ export default function CierreCajaPage() {
                 </div>
               ))}
               <div className="text-center col-span-2 sm:col-span-1">
-                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Total Sistema</p>
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">{t("cierre.summarySystemTotal")}</p>
                 <p className="text-lg font-bold text-slate-900">{fmt(systemTotals.system_total)}</p>
               </div>
             </div>
@@ -637,7 +641,7 @@ export default function CierreCajaPage() {
 
         {/* History */}
         <div>
-          <h2 className="text-lg font-bold text-slate-800 mb-4">Historial Completo de Cierres</h2>
+          <h2 className="text-lg font-bold text-slate-800 mb-4">{t("cierre.historyTitle")}</h2>
           {loadingHistory ? (
             <div className="space-y-2">
               {[1,2,3].map(i => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
@@ -647,18 +651,18 @@ export default function CierreCajaPage() {
               <svg className="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-              <p className="text-sm text-slate-500">Sin cierres registrados aún.</p>
+              <p className="text-sm text-slate-500">{t("cierre.historyEmpty")}</p>
             </div>
           ) : (
             <Card>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs font-semibold uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left text-white">Fecha & Hora</th>
-                    <th className="px-4 py-3 text-right text-white">Efectivo</th>
-                    <th className="px-4 py-3 text-right text-white">Tarjeta</th>
-                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">Transfer.</th>
-                    <th className="px-4 py-3 text-left hidden md:table-cell text-white">Cajero</th>
+                    <th className="px-4 py-3 text-left text-white">{t("cierre.historyDate")}</th>
+                    <th className="px-4 py-3 text-right text-white">{t("cierre.historyCash")}</th>
+                    <th className="px-4 py-3 text-right text-white">{t("cierre.historyCard")}</th>
+                    <th className="px-4 py-3 text-right hidden md:table-cell text-white">{t("cierre.historyTransfer")}</th>
+                    <th className="px-4 py-3 text-left hidden md:table-cell text-white">{t("cierre.historyCashier")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -734,7 +738,7 @@ export default function CierreCajaPage() {
                       rows.push(
                         <tr key={`subtotal-${date}`} className="border-t-2 border-slate-300 bg-slate-50">
                           <td className="px-4 py-2 text-left font-bold text-slate-700">
-                            TOTAL {fmtLocalDate(date)}
+                            {t("cierre.historyDayTotal").replace("{{date}}", fmtLocalDate(date))}
                           </td>
                           <td className="px-4 py-2 text-right font-mono font-bold text-slate-800">
                             {fmt(dayCash)}
