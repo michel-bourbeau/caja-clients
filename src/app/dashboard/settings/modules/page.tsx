@@ -7,6 +7,7 @@ import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { Container, Section, Card, CardHeader, CardTitle, CardContent, Button, Alert } from "@/components/StripeUIComponents";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
 
@@ -95,6 +96,7 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
 
 export default function ModulesPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const tenantId = useTenantId();
   const { features, error: featuresError } = useTenantFeatures();
@@ -187,7 +189,7 @@ export default function ModulesPage() {
         }
       } catch (err) {
         console.error("Error loading settings:", err);
-        setMessage({ type: "error", text: "Error al cargar configuración" });
+        setMessage({ type: "error", text: t("settings.modules.loadError") });
       } finally {
         setLoading(false);
       }
@@ -214,9 +216,9 @@ export default function ModulesPage() {
         body: JSON.stringify({ features: modules }),
       });
 
-      if (!res.ok) throw new Error("Error al guardar módulos");
+      if (!res.ok) throw new Error(t("settings.modules.saveError"));
 
-      setMessage({ type: "success", text: "Módulos actualizados exitosamente" });
+      setMessage({ type: "success", text: t("settings.modules.saveSuccess") });
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       setMessage({ type: "error", text: (err as Error).message });
@@ -241,9 +243,9 @@ export default function ModulesPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Error al guardar configuración de fidelización");
+      if (!res.ok) throw new Error(t("settings.modules.loyaltySaveError"));
 
-      setMessage({ type: "success", text: "Configuración de fidelización guardada" });
+      setMessage({ type: "success", text: t("settings.modules.loyaltySaveSuccess") });
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       setMessage({ type: "error", text: (err as Error).message });
@@ -255,7 +257,7 @@ export default function ModulesPage() {
   if (loading) {
     return (
       <Container>
-        <div className="py-10 text-center text-slate-400">Cargando configuración...</div>
+        <div className="py-10 text-center text-slate-400">{t("settings.modules.loading")}</div>
       </Container>
     );
   }
@@ -265,15 +267,15 @@ export default function ModulesPage() {
       <div className="space-y-8">
         {/* Header */}
         <Section
-          title="Módulos"
-          description="Activa o desactiva los módulos disponibles para tu aplicación"
+          title={t("settings.modules.pageTitle")}
+          description={t("settings.modules.pageDesc")}
         />
 
         {/* Messages */}
         {message && (
           <Alert
             variant={message.type === "success" ? "success" : "error"}
-            title={message.type === "success" ? "Éxito" : "Error"}
+            title={message.type === "success" ? t("common.success") : t("common.error")}
           >
             {message.text}
           </Alert>
@@ -282,7 +284,7 @@ export default function ModulesPage() {
         {/* Modules Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Módulos Disponibles</CardTitle>
+            <CardTitle>{t("settings.modules.cardTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -301,16 +303,16 @@ export default function ModulesPage() {
                   />
                   <div className="ml-4 flex-1">
                     <p className="font-medium text-slate-900">
-                      {MODULES[key].icon} {MODULES[key].name}
+                      {MODULES[key].icon} {t(`settings.modules.${key}Name` as "settings.modules.posName")}
                     </p>
-                    <p className="text-xs text-slate-500">{MODULES[key].description}</p>
+                    <p className="text-xs text-slate-500">{t(`settings.modules.${key}Desc` as "settings.modules.posDesc")}</p>
                   </div>
                   <div
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       modules[key] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {modules[key] ? "Activo" : "Inactivo"}
+                    {modules[key] ? t("settings.modules.active") : t("settings.modules.inactive")}
                   </div>
                 </label>
               ))}
@@ -321,12 +323,12 @@ export default function ModulesPage() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="font-medium text-slate-900">
-                    {MODULES.settings.icon} {MODULES.settings.name}
+                    {MODULES.settings.icon} {t("settings.modules.settingsName")}
                   </p>
-                  <p className="text-xs text-slate-500">{MODULES.settings.description}</p>
+                  <p className="text-xs text-slate-500">{t("settings.modules.settingsDesc")}</p>
                 </div>
                 <div className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                  Siempre Activo
+                  {t("settings.modules.alwaysActive")}
                 </div>
               </div>
             </div>
@@ -337,7 +339,7 @@ export default function ModulesPage() {
               variant="primary"
               loading={saving}
             >
-              ✓ Guardar Módulos
+              {t("settings.modules.saveBtn")}
             </Button>
           </CardContent>
         </Card>
@@ -346,7 +348,7 @@ export default function ModulesPage() {
         {modules.loyalty && (
           <Card>
             <CardHeader>
-              <CardTitle>💳 Configuração de Fidelização</CardTitle>
+              <CardTitle>{t("settings.modules.loyaltyTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Enable/Disable Loyalty */}
@@ -361,7 +363,7 @@ export default function ModulesPage() {
                     className="w-5 h-5 rounded border-slate-300"
                   />
                   <span className="ml-3 font-medium text-slate-900">
-                    Activar módulo de Fidelización
+                    {t("settings.modules.loyaltyEnable")}
                   </span>
                 </label>
               </div>
@@ -371,7 +373,7 @@ export default function ModulesPage() {
                   {/* Reward Threshold */}
                   <div>
                     <label className="block text-sm font-medium text-slate-900 mb-2">
-                      Monto Mínimo para Recompensa (NIO)
+                      {t("settings.modules.loyaltyThresholdLabel")}
                     </label>
                     <input
                       type="number"
@@ -385,14 +387,14 @@ export default function ModulesPage() {
                       className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
                     />
                     <p className="text-xs text-slate-500 mt-1">
-                      Los clientes reciben una recompensa después de gastar este monto
+                      {t("settings.modules.loyaltyThresholdHint")}
                     </p>
                   </div>
 
                   {/* Reward Type */}
                   <div>
                     <label className="block text-sm font-medium text-slate-900 mb-2">
-                      Tipo de Recompensa
+                      {t("settings.modules.loyaltyTypeLabel")}
                     </label>
                     <select
                       value={loyaltySettings.rewardType}
@@ -401,16 +403,16 @@ export default function ModulesPage() {
                       }
                       className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900 focus:ring-opacity-10"
                     >
-                      <option value="DISCOUNT_PERCENT">Porcentaje de Descuento (%)</option>
-                      <option value="DISCOUNT_FIXED">Descuento Fijo (NIO)</option>
-                      <option value="FREE_ITEM">Artículo Gratis</option>
+                      <option value="DISCOUNT_PERCENT">{t("settings.modules.loyaltyTypePercent")}</option>
+                      <option value="DISCOUNT_FIXED">{t("settings.modules.loyaltyTypeFixed")}</option>
+                      <option value="FREE_ITEM">{t("settings.modules.loyaltyTypeFree")}</option>
                     </select>
                   </div>
 
                   {/* Reward Value */}
                   <div>
                     <label className="block text-sm font-medium text-slate-900 mb-2">
-                      Valor de la Recompensa
+                      {t("settings.modules.loyaltyValueLabel")}
                     </label>
                     <input
                       type="number"
@@ -425,8 +427,8 @@ export default function ModulesPage() {
                     />
                     <p className="text-xs text-slate-500 mt-1">
                       {loyaltySettings.rewardType === "DISCOUNT_PERCENT"
-                        ? "Porcentaje de descuento (ej: 10 = 10%)"
-                        : "Cantidad en NIO"}
+                        ? t("settings.modules.loyaltyValueHintPercent")
+                        : t("settings.modules.loyaltyValueHintFixed")}
                     </p>
                   </div>
                 </>
@@ -438,7 +440,7 @@ export default function ModulesPage() {
                 variant="primary"
                 loading={saving}
               >
-                ✓ Guardar Fidelización
+                {t("settings.modules.loyaltySaveBtn")}
               </Button>
             </CardContent>
           </Card>

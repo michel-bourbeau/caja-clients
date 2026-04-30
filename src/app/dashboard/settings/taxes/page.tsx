@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTenant } from "@/context/TenantContext";
 import { useRouter } from "next/navigation";
 import { Button, Input, Card } from "@/components/ui";
@@ -21,6 +22,7 @@ type PeriodType = "WEEK" | "MONTH" | "YEAR";
 
 export default function TaxesSettingsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { tenantId } = useTenant();
   const { fmt } = useCurrency();
   const router = useRouter();
@@ -226,7 +228,7 @@ export default function TaxesSettingsPage() {
 
   const handleAddTax = async () => {
     if (!formData.name.trim() || !formData.rate) {
-      setMessage("Por favor, completa todos los campos");
+      setMessage(t("settings.taxes.msgFillFields"));
       return;
     }
 
@@ -242,23 +244,23 @@ export default function TaxesSettingsPage() {
       });
 
       if (res.ok) {
-        setMessage("Impuesto creado exitosamente");
+        setMessage(t("settings.taxes.msgCreated"));
         setFormData({ name: "", rate: "" });
         setShowAddTax(false);
         await fetchTaxes();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Error al crear");
+        setMessage(error.error || t("settings.taxes.msgCreated"));
       }
     } catch (error) {
-      setMessage("Error de conexión");
+      setMessage(t("settings.taxes.msgConnError"));
       console.error(error);
     }
   };
 
   const handleUpdateTax = async (taxId: string) => {
     if (!formData.name.trim() || !formData.rate) {
-      setMessage("Por favor, completa todos los campos");
+      setMessage(t("settings.taxes.msgFillFields"));
       return;
     }
 
@@ -273,22 +275,22 @@ export default function TaxesSettingsPage() {
       });
 
       if (res.ok) {
-        setMessage("Impuesto actualizado exitosamente");
+        setMessage(t("settings.taxes.msgUpdated"));
         setFormData({ name: "", rate: "" });
         setEditingTaxId(null);
         await fetchTaxes();
       } else {
         const error = await res.json();
-        setMessage(error.error || "Error al actualizar");
+        setMessage(error.error || t("settings.taxes.msgUpdated"));
       }
     } catch (error) {
-      setMessage("Error de conexión");
+      setMessage(t("settings.taxes.msgConnError"));
       console.error(error);
     }
   };
 
   const handleDeleteTax = async (taxId: string) => {
-    if (!confirm("¿Confirmar la eliminación de este impuesto?")) return;
+    if (!confirm(t("settings.taxes.deleteConfirm"))) return;
 
     try {
       const res = await fetch(`/api/tenants/${tenantId}/taxes/${taxId}`, {
@@ -296,13 +298,13 @@ export default function TaxesSettingsPage() {
       });
 
       if (res.ok) {
-        setMessage("Impuesto eliminado");
+        setMessage(t("settings.taxes.msgDeleted"));
         await fetchTaxes();
       } else {
-        setMessage("Error al eliminar");
+        setMessage(t("settings.taxes.msgDeleteError"));
       }
     } catch (error) {
-      setMessage("Erreur réseau");
+      setMessage(t("settings.taxes.msgConnError"));
       console.error(error);
     }
   };
@@ -330,7 +332,7 @@ export default function TaxesSettingsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <div className="text-center">Chargement...</div>
+        <div className="text-center">{t("settings.taxes.loading")}</div>
       </div>
     );
   }
@@ -339,11 +341,11 @@ export default function TaxesSettingsPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Impuestos</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t("settings.taxes.pageTitle")}</h1>
         </div>
         <div className="flex items-center gap-4">
           <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-            ← Volver a Configuración General
+            {t("settings.taxes.backLink")}
           </Link>
           <Button
             onClick={() => {
@@ -353,7 +355,7 @@ export default function TaxesSettingsPage() {
             }}
             className="bg-green-600 text-white"
           >
-            + Agregar Impuesto
+            {t("settings.taxes.addBtn")}
           </Button>
         </div>
       </div>
@@ -368,19 +370,19 @@ export default function TaxesSettingsPage() {
       {(showAddTax || editingTaxId) && (
         <Card className="p-4 bg-white border-2 border-green-400">
           <h2 className="font-bold mb-4 text-gray-900 text-lg">
-            {editingTaxId ? "Editar Impuesto" : "Nuevo Impuesto"}
+          {editingTaxId ? t("settings.taxes.editTitle") : t("settings.taxes.newTitle")}
           </h2>
           <div className="space-y-3">
             <Input
-              label="Nombre del Impuesto"
-              placeholder="Ej: IVA, ISC, Impuesto Municipal, etc."
+              label={t("settings.taxes.nameLabel")}
+              placeholder={t("settings.taxes.namePlaceholder")}
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
             <Input
-              label="Tasa (%)"
+              label={t("settings.taxes.rateLabel")}
               type="number"
-              placeholder="Ej: 15"
+              placeholder={t("settings.taxes.ratePlaceholder")}
               step="0.01"
               min="0"
               max="100"
@@ -396,7 +398,7 @@ export default function TaxesSettingsPage() {
                 }
                 className="bg-green-600 text-white"
               >
-                {editingTaxId ? "Actualizar" : "Crear"}
+              {editingTaxId ? t("settings.taxes.updateBtn") : t("settings.taxes.createBtn")}
               </Button>
               <Button
                 onClick={() => {
@@ -406,7 +408,7 @@ export default function TaxesSettingsPage() {
                 }}
                 className="bg-gray-400"
               >
-                Cancelar
+                {t("settings.taxes.cancelBtn")}
               </Button>
             </div>
           </div>
@@ -417,21 +419,21 @@ export default function TaxesSettingsPage() {
       <div className="space-y-3">
         {taxes.length === 0 ? (
           <Card className="p-6 text-center text-gray-900">
-            Sin impuestos configurados. Crea al menos un impuesto para usarlo en las ventas.
+            {t("settings.taxes.emptyMsg")}
           </Card>
         ) : (
           taxes.map((tax) => (
             <Card key={tax.id} className="p-4 flex justify-between items-center hover:bg-gray-50">
               <div>
                 <p className="font-semibold text-gray-900">{tax.name}</p>
-                <p className="text-sm text-gray-700">Tasa: {tax.rate}%</p>
+                <p className="text-sm text-gray-700">{t("settings.taxes.rateDisplay").replace("{{rate}}", tax.rate.toString())}</p>
               </div>
               <div className="flex gap-2 items-center">
                 <Button
                   onClick={() => toggleTaxActive(tax)}
                   className={tax.is_active ? "bg-green-600 text-white" : "bg-gray-400"}
                 >
-                  {tax.is_active ? "✓ Activo" : "Inactivo"}
+                  {tax.is_active ? t("settings.taxes.activeBtn") : t("settings.taxes.inactiveBtn")}
                 </Button>
                 <Button
                   onClick={() => {
@@ -456,25 +458,25 @@ export default function TaxesSettingsPage() {
       </div>
 
       <Card className="p-4 bg-blue-50 border-2 border-blue-200">
-        <h3 className="font-bold text-gray-900 mb-2">ℹ️ Información</h3>
+        <h3 className="font-bold text-gray-900 mb-2">{t("settings.taxes.infoTitle")}</h3>
         <ul className="text-sm text-gray-700 space-y-1">
-          <li>• Los impuestos activos aparecerán en la sección "Resumen de Venta" del POS</li>
-          <li>• Puedes definir múltiples impuestos (IVA, Impuesto municipal, etc.)</li>
-          <li>• El nombre del impuesto es flexible: IVA, ISC, GST, etc.</li>
-          <li>• Los impuestos inactivos no se utilizan en los cálculos</li>
+          <li>• {t("settings.taxes.infoBullet1")}</li>
+          <li>• {t("settings.taxes.infoBullet2")}</li>
+          <li>• {t("settings.taxes.infoBullet3")}</li>
+          <li>• {t("settings.taxes.infoBullet4")}</li>
         </ul>
       </Card>
 
       {/* TAX REPORT SECTION */}
       <div className="border-t pt-8 mt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Reporte de Impuestos</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">{t("settings.taxes.reportTitle")}</h2>
 
         {/* Filters */}
         <Card className="p-4 bg-slate-50 border border-slate-200 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Period Buttons */}
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">Período</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">{t("settings.taxes.periodLabel")}</label>
               <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
                 {(["WEEK", "MONTH", "YEAR"] as PeriodType[]).map((period) => (
                   <button
@@ -486,7 +488,7 @@ export default function TaxesSettingsPage() {
                         : "bg-white text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    {period === "WEEK" ? "Semana" : period === "MONTH" ? "Mes" : "Año"}
+                    {period === "WEEK" ? t("settings.taxes.week") : period === "MONTH" ? t("settings.taxes.month") : t("settings.taxes.year")}
                   </button>
                 ))}
               </div>
@@ -494,7 +496,7 @@ export default function TaxesSettingsPage() {
 
             {/* Date Navigation */}
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">Fecha</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">{t("settings.taxes.dateLabel")}</label>
               <div className="flex gap-1 items-center">
                 <button
                   onClick={() => navigatePeriod(-1)}
@@ -516,15 +518,15 @@ export default function TaxesSettingsPage() {
 
             {/* Tax Filter */}
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">Filtrar por Impuesto</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">{t("settings.taxes.filterLabel")}</label>
               <select
                 value={selectedTaxId}
                 onChange={(e) => setSelectedTaxId(e.target.value)}
                 className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="ALL">Todas las transacciones</option>
-                <option value="WITH_TAX">Solo con impuestos</option>
-                <option value="WITHOUT_TAX">Sin impuestos</option>
+                <option value="ALL">{t("settings.taxes.filterAll")}</option>
+                <option value="WITH_TAX">{t("settings.taxes.filterWith")}</option>
+                <option value="WITHOUT_TAX">{t("settings.taxes.filterWithout")}</option>
               </select>
             </div>
           </div>
@@ -533,19 +535,19 @@ export default function TaxesSettingsPage() {
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-            <p className="text-sm text-blue-700 font-medium">Total Impuestos</p>
+            <p className="text-sm text-blue-700 font-medium">{t("settings.taxes.statTotalTax")}</p>
             <p className="text-2xl font-bold text-blue-900">{fmt(taxStats.totalTax)}</p>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
-            <p className="text-sm text-green-700 font-medium">Ventas Totales</p>
+            <p className="text-sm text-green-700 font-medium">{t("settings.taxes.statTotalSales")}</p>
             <p className="text-2xl font-bold text-green-900">{fmt(taxStats.totalSales)}</p>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
-            <p className="text-sm text-purple-700 font-medium">Transacciones con Impuesto</p>
+            <p className="text-sm text-purple-700 font-medium">{t("settings.taxes.statCountWithTax")}</p>
             <p className="text-2xl font-bold text-purple-900">{taxStats.countWithTax}</p>
           </Card>
           <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200">
-            <p className="text-sm text-orange-700 font-medium">Impuesto Promedio</p>
+            <p className="text-sm text-orange-700 font-medium">{t("settings.taxes.statAvgTax")}</p>
             <p className="text-2xl font-bold text-orange-900">{fmt(taxStats.avgTaxPerTransaction)}</p>
           </Card>
         </div>
@@ -553,14 +555,14 @@ export default function TaxesSettingsPage() {
         {/* Tax Breakdown by Type */}
         {taxStats.taxByType.length > 0 && (
           <Card className="p-4 mb-6 border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">📋 Desglose de Impuestos por Tipo</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-4">{t("settings.taxes.breakdownTitle")}</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="px-4 py-3 text-left font-semibold text-slate-900">Tipo de Impuesto</th>
-                    <th className="px-4 py-3 text-center font-semibold text-slate-900">Tasa</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-900">Total Recaudado</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-900">{t("settings.taxes.colTaxType")}</th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-900">{t("settings.taxes.colRate")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-900">{t("settings.taxes.colTotalCollected")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -574,7 +576,7 @@ export default function TaxesSettingsPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold">
-                    <td colSpan={2} className="px-4 py-3 text-slate-900">Total</td>
+                    <td colSpan={2} className="px-4 py-3 text-slate-900">{t("settings.taxes.colTotal")}</td>
                     <td className="px-4 py-3 text-right text-blue-600">{fmt(taxStats.taxByType.reduce((sum, tax) => sum + tax.total, 0))}</td>
                   </tr>
                 </tfoot>
@@ -584,9 +586,9 @@ export default function TaxesSettingsPage() {
         )}
         <Card className="overflow-hidden">
           {reportLoading ? (
-            <p className="text-center py-12 text-slate-500">Cargando transacciones...</p>
+            <p className="text-center py-12 text-slate-500">{t("settings.taxes.loadingTx")}</p>
           ) : filteredTransactions.length === 0 ? (
-            <p className="text-center py-12 text-slate-400">No hay transacciones en este período.</p>
+            <p className="text-center py-12 text-slate-400">{t("settings.taxes.noTx")}</p>
           ) : (
             <>
               {/* Desktop Table */}
@@ -594,13 +596,13 @@ export default function TaxesSettingsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-800 text-white uppercase tracking-wide">
-                      <th className="px-4 py-3 text-left">Hora</th>
-                      <th className="px-4 py-3 text-left">Transacción</th>
-                      <th className="px-4 py-3 text-left">Cajero</th>
-                      <th className="px-4 py-3 text-right">Subtotal</th>
-                      <th className="px-4 py-3 text-right">Impuesto</th>
-                      <th className="px-4 py-3 text-right">Total</th>
-                      <th className="px-4 py-3 text-center">Método</th>
+                      <th className="px-4 py-3 text-left">{t("settings.taxes.colTime")}</th>
+                      <th className="px-4 py-3 text-left">{t("settings.taxes.colTx")}</th>
+                      <th className="px-4 py-3 text-left">{t("settings.taxes.colCashier")}</th>
+                      <th className="px-4 py-3 text-right">{t("settings.taxes.colSubtotal")}</th>
+                      <th className="px-4 py-3 text-right">{t("settings.taxes.colTax")}</th>
+                      <th className="px-4 py-3 text-right">{t("settings.taxes.colTxTotal")}</th>
+                      <th className="px-4 py-3 text-center">{t("settings.taxes.colMethod")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -634,10 +636,10 @@ export default function TaxesSettingsPage() {
                             }`}
                           >
                             {tx.paymentMethod === "CASH"
-                              ? "Efectivo"
+                              ? t("settings.taxes.cash")
                               : tx.paymentMethod === "CARD"
-                              ? "Tarjeta"
-                              : "Transferencia"}
+                              ? t("settings.taxes.card")
+                              : t("settings.taxes.transfer")}
                           </span>
                         </td>
                       </tr>
@@ -668,13 +670,13 @@ export default function TaxesSettingsPage() {
 
                     {/* Cashier */}
                     <div className="text-xs text-slate-600">
-                      <span className="font-semibold">Cajero:</span> {tx.cashierName || "—"}
+                      <span className="font-semibold">{t("settings.taxes.colCashier")}:</span> {tx.cashierName || "—"}
                     </div>
 
                     {/* Amounts */}
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="bg-slate-50 p-2 rounded">
-                        <p className="text-slate-500 font-medium">Subtotal</p>
+                        <p className="text-slate-500 font-medium">{t("settings.taxes.colSubtotal")}</p>
                         <p className="font-semibold text-slate-900">{fmt(tx.subtotal)}</p>
                       </div>
                       <div
@@ -683,7 +685,7 @@ export default function TaxesSettingsPage() {
                         }`}
                       >
                         <p className={`font-medium ${tx.tax && tx.tax > 0 ? "text-green-700" : "text-slate-500"}`}>
-                          Impuesto
+                          {t("settings.taxes.colTax")}
                         </p>
                         <p
                           className={`font-semibold ${
@@ -694,13 +696,13 @@ export default function TaxesSettingsPage() {
                         </p>
                       </div>
                       <div className="bg-blue-50 p-2 rounded">
-                        <p className="text-blue-700 font-medium">Método</p>
+                        <p className="text-blue-700 font-medium">{t("settings.taxes.colMethod")}</p>
                         <p className="font-semibold text-blue-900 text-xs">
                           {tx.paymentMethod === "CASH"
-                            ? "Efectivo"
+                            ? t("settings.taxes.cash")
                             : tx.paymentMethod === "CARD"
-                            ? "Tarjeta"
-                            : "Transfer."}
+                            ? t("settings.taxes.card")
+                            : t("settings.taxes.transfer")}
                         </p>
                       </div>
                     </div>

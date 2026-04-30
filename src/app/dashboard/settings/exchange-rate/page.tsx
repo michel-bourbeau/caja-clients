@@ -117,13 +117,6 @@ export default function ExchangeRatePage() {
             ← Volver a Configuración General
           </Link>
         </div>
-        <div className="flex items-center gap-3 mb-6">
-          <PageIcon type="settings" size="lg" displayType="lucide" />
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Tasa de Cambio USD/NIO</h1>
-            <p className="text-sm text-slate-600 mt-1">Configura el tipo de cambio para pagos en dólares estadounidenses</p>
-          </div>
-        </div>
 
         {/* Messages */}
         {message && (
