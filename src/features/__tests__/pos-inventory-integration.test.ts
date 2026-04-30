@@ -20,6 +20,7 @@ describe('POS-Inventory Integration', () => {
     name: 'Test Product',
     sku: 'TST-001',
     price: 100,
+    cost_price: 50,
     quantity: 100,
     category: 'cat-1',
     description: 'Test product',

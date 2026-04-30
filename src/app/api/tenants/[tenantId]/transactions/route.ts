@@ -68,24 +68,38 @@ export async function GET(
     const fromUtc = url.searchParams.get("fromUtc");
     const toUtc = url.searchParams.get("toUtc");
 
-    let query = supabaseAdmin
-      .from("transactions")
-      .select("*")
-      .eq("tenant_id", tenantId);
+    // Paginate through all rows (Supabase default limit is 1000)
+    const PAGE_SIZE = 1000;
+    let allData: any[] = [];
+    let offset = 0;
 
-    // Apply date filters — prefer exact UTC range (Nicaragua-aware), fallback to date strings
-    if (fromUtc && toUtc) {
-      query = query.gte("created_at", fromUtc).lt("created_at", toUtc);
-    } else if (from && to) {
-      query = query
-        .gte("created_at", `${from}T00:00:00Z`)
-        .lte("created_at", `${to}T23:59:59Z`);
+    while (true) {
+      let query = supabaseAdmin
+        .from("transactions")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      // Apply date filters — prefer exact UTC range (Nicaragua-aware), fallback to date strings
+      if (fromUtc && toUtc) {
+        query = query.gte("created_at", fromUtc).lt("created_at", toUtc);
+      } else if (from && to) {
+        query = query
+          .gte("created_at", `${from}T00:00:00Z`)
+          .lte("created_at", `${to}T23:59:59Z`);
+      }
+
+      const { data: page, error } = await query;
+      if (error) throw error;
+
+      if (!page || page.length === 0) break;
+      allData = allData.concat(page);
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
     }
 
-    const { data, error } = await query.order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return NextResponse.json(data || []);
+    return NextResponse.json(allData);
   } catch (error) {
     console.error("[GET /transactions] Error:", error);
     return NextResponse.json(

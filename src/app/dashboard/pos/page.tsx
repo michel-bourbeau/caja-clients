@@ -824,13 +824,17 @@ export default function POSPage() {
         ) : (
           // LIST VIEW
           <>
-            <table className="w-full text-xs sm:text-sm">
+            <table className="table-fixed w-full text-xs sm:text-sm">
+              <colgroup>
+                <col />
+                <col className="hidden md:table-column w-32" />
+                <col className="w-32 sm:w-40" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-800 text-white text-xs sm:text-sm font-semibold uppercase tracking-wide">
                   <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left text-white">{t("pos.colProduct")}</th>
                   <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-left hidden md:table-cell text-white">{t("pos.colCategory")}</th>
-                  <th className="w-full"></th>
-                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-right"></th>
+                  <th className="px-2 sm:px-4 py-2 sm:py-2.5 text-right text-white"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -838,7 +842,7 @@ export default function POSPage() {
                   if (row.type === "header") {
                     return (
                       <tr key={`header-${row.catId}`} className="bg-slate-100 border-t-2 border-slate-200">
-                        <td colSpan={4} className="px-2 sm:px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <td colSpan={3} className="px-2 sm:px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
                           {row.catName}
                         </td>
                       </tr>
@@ -856,13 +860,13 @@ export default function POSPage() {
                       key={product.id}
                       className={`group transition-colors text-xs sm:text-sm ${outOfStock && !hasVariants ? "opacity-50" : "hover:bg-blue-50"}`}
                     >
-                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 min-w-0 max-w-0 overflow-hidden">
+                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 min-w-0 overflow-hidden">
                         <p className="font-medium text-slate-900 truncate text-xs sm:text-sm">{product.name}</p>
                         {product.description && (
-                          <p className="text-xs sm:text-sm text-slate-500 truncate max-w-xs">{product.description}</p>
+                          <p className="text-xs sm:text-sm text-slate-500 truncate">{product.description}</p>
                         )}
                       </td>
-                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 hidden md:table-cell">
+                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 hidden md:table-cell whitespace-nowrap">
                         {category ? (
                           <span className="inline-block px-2 py-0.5 text-xs font-semibold rounded-lg bg-blue-100 text-blue-700">
                             {category.name}
@@ -871,8 +875,7 @@ export default function POSPage() {
                           <span className="text-sm text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="w-full"></td>
-                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 text-right min-w-0">
+                      <td className="px-2 sm:px-4 py-1.5 sm:py-2.5 text-right">
                         {hasVariants ? (
                           /* Inline format buttons — price + stock visible */
                           <div className="flex flex-col gap-1 sm:gap-1.5 items-stretch">

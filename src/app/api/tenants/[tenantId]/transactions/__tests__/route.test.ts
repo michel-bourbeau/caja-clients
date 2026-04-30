@@ -86,13 +86,46 @@ const ITEM = { productId: "p1", quantity: 2, price: 50, total: 100 };
 describe("GET /api/tenants/[tenantId]/transactions", () => {
 
   function setupGet(result: { data: unknown; error: unknown }) {
+    let pagesDone = 0;
+
+    // Spies partagés — tous les thenables de la chaîne utilisent les mêmes instances
+    // pour que les assertions expect(mock.gte).toHaveBeenCalledWith(...) passent toujours.
+    const spies = {
+      gte: jest.fn(),
+      lte: jest.fn(),
+      lt:  jest.fn(),
+    };
+
+    function makeThenable(res: { data: unknown; error: unknown }) {
+      const t: any = {
+        then: (onFulfilled: any) => Promise.resolve(res).then(onFulfilled),
+        gte: spies.gte,
+        lte: spies.lte,
+        lt:  spies.lt,
+      };
+      return t;
+    }
+
+    // Chaque spy de filtre retourne un nouveau thenable avec le même résultat
+    spies.gte.mockImplementation(() => makeThenable(result));
+    spies.lte.mockImplementation(() => makeThenable(result));
+    spies.lt.mockImplementation(()  => makeThenable(result));
+
     const mock: any = {
-      from: jest.fn().mockReturnThis(),
+      from:   jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      gte: jest.fn().mockReturnThis(),
-      lte: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue(result),
+      eq:     jest.fn().mockReturnThis(),
+      order:  jest.fn().mockReturnThis(),
+      gte:    spies.gte,
+      lte:    spies.lte,
+      lt:     spies.lt,
+      range: jest.fn().mockImplementation(() => {
+        const pageResult = pagesDone === 0
+          ? { data: result.data, error: result.error }
+          : { data: [], error: null };
+        pagesDone++;
+        return makeThenable(pageResult);
+      }),
     };
     (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
     return mock;
@@ -149,6 +182,94 @@ describe("GET /api/tenants/[tenantId]/transactions", () => {
     const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
     const res = await GET(req as any, { params: PARAMS });
     expect(res.status).toBe(500);
+  });
+});
+
+// ─── Pagination Tests ─────────────────────────────────────────────────────────
+
+describe("GET pagination — retourne TOUTES les lignes", () => {
+
+  /** Crée un mock multi-pages pour tester la boucle de pagination. */
+  function setupPagination(pages: Array<{ data: unknown; error: unknown }>) {
+    let pageIndex = 0;
+
+    function makeThenable(res: { data: unknown; error: unknown }) {
+      const t: any = { then: (fn: any) => Promise.resolve(res).then(fn) };
+      t.gte = jest.fn().mockImplementation(() => makeThenable(res));
+      t.lte = jest.fn().mockImplementation(() => makeThenable(res));
+      t.lt  = jest.fn().mockImplementation(() => makeThenable(res));
+      return t;
+    }
+
+    const mock: any = {
+      from:   jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      eq:     jest.fn().mockReturnThis(),
+      order:  jest.fn().mockReturnThis(),
+      gte:    jest.fn().mockReturnThis(),
+      lte:    jest.fn().mockReturnThis(),
+      lt:     jest.fn().mockReturnThis(),
+      range: jest.fn().mockImplementation(() => {
+        const res = pageIndex < pages.length ? pages[pageIndex] : { data: [], error: null };
+        pageIndex++;
+        return makeThenable(res);
+      }),
+    };
+
+    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
+    return mock;
+  }
+
+  function makeRows(count: number) {
+    return Array.from({ length: count }, (_, i) => ({ id: `TX-${i}`, tenant_id: TENANT }));
+  }
+
+  it("retourne 1000 lignes quand exactement 1 page pleine (régression limite Supabase)", async () => {
+    setupPagination([
+      { data: makeRows(1000), error: null },
+      { data: [],             error: null }, // page 2 vide → arrêt
+    ]);
+    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
+    const res = await GET(req as any, { params: PARAMS });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(1000);
+  });
+
+  it("agrège correctement 2 pages (1000 + 500 = 1500 lignes)", async () => {
+    setupPagination([
+      { data: makeRows(1000), error: null },
+      { data: makeRows(500),  error: null },
+      { data: [],             error: null }, // arrêt
+    ]);
+    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
+    const res = await GET(req as any, { params: PARAMS });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(1500);
+  });
+
+  it("s'arrête après 1 seule requête quand moins de 1000 lignes (<PAGE_SIZE)", async () => {
+    const mock = setupPagination([
+      { data: makeRows(42), error: null },
+    ]);
+    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
+    const res = await GET(req as any, { params: PARAMS });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toHaveLength(42);
+    expect(mock.range).toHaveBeenCalledTimes(1); // une seule page demandée
+  });
+
+  it("appelle range() avec les bons offsets à chaque itération", async () => {
+    const mock = setupPagination([
+      { data: makeRows(1000), error: null },
+      { data: makeRows(1000), error: null },
+      { data: makeRows(1),    error: null }, // < 1000 → arrêt
+    ]);
+    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
+    await GET(req as any, { params: PARAMS });
+    expect(mock.range).toHaveBeenNthCalledWith(1, 0,    999);
+    expect(mock.range).toHaveBeenNthCalledWith(2, 1000, 1999);
+    expect(mock.range).toHaveBeenNthCalledWith(3, 2000, 2999);
+    expect(mock.range).toHaveBeenCalledTimes(3);
   });
 });
 

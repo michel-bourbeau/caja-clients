@@ -248,12 +248,16 @@ function PayrollContent() {
           const canPrev = idx < periods.length - 1;
           const canNext = idx > 0;
           return (
-            <div className="flex items-center gap-2 mb-6">
-              <Button variant="ghost" onClick={() => canPrev && setSelectedPeriod(periods[idx + 1])} disabled={!canPrev} size="sm">
+            <div className="flex items-center gap-2 mb-6 w-full">
+              <button
+                onClick={() => canPrev && setSelectedPeriod(periods[idx + 1])}
+                disabled={!canPrev}
+                className="flex-shrink-0 p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-              </Button>
+              </button>
 
               <select
                 value={selectedPeriod?.id ?? ""}
@@ -261,7 +265,7 @@ function PayrollContent() {
                   const p = periods.find((p) => p.id === e.target.value);
                   if (p) setSelectedPeriod(p);
                 }}
-                className="flex-1 px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="flex-1 min-w-0 px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
                 {periods.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -270,11 +274,15 @@ function PayrollContent() {
                 ))}
               </select>
 
-              <Button variant="ghost" onClick={() => canNext && setSelectedPeriod(periods[idx - 1])} disabled={!canNext} size="sm">
+              <button
+                onClick={() => canNext && setSelectedPeriod(periods[idx - 1])}
+                disabled={!canNext}
+                className="flex-shrink-0 p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </Button>
+              </button>
             </div>
           );
         })()}

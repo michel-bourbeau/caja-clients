@@ -22,7 +22,7 @@ export default function ProfitsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [periodType, setPeriodType] = useState<PeriodType>("week");
   const [periodDate, setPeriodDate] = useState(() => new Date());
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [periodGroupBy, setPeriodGroupBy] = useState<"day" | "week" | "month" | "year">("day");
 
   // Same date range logic as Transactions page
@@ -53,14 +53,15 @@ export default function ProfitsPage() {
     };
   }, [periodDate, periodType]);
 
-  // Fetch using the SAME service as the Transactions page
+  // Charge TOUTES les transactions une seule fois — le filtre de période est appliqué côté client.
+  // Cela évite un appel API à chaque changement de vue (mois → année, etc.).
   const fetchData = async () => {
     if (!tenantId) return;
     setLoading(true);
     setMessage(null);
     try {
-      const data = await TransactionService.fetchTransactions(tenantId, dateFrom, dateTo);
-      setTransactions(data);
+      const data = await TransactionService.fetchTransactions(tenantId);
+      setAllTransactions(data);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error loading data");
     } finally {
@@ -68,9 +69,26 @@ export default function ProfitsPage() {
     }
   };
 
+  // Chargement initial
   useEffect(() => {
     fetchData();
-  }, [tenantId, dateFrom, dateTo]);
+  }, [tenantId]);
+
+  // Rechargement quand l'utilisateur revient sur la page (depuis un autre onglet/route)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchData();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [tenantId]);
+
+  // Filtre client-side selon la période sélectionnée — aucun appel API supplémentaire
+  const transactions = useMemo(() => {
+    const from = new Date(`${dateFrom}T00:00:00`);
+    const to = new Date(`${dateTo}T23:59:59`);
+    return allTransactions.filter((tx) => tx.timestamp >= from && tx.timestamp <= to);
+  }, [allTransactions, dateFrom, dateTo]);
 
   // ---- Profit calculations from transactions (client-side) ----
 

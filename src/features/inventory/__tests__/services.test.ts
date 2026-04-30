@@ -7,6 +7,7 @@ describe('InventoryService', () => {
     name: 'Test Product',
     sku: 'TST-001',
     price: 100,
+    cost_price: 50,
     quantity: 50,
     category: 'cat-1',
     description: 'A test product',

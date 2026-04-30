@@ -27,7 +27,7 @@ export default function TransactionsPage() {
     TRANSFER: t("transactions.payment.transfer"),
   };
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +133,16 @@ export default function TransactionsPage() {
     if (tenantId) {
       loadData();
     }
-  }, [tenantId, currentDate, periodType]);
+  }, [tenantId]);
+
+  // Rechargement quand l'utilisateur revient sur la page
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && tenantId) loadData();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [tenantId]);
 
   // Update tax module status when features load
   useEffect(() => {
@@ -151,13 +160,9 @@ export default function TransactionsPage() {
     try {
       setIsLoading(true);
       setError(null);
-      // Fetch transactions for the current date range
-      const transactionsData = await TransactionService.fetchTransactions(
-        tenantId,
-        dateRange.from,
-        dateRange.to
-      );
-      setTransactions(transactionsData);
+      // Charge TOUTES les transactions — le filtre de période est appliqué côté client
+      const transactionsData = await TransactionService.fetchTransactions(tenantId);
+      setAllTransactions(transactionsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("transactions.error.unknown"));
     } finally {
@@ -172,10 +177,8 @@ export default function TransactionsPage() {
   };
 
   const filteredTransactions = useMemo(() => {
-    let list = [...transactions];
-
-    // Apply date range filter
-    list = list.filter((tx) => {
+    // Filtre client-side par période — pas d'appel API supplémentaire
+    let list = allTransactions.filter((tx) => {
       const txDate = toNicaraguaDateString(tx.timestamp);
       return txDate >= dateRange.from && txDate <= dateRange.to;
     });
@@ -477,24 +480,24 @@ export default function TransactionsPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 bg-slate-800 text-white text-sm font-semibold uppercase tracking-wide">
-                          <th className="px-4 py-2 text-left text-white">{t("transactions.table.time")}</th>
-                          <th className="px-4 py-2 text-left text-white">{t("transactions.table.products")}</th>
-                          <th className="px-4 py-2 text-left hidden lg:table-cell text-white">{t("transactions.table.cashier")}</th>
-                          <th className="px-4 py-2 text-center hidden lg:table-cell text-white">{t("transactions.table.method")}</th>
-                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">{t("transactions.table.subtotal")}</th>
-                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">{t("transactions.table.discount")}</th>
-                          <th className="px-4 py-2 text-right hidden lg:table-cell text-white">{t("transactions.table.tax")}</th>
-                          <th className="px-4 py-2 text-right font-bold text-white">{t("transactions.table.total")}</th>
-                          <th className="px-4 py-2 text-center w-24"></th>
+                          <th className="px-2 lg:px-3 py-2 text-left text-white whitespace-nowrap">{t("transactions.table.time")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-left text-white">{t("transactions.table.products")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-left hidden xl:table-cell text-white whitespace-nowrap">{t("transactions.table.cashier")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-center text-white whitespace-nowrap">{t("transactions.table.method")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-right hidden xl:table-cell text-white whitespace-nowrap">{t("transactions.table.subtotal")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-right hidden xl:table-cell text-white whitespace-nowrap">{t("transactions.table.discount")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-right hidden xl:table-cell text-white whitespace-nowrap">{t("transactions.table.tax")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-right font-bold text-white whitespace-nowrap">{t("transactions.table.total")}</th>
+                          <th className="px-2 lg:px-3 py-2 text-center"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {dayTxs.map((tx) => (
                           <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
-                            <td className="px-4 py-2.5 text-slate-500 text-sm whitespace-nowrap">
+                            <td className="px-2 lg:px-3 py-2.5 text-slate-500 text-sm whitespace-nowrap">
                               {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
                             </td>
-                            <td className="px-4 py-2.5 max-w-xs">
+                            <td className="px-2 lg:px-3 py-2.5 max-w-[180px] lg:max-w-[240px]">
                               {tx.items && tx.items.length > 0 ? (
                                 <div className="space-y-0.5">
                                   {tx.items.map((item: any, i: number) => (
@@ -508,10 +511,10 @@ export default function TransactionsPage() {
                                 <span className="text-sm text-slate-400 italic">{t("transactions.table.noProducts")}</span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-left hidden lg:table-cell">
+                            <td className="px-2 lg:px-3 py-2.5 text-left hidden xl:table-cell">
                               <span className="text-sm text-slate-700">{tx.cashierName || "—"}</span>
                             </td>
-                            <td className="px-4 py-2.5 text-center hidden lg:table-cell">
+                            <td className="px-2 lg:px-3 py-2.5 text-center">
                               {tx.status === "REFUND" ? (
                                 <Badge variant="error">{t("transactions.status.refunded")}</Badge>
                               ) : (
@@ -520,25 +523,25 @@ export default function TransactionsPage() {
                                 </Badge>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden lg:table-cell">
+                            <td className="px-2 lg:px-3 py-2.5 text-right text-sm text-slate-600 hidden xl:table-cell">
                               {fmt(tx.subtotal)}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-sm hidden lg:table-cell">
+                            <td className="px-2 lg:px-3 py-2.5 text-right text-sm hidden xl:table-cell">
                               {(tx.discount || 0) > 0 ? (
                                 <span className="text-amber-600">-{fmt(tx.discount || 0)}</span>
                               ) : (
                                 <span className="text-slate-300">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-sm text-slate-600 hidden lg:table-cell">
+                            <td className="px-2 lg:px-3 py-2.5 text-right text-sm text-slate-600 hidden xl:table-cell">
                               {(tx.tax || 0) > 0 ? fmt(tx.tax) : <span className="text-slate-300">—</span>}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-bold whitespace-nowrap">
+                            <td className="px-2 lg:px-3 py-2.5 text-right font-bold whitespace-nowrap">
                               <span className={tx.status === "REFUND" ? "text-red-600" : "text-slate-900"}>
                                 {tx.status === "REFUND" && "-"}{fmt(Math.abs(tx.total))}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-center">
+                            <td className="px-2 lg:px-3 py-2.5 text-center">
                               <div className="flex gap-1.5 justify-center">
                                 <IconButton
                                   icon="eye"

@@ -199,6 +199,7 @@ html[data-scroll-behavior="smooth"] {
     font-family: inherit;
     font-size: 15px;
     box-shadow: var(--shadow-xs);
+    color-scheme: light;
   }
 
   input[type='text']:hover:not(:focus),

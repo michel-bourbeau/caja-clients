@@ -90,7 +90,7 @@ const DEFAULT_SETTINGS: Settings = {
 
 export default function SettingsPage() {
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
-  const { setTenantDefault } = useLanguage();
+  const { setTenantDefault, t } = useLanguage();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(true);
@@ -559,6 +559,99 @@ export default function SettingsPage() {
         </Card>
 
         <div className="space-y-6">
+          {/* Payroll Frequency Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>⚙️ {t("payroll.periods.configTitle")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingSettings ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                <div className="space-y-5">
+                  {/* Frequency */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-900 mb-2">{t("payroll.periods.freqLabel")}</label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      {(["weekly", "biweekly", "monthly"] as const).map((f) => (
+                        <label
+                          key={f}
+                          className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                            settings.payrollConfig.frequency === f
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 bg-white hover:border-slate-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="payrollFrequency"
+                            value={f}
+                            checked={settings.payrollConfig.frequency === f}
+                            onChange={() => setSettings((s) => ({ ...s, payrollConfig: { ...s.payrollConfig, frequency: f } }))}
+                            className="accent-blue-600"
+                          />
+                          <span className="text-sm font-semibold text-slate-900">
+                            {t(`payroll.freq${f.charAt(0).toUpperCase()}${f.slice(1)}` as any)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Week start day — shown for weekly/biweekly */}
+                  {(settings.payrollConfig.frequency === "weekly" || settings.payrollConfig.frequency === "biweekly") && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-2">{t("payroll.periods.weekStartLabel")}</label>
+                      <div className="flex flex-wrap gap-2">
+                        {[1, 2, 3, 4, 5, 6, 0].map((day) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => setSettings((s) => ({ ...s, payrollConfig: { ...s.payrollConfig, weekStartDay: day } }))}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                              settings.payrollConfig.weekStartDay === day
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-slate-700 border-slate-300 hover:border-blue-400"
+                            }`}
+                          >
+                            {t(`payroll.weekDay${day}` as any)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Month start day — shown for monthly */}
+                  {settings.payrollConfig.frequency === "monthly" && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-2">{t("payroll.periods.monthStartLabel")}</label>
+                      <select
+                        value={settings.payrollConfig.monthStartDay}
+                        onChange={(e) => setSettings((s) => ({ ...s, payrollConfig: { ...s.payrollConfig, monthStartDay: Number(e.target.value) } }))}
+                        className="w-48 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-4 border-t border-slate-200">
+                    <Button
+                      onClick={savePayrollConfig}
+                      disabled={savingPayroll}
+                      variant="primary"
+                      loading={savingPayroll}
+                    >
+                      {savingPayroll ? t("payroll.periods.saving") : t("payroll.periods.saveBtn")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Payment Information Card */}
           <Card>
             <CardHeader>
