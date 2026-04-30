@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Conta
 import { PageIcon, LoadingSpinner } from "@/components";
 import { DollarSign } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ExchangeSettings {
   usdExchangeRate: number;
@@ -14,6 +15,7 @@ interface ExchangeSettings {
 
 export default function ExchangeRatePage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [settings, setSettings] = useState<ExchangeSettings>({ usdExchangeRate: 37.00 });
   const [loading, setLoading] = useState(true);
@@ -40,7 +42,7 @@ export default function ExchangeRatePage() {
       }
     } catch (e) {
       console.error("Error loading settings:", e);
-      showMessage("error", "Error al cargar configuración");
+      showMessage("error", t("settings.exchangeRate.msgLoadError"));
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,7 @@ export default function ExchangeRatePage() {
 
     const rate = parseFloat(tempRate);
     if (isNaN(rate) || rate <= 0) {
-      showMessage("error", "Por favor ingresa un valor válido mayor a 0");
+      showMessage("error", t("settings.exchangeRate.msgInvalidRate"));
       return;
     }
 
@@ -76,13 +78,13 @@ export default function ExchangeRatePage() {
         const data = await res.json();
         setSettings({ usdExchangeRate: data.usdExchangeRate });
         setTempRate(data.usdExchangeRate.toString());
-        showMessage("success", "Tasa de cambio actualizada correctamente");
+        showMessage("success", t("settings.exchangeRate.msgSaved"));
       } else {
-        showMessage("error", "Error al guardar");
+        showMessage("error", t("settings.exchangeRate.msgSaveError"));
       }
     } catch (e) {
       console.error("Error:", e);
-      showMessage("error", "Error de conexión");
+      showMessage("error", t("settings.exchangeRate.msgConnError"));
     } finally {
       setSaving(false);
     }
@@ -110,11 +112,11 @@ export default function ExchangeRatePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Tasa de Cambio USD</h1>
-            <p className="text-slate-600 mt-1">Configura la tasa de cambio USD a NIO para los reportes</p>
+            <h1 className="text-3xl font-bold text-slate-900">{t("settings.exchangeRate.pageTitle")}</h1>
+            <p className="text-slate-600 mt-1">{t("settings.exchangeRate.pageDesc")}</p>
           </div>
           <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-            ← Volver a Configuración General
+            {t("settings.exchangeRate.backLink")}
           </Link>
         </div>
 
@@ -122,7 +124,7 @@ export default function ExchangeRatePage() {
         {message && (
           <Alert
             variant={message.type === "success" ? "success" : "error"}
-            title={message.type === "success" ? "Éxito" : "Error"}
+            title={message.type === "success" ? t("common.success") : t("common.error")}
           >
             {message.text}
           </Alert>
@@ -133,12 +135,12 @@ export default function ExchangeRatePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="text-blue-600" size={24} />
-              Configuración de Cambio
+              {t("settings.exchangeRate.cardTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-slate-600 text-sm">
-              Cuando un cliente paga en dólares estadounidenses en la caja, el sistema convertirá automáticamente la cantidad a Córdobas usando esta tasa de cambio.
+              {t("settings.exchangeRate.cardDesc")}
             </p>
 
             {/* Exchange Rate Input */}
@@ -146,7 +148,7 @@ export default function ExchangeRatePage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Tasa de Cambio USD → NIO
+                    {t("settings.exchangeRate.rateLabel")}
                   </label>
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
@@ -159,13 +161,13 @@ export default function ExchangeRatePage() {
                         placeholder="37.00"
                       />
                     </div>
-                    <span className="text-slate-500 text-sm whitespace-nowrap">Córdobas por USD</span>
+                    <span className="text-slate-500 text-sm whitespace-nowrap">{t("settings.exchangeRate.rateUnit")}</span>
                   </div>
                 </div>
 
                 {/* Conversion Preview */}
                 <div className="bg-white p-4 rounded border border-blue-200">
-                  <p className="text-sm text-slate-600 mb-2">Ejemplo de conversión:</p>
+                  <p className="text-sm text-slate-600 mb-2">{t("settings.exchangeRate.previewTitle")}</p>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-700">1 USD =</span>
@@ -185,7 +187,7 @@ export default function ExchangeRatePage() {
                 {/* Info Box */}
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <p className="text-sm text-amber-800">
-                    <span className="font-semibold">💡 Nota:</span> Esta tasa se utilizará cuando el cliente seleccione "USD" como método de pago en la caja. El cambio se calculará automáticamente en Córdobas.
+                    {t("settings.exchangeRate.note")}
                   </p>
                 </div>
               </div>
@@ -199,7 +201,7 @@ export default function ExchangeRatePage() {
                 disabled={saving}
                 className="flex-1"
               >
-                Cancelar
+                {t("settings.exchangeRate.cancelBtn")}
               </Button>
               <Button
                 variant="primary"
@@ -207,7 +209,7 @@ export default function ExchangeRatePage() {
                 disabled={saving}
                 className="flex-1"
               >
-                {saving ? "Guardando..." : "Guardar Tasa"}
+                {saving ? t("settings.exchangeRate.saving") : t("settings.exchangeRate.saveBtn")}
               </Button>
             </div>
           </CardContent>
@@ -216,21 +218,21 @@ export default function ExchangeRatePage() {
         {/* Information Section */}
         <Card>
           <CardHeader>
-            <CardTitle>¿Cómo funciona?</CardTitle>
+            <CardTitle>{t("settings.exchangeRate.infoTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-slate-600">
             <div className="space-y-3">
               <div>
-                <h4 className="font-semibold text-slate-900 mb-1">📱 En el Punto de Venta:</h4>
-                <p>Cuando realizas una venta, podrás seleccionar "USD" como método de pago. El cliente pagará en dólares y el sistema calculará automáticamente el equivalente en Córdobas.</p>
+                <h4 className="font-semibold text-slate-900 mb-1">{t("settings.exchangeRate.infoPOSTitle")}</h4>
+                <p>{t("settings.exchangeRate.infoPOSDesc")}</p>
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900 mb-1">💰 Cálculo del Cambio:</h4>
-                <p>Si el cliente paga en USD, el sistema multiplicará la cantidad por la tasa de cambio para obtener el monto en Córdobas, y calculará el cambio correspondiente.</p>
+                <h4 className="font-semibold text-slate-900 mb-1">{t("settings.exchangeRate.infoCalcTitle")}</h4>
+                <p>{t("settings.exchangeRate.infoCalcDesc")}</p>
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900 mb-1">📊 Historial:</h4>
-                <p>El historial de transacciones guardará tanto el monto recibido en USD como el equivalente en Córdobas para tu referencia.</p>
+                <h4 className="font-semibold text-slate-900 mb-1">{t("settings.exchangeRate.infoHistoryTitle")}</h4>
+                <p>{t("settings.exchangeRate.infoHistoryDesc")}</p>
               </div>
             </div>
           </CardContent>

@@ -6,16 +6,15 @@ import { useRouter } from "next/navigation";
 import { useTheme, FONT_SIZE_MAP, type FontSize } from "@/context/ThemeContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, Section, Container } from "@/components/StripeUIComponents";
 
-const FONT_SIZE_OPTIONS: { value: FontSize; label: string; description: string }[] = [
-  { value: "small", label: "Pequeño", description: "Compacto y denso" },
-  { value: "normal", label: "Normal", description: "Tamaño estándar" },
-  { value: "large", label: "Grande", description: "Mejor legibilidad" },
-];
+// font size values only — labels come from i18n
+const FONT_SIZE_VALUES: FontSize[] = ["small", "normal", "large"];
 
 export default function ThemePage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const tenantId = useTenantId();
   const { settings, updateTheme, setPreviewTheme, loading: themeLoading } = useTheme();
@@ -48,7 +47,7 @@ export default function ThemePage() {
         logoUrl: settings.logoUrl,
       });
 
-      setMessage({ type: "success", text: "Tema guardado exitosamente" });
+      setMessage({ type: "success", text: t("settings.theme.msgSaved") });
     } catch (err) {
       setMessage({ type: "error", text: (err as Error).message });
     } finally {
@@ -59,7 +58,7 @@ export default function ThemePage() {
   if (themeLoading) {
     return (
       <Container>
-        <div className="py-10 text-center text-slate-400">Cargando configuración de tema...</div>
+        <div className="py-10 text-center text-slate-400">{t("settings.theme.loading")}</div>
       </Container>
     );
   }
@@ -70,11 +69,11 @@ export default function ThemePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <Section
-            title="Personalización de Tema"
-            description="Ajusta el tamaño global de la letra en tu aplicación"
+            title={t("settings.theme.pageTitle")}
+            description={t("settings.theme.pageDesc")}
           />
           <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-            ← Volver a Configuración General
+            {t("settings.theme.backLink")}
           </Link>
         </div>
 
@@ -82,7 +81,7 @@ export default function ThemePage() {
         {message && (
           <Alert
             variant={message.type === "success" ? "success" : "error"}
-            title={message.type === "success" ? "Éxito" : "Error"}
+            title={message.type === "success" ? t("common.success") : t("common.error")}
           >
             {message.text}
           </Alert>
@@ -91,15 +90,18 @@ export default function ThemePage() {
         {/* Font Size Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Tamaño de Letra Global</CardTitle>
+            <CardTitle>{t("settings.theme.fontSizeCardTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
-              {FONT_SIZE_OPTIONS.map((option) => (
+              {FONT_SIZE_VALUES.map((size) => {
+                const labelKey = `settings.theme.font${size.charAt(0).toUpperCase()}${size.slice(1)}` as "settings.theme.fontSmall";
+                const descKey = `settings.theme.font${size.charAt(0).toUpperCase()}${size.slice(1)}Desc` as "settings.theme.fontSmallDesc";
+                return (
                 <label
-                  key={option.value}
+                  key={size}
                   className={`flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    fontSize === option.value
+                    fontSize === size
                       ? "border-slate-900 bg-slate-50"
                       : "border-slate-200 hover:border-slate-300"
                   }`}
@@ -107,15 +109,16 @@ export default function ThemePage() {
                   <input
                     type="radio"
                     name="fontSize"
-                    value={option.value}
-                    checked={fontSize === option.value}
+                    value={size}
+                    checked={fontSize === size}
                     onChange={(e) => handleFontSizeChange(e.target.value as FontSize)}
                     className="w-4 h-4"
                   />
-                  <p className="mt-3 font-medium text-slate-900">{option.label}</p>
-                  <p className="text-xs text-slate-500 mt-1">{option.description}</p>
+                  <p className="mt-3 font-medium text-slate-900">{t(labelKey)}</p>
+                  <p className="text-xs text-slate-500 mt-1">{t(descKey)}</p>
                 </label>
-              ))}
+              );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -123,34 +126,34 @@ export default function ThemePage() {
         {/* Preview Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Vista Previa</CardTitle>
+            <CardTitle>{t("settings.theme.previewCardTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 bg-white p-6 rounded-lg border border-slate-200">
             <div>
-              <p className="text-xs font-semibold text-slate-600 mb-3">Encabezado Principal (H1)</p>
-              <h1 className="text-4xl font-bold text-slate-900">Ejemplo de Título Principal</h1>
+              <p className="text-xs font-semibold text-slate-600 mb-3">{t("settings.theme.previewH1Label")}</p>
+              <h1 className="text-4xl font-bold text-slate-900">{t("settings.theme.previewH1Text")}</h1>
             </div>
             
             <div>
-              <p className="text-xs font-semibold text-slate-600 mb-3">Encabezado Secundario (H2)</p>
-              <h2 className="text-2xl font-bold text-slate-900">Ejemplo de Subtítulo</h2>
+              <p className="text-xs font-semibold text-slate-600 mb-3">{t("settings.theme.previewH2Label")}</p>
+              <h2 className="text-2xl font-bold text-slate-900">{t("settings.theme.previewH2Text")}</h2>
             </div>
             
             <div>
-              <p className="text-xs font-semibold text-slate-600 mb-3">Texto Normal</p>
+              <p className="text-xs font-semibold text-slate-600 mb-3">{t("settings.theme.previewBodyLabel")}</p>
               <p className="text-slate-900">
-                Este es un ejemplo de texto normal. Puedes ver cómo se ve el tamaño de letra que has seleccionado en toda la aplicación. Este tamaño se aplicará a los párrafos principales del sistema.
+                {t("settings.theme.previewBodyText")}
               </p>
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-slate-600 mb-3">Texto Pequeño (Helper)</p>
-              <p className="text-xs text-slate-600">Este es un texto pequeño de ayuda o descripción. Se utiliza para notas, etiquetas y texto secundario.</p>
+              <p className="text-xs font-semibold text-slate-600 mb-3">{t("settings.theme.previewSmallLabel")}</p>
+              <p className="text-xs text-slate-600">{t("settings.theme.previewSmallText")}</p>
             </div>
 
             <div className="pt-4 border-t border-slate-200">
               <p className="text-xs font-semibold text-slate-600 mb-3">Botón de Ejemplo</p>
-              <Button variant="primary" disabled>Ejemplo de Botón</Button>
+              <Button variant="primary" disabled>{t("settings.theme.previewBtnText")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -162,7 +165,7 @@ export default function ThemePage() {
             disabled={saving}
             variant="primary"
           >
-            {saving ? "Guardando..." : "💾 Guardar Cambios"}
+            {saving ? t("settings.theme.saving") : t("settings.theme.saveBtn")}
           </Button>
         </div>
       </div>

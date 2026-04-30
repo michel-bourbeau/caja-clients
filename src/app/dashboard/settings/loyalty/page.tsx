@@ -7,6 +7,7 @@ import { Card, Button } from "@/components/ui";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface LoyaltyConfig {
   enabled: boolean;
@@ -17,6 +18,7 @@ interface LoyaltyConfig {
 
 export default function LoyaltySettingsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const { features, loading: featuresLoading } = useTenantFeatures();
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>({
@@ -52,7 +54,7 @@ export default function LoyaltySettingsPage() {
       }
     } catch (e) {
       console.error("Error loading loyalty config:", e);
-      showMessage("error", "Error al cargar configuración");
+      showMessage("error", t("settings.loyalty.msgLoadError"));
     } finally {
       setLoading(false);
     }
@@ -81,10 +83,10 @@ export default function LoyaltySettingsPage() {
           reward_value: loyaltyConfig.rewardValue,
         }),
       });
-      if (res.ok) showMessage("success", "Configuracion de Fidelización guardada");
-      else showMessage("error", "Error al guardar");
+      if (res.ok) showMessage("success", t("settings.loyalty.msgSaved"));
+      else showMessage("error", t("settings.loyalty.msgSaveError"));
     } catch {
-      showMessage("error", "Error de conexion");
+      showMessage("error", t("settings.loyalty.msgConnError"));
     } finally {
       setSaving(false);
     }
@@ -101,10 +103,10 @@ export default function LoyaltySettingsPage() {
   if (!features.loyalty) {
     return (
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Configuracion de Fidelización</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t("settings.loyalty.pageTitle")}</h1>
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-sm text-amber-800">
-            ℹ️ El módulo de Fidelización no está disponible en tu plan actual. Contacta con el administrador para activarlo.
+            {t("settings.loyalty.notAvailable")}
           </p>
         </div>
       </div>
@@ -114,9 +116,9 @@ export default function LoyaltySettingsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Configuracion de Fidelización</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{t("settings.loyalty.pageTitle")}</h1>
         <Link href="/dashboard/settings" className="text-blue-600 hover:text-blue-700 font-medium text-sm">
-          ← Volver a Configuración General
+          {t("settings.loyalty.backLink")}
         </Link>
       </div>
 
@@ -129,7 +131,7 @@ export default function LoyaltySettingsPage() {
       )}
 
       <div className="space-y-6 max-w-2xl">
-        <Card title="Configuracion de Fidelización">
+        <Card title={t("settings.loyalty.cardTitle")}>
           {loading ? (
             <LoadingSpinner size="sm" />
           ) : (
@@ -138,9 +140,9 @@ export default function LoyaltySettingsPage() {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <label className="block text-sm font-semibold text-slate-900">
-                      Activar módulo de Fidelización
+                      {t("settings.loyalty.enableLabel")}
                     </label>
-                    <p className="text-xs text-slate-500 mt-1">Habilita el programa de clientes fieles</p>
+                    <p className="text-xs text-slate-500 mt-1">{t("settings.loyalty.enableDesc")}</p>
                   </div>
                   <input
                     type="checkbox"
@@ -155,9 +157,9 @@ export default function LoyaltySettingsPage() {
                 <>
                   <div className="border-t border-slate-200 pt-6">
                     <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Monto Minimo para Recompensa (NIO)
+                      {t("settings.loyalty.thresholdLabel")}
                     </label>
-                    <p className="text-xs text-slate-500 mb-2">Los clientes reciben una recompensa despues de gastar este monto</p>
+                    <p className="text-xs text-slate-500 mb-2">{t("settings.loyalty.thresholdDesc")}</p>
                     <input
                       type="number"
                       value={loyaltyConfig.rewardThreshold}
@@ -173,7 +175,7 @@ export default function LoyaltySettingsPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Tipo de Recompensa
+                      {t("settings.loyalty.typeLabel")}
                     </label>
                     <select
                       value={loyaltyConfig.rewardType}
@@ -182,20 +184,20 @@ export default function LoyaltySettingsPage() {
                       }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="DISCOUNT_PERCENT">Porcentaje de Descuento (%)</option>
-                      <option value="DISCOUNT_FIXED">Descuento Fijo (NIO)</option>
-                      <option value="FREE_ITEM">Articulo Gratis</option>
+                      <option value="DISCOUNT_PERCENT">{t("settings.loyalty.typePercent")}</option>
+                      <option value="DISCOUNT_FIXED">{t("settings.loyalty.typeFixed")}</option>
+                      <option value="FREE_ITEM">{t("settings.loyalty.typeFree")}</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-900 mb-1">
-                      Valor de la Recompensa
+                      {t("settings.loyalty.valueLabel")}
                     </label>
                     <p className="text-xs text-slate-500 mb-2">
                       {loyaltyConfig.rewardType === "DISCOUNT_PERCENT"
-                        ? "Porcentaje de descuento (ej: 10 = 10%)"
-                        : "Cantidad en NIO"}
+                        ? t("settings.loyalty.valueHintPercent")
+                        : t("settings.loyalty.valueHintFixed")}
                     </p>
                     <input
                       type="number"
@@ -212,11 +214,13 @@ export default function LoyaltySettingsPage() {
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-900">
-                      <span className="font-semibold">Ejemplo:</span> Si un cliente gasta {loyaltyConfig.rewardThreshold} NIO, recibirá{" "}
-                      {loyaltyConfig.rewardType === "DISCOUNT_PERCENT"
-                        ? `un ${loyaltyConfig.rewardValue}% de descuento`
-                        : `${loyaltyConfig.rewardValue} NIO de descuento`}{" "}
-                      en su próxima compra.
+                    <span className="font-semibold">{t("settings.loyalty.exampleLabel")}</span>{" "}
+                    {(loyaltyConfig.rewardType === "DISCOUNT_PERCENT"
+                      ? t("settings.loyalty.exampleTextPercent")
+                      : t("settings.loyalty.exampleTextFixed")
+                    )
+                      .replace("{{threshold}}", loyaltyConfig.rewardThreshold.toString())
+                      .replace("{{value}}", loyaltyConfig.rewardValue.toString())}
                     </p>
                   </div>
                 </>
@@ -224,7 +228,7 @@ export default function LoyaltySettingsPage() {
 
               <div className="flex justify-end">
                 <Button onClick={saveLoyaltyConfig} disabled={saving}>
-                  {saving ? "Guardando..." : "Guardar Cambios"}
+                  {saving ? t("settings.loyalty.saving") : t("settings.loyalty.saveBtn")}
                 </Button>
               </div>
             </div>

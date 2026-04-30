@@ -248,10 +248,22 @@ describe("Settings / exchange-rate", () => {
     render(<ExchangeRatePage />);
     await waitFor(() => expect(mockPush).not.toHaveBeenCalled());
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. TAXES SUB-PAGE
+  it("affiche la cl\u00e9 i18n du titre de la page", async () => {
+    mockUseAuth.mockReturnValue({ user: makeUser(["settings.view"]), hasPermission: jest.fn(() => true), logout: jest.fn() } as any);
+    render(<ExchangeRatePage />);
+    await waitFor(() => expect(screen.getByText("settings.exchangeRate.pageTitle")).toBeInTheDocument());
+  });
+
+  it("affiche le lien de retour vers /dashboard/settings", async () => {
+    mockUseAuth.mockReturnValue({ user: makeUser(["settings.view"]), hasPermission: jest.fn(() => true), logout: jest.fn() } as any);
+    render(<ExchangeRatePage />);
+    await waitFor(() => {
+      const link = document.querySelector('a[href="/dashboard/settings"]');
+      expect(link).not.toBeNull();
+    });
+  });
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Settings / taxes", () => {
@@ -310,10 +322,19 @@ describe("Settings / theme", () => {
     render(<ThemePage />);
     await waitFor(() => expect(mockPush).not.toHaveBeenCalled());
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. LOYALTY SUB-PAGE
+  it("affiche la cl\u00e9 i18n du titre de la page", async () => {
+    mockUseAuth.mockReturnValue({ user: makeUser(["settings.view"]), hasPermission: jest.fn(() => true), logout: jest.fn() } as any);
+    render(<ThemePage />);
+    await waitFor(() => expect(screen.getByText("settings.theme.pageTitle")).toBeInTheDocument());
+  });
+
+  it("affiche la cl\u00e9 i18n du titre de la carte de taille de police", async () => {
+    mockUseAuth.mockReturnValue({ user: makeUser(["settings.view"]), hasPermission: jest.fn(() => true), logout: jest.fn() } as any);
+    render(<ThemePage />);
+    await waitFor(() => expect(screen.getByText("settings.theme.fontSizeCardTitle")).toBeInTheDocument());
+  });
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Settings / loyalty", () => {
@@ -341,10 +362,22 @@ describe("Settings / loyalty", () => {
     render(<LoyaltyPage />);
     await waitFor(() => expect(mockPush).not.toHaveBeenCalled());
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 6. MODULES SUB-PAGE
+  it("affiche la cl\u00e9 i18n du titre de la page", async () => {
+    mockUseAuth.mockReturnValue({ user: makeUser(["settings.view", "loyalty.view"]), hasPermission: jest.fn(() => true), logout: jest.fn() } as any);
+    render(<LoyaltyPage />);
+    await waitFor(() => expect(screen.getByText("settings.loyalty.pageTitle")).toBeInTheDocument());
+  });
+
+  it("affiche le lien de retour vers /dashboard/settings", async () => {
+    mockUseAuth.mockReturnValue({ user: makeUser(["settings.view", "loyalty.view"]), hasPermission: jest.fn(() => true), logout: jest.fn() } as any);
+    render(<LoyaltyPage />);
+    await waitFor(() => {
+      const link = document.querySelector('a[href="/dashboard/settings"]');
+      expect(link).not.toBeNull();
+    });
+  });
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Settings / modules", () => {
