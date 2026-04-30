@@ -837,6 +837,8 @@
       "deleteLocked": "No se puede eliminar: esta transacción está vinculada a un cierre de caja"
     },
     "filteredFrom": "· filtrado de {{total}}",
+    "loadMore": "Cargar más ({{loaded}} / {{total}})",
+    "loadingMore": "Cargando más...",
     "confirmDelete": "¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer.",
     "detail": {
       "title": "Detalles de la Transacción",

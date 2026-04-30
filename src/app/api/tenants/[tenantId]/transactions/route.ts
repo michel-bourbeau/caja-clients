@@ -68,7 +68,77 @@ export async function GET(
     const fromUtc = url.searchParams.get("fromUtc");
     const toUtc = url.searchParams.get("toUtc");
 
-    // Paginate through all rows (Supabase default limit is 1000)
+    // ── Stats mode: ?stats=true ────────────────────────────────────────────
+    // Returns { count, amount, taxes, refundCount, refundAmount }
+    // Fetches only (total, tax, status) columns — 10× lighter than select *
+    if (url.searchParams.get("stats") === "true") {
+      const BATCH = 1000;
+      let rangeStart = 0;
+      let allRows: { total: number; tax: number; status: string }[] = [];
+      while (true) {
+        let sq = supabaseAdmin
+          .from("transactions")
+          .select("total, tax, status")
+          .eq("tenant_id", tenantId)
+          .range(rangeStart, rangeStart + BATCH - 1);
+        if (fromUtc && toUtc) {
+          sq = sq.gte("created_at", fromUtc).lt("created_at", toUtc);
+        } else if (from && to) {
+          sq = sq
+            .gte("created_at", `${from}T00:00:00Z`)
+            .lte("created_at", `${to}T23:59:59Z`);
+        }
+        const { data: batch, error: sqErr } = await sq;
+        if (sqErr) throw sqErr;
+        if (!batch || batch.length === 0) break;
+        allRows = allRows.concat(batch);
+        if (batch.length < BATCH) break;
+        rangeStart += BATCH;
+      }
+      let count = 0, amount = 0, taxes = 0, refundCount = 0, refundAmount = 0;
+      for (const row of allRows) {
+        if (row.status === "REFUND") {
+          refundCount++;
+          refundAmount += Math.abs(row.total ?? 0);
+        } else {
+          count++;
+          amount += row.total ?? 0;
+          taxes += row.tax ?? 0;
+        }
+      }
+      return NextResponse.json({ count, amount, taxes, refundCount, refundAmount });
+    }
+
+    // ── Paginated mode: ?page=N&limit=L ──────────────────────────────────────
+    // Returns { data: [...], total: N, page: N, limit: N }
+    const pageParam = url.searchParams.get("page");
+    if (pageParam !== null) {
+      const page = Math.max(1, parseInt(pageParam) || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50")));
+      const offset = (page - 1) * limit;
+
+      let pq = supabaseAdmin
+        .from("transactions")
+        .select("*", { count: "exact" })
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (fromUtc && toUtc) {
+        pq = pq.gte("created_at", fromUtc).lt("created_at", toUtc);
+      } else if (from && to) {
+        pq = pq
+          .gte("created_at", `${from}T00:00:00Z`)
+          .lte("created_at", `${to}T23:59:59Z`);
+      }
+
+      const { data: pageData, count, error: pgError } = await pq;
+      if (pgError) throw pgError;
+
+      return NextResponse.json({ data: pageData ?? [], total: count ?? 0, page, limit });
+    }
+
+    // ── Legacy mode: loop all rows (backward compat for non-paginated callers) ─
     const PAGE_SIZE = 1000;
     let allData: any[] = [];
     let offset = 0;
@@ -81,7 +151,6 @@ export async function GET(
         .order("created_at", { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1);
 
-      // Apply date filters — prefer exact UTC range (Nicaragua-aware), fallback to date strings
       if (fromUtc && toUtc) {
         query = query.gte("created_at", fromUtc).lt("created_at", toUtc);
       } else if (from && to) {

@@ -837,6 +837,8 @@
       "deleteLocked": "Impossible de supprimer : cette transaction est liée à une clôture de caisse"
     },
     "filteredFrom": "· filtré de {{total}}",
+    "loadMore": "Charger plus ({{loaded}} / {{total}})",
+    "loadingMore": "Chargement...",
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.",
     "detail": {
       "title": "Détails de la Transaction",

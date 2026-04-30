@@ -24,6 +24,9 @@ jest.mock("@/context/TenantFeaturesContext", () => ({ useTenantFeatures: jest.fn
 jest.mock("@/features/transactions/services", () => ({
   TransactionService: {
     fetchTransactions: jest.fn(),
+    fetchTransactionsPaged: jest.fn(),
+    fetchTransactionsAll: jest.fn(),
+    fetchTransactionStats: jest.fn(),
     deleteTransaction: jest.fn(),
     updateTransaction: jest.fn(),
   },
@@ -144,7 +147,14 @@ function setup(transactions = [TX_CASH, TX_CARD]) {
   (useTenantId as jest.Mock).mockReturnValue("tenant-123");
   (useCurrency as jest.Mock).mockReturnValue({ fmt: (v: number) => `C$${v}`, symbol: "C$" });
   (useTenantFeatures as jest.Mock).mockReturnValue({ features: { taxes: false }, loading: false, error: null });
-  (TransactionService.fetchTransactions as jest.Mock).mockResolvedValue(transactions);
+  (TransactionService.fetchTransactionStats as jest.Mock).mockResolvedValue({
+    count: transactions.filter((t: any) => t.status !== "REFUND").length,
+    amount: transactions.reduce((s: number, t: any) => s + t.total, 0),
+    taxes: 0,
+    refundCount: transactions.filter((t: any) => t.status === "REFUND").length,
+    refundAmount: 0,
+  });
+  (TransactionService.fetchTransactionsPaged as jest.Mock).mockResolvedValue({ transactions, total: transactions.length });
   (TransactionService.deleteTransaction as jest.Mock).mockResolvedValue(undefined);
   (TransactionService.updateTransaction as jest.Mock).mockResolvedValue(undefined);
   global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => [] });
@@ -152,7 +162,10 @@ function setup(transactions = [TX_CASH, TX_CARD]) {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  sessionStorage.clear();
+});
 
 describe("TransactionsPage", () => {
 
@@ -172,11 +185,22 @@ describe("TransactionsPage", () => {
       });
     });
 
-    it("appelle fetchTransactions avec le tenantId uniquement (filtrage client-side)", async () => {
+    it("appelle fetchTransactionStats et fetchTransactionsPaged au chargement", async () => {
       setup();
       render(<TransactionsPage />);
       await waitFor(() => {
-        expect(TransactionService.fetchTransactions).toHaveBeenCalledWith("tenant-123");
+        expect(TransactionService.fetchTransactionStats).toHaveBeenCalledWith(
+          "tenant-123",
+          expect.any(String),
+          expect.any(String)
+        );
+        expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalledWith(
+          "tenant-123",
+          expect.any(String),
+          expect.any(String),
+          1,
+          50
+        );
       });
     });
   });
@@ -185,7 +209,8 @@ describe("TransactionsPage", () => {
     it("affiche l'état de chargement avant la réponse", async () => {
       setup();
       // Retarder la résolution
-      (TransactionService.fetchTransactions as jest.Mock).mockReturnValue(new Promise(() => {}));
+      (TransactionService.fetchTransactionStats as jest.Mock).mockReturnValue(new Promise(() => {}));
+      (TransactionService.fetchTransactionsPaged as jest.Mock).mockReturnValue(new Promise(() => {}));
       render(<TransactionsPage />);
       // La page est en état de chargement, le sous-titre compte 0
       const subtitle = screen.getByTestId("subtitle");
@@ -197,7 +222,7 @@ describe("TransactionsPage", () => {
     it("filtre les transactions par méthode CASH", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalled());
 
       // Sélectionner CASH dans le select
       const select = screen.getByRole("combobox");
@@ -213,7 +238,7 @@ describe("TransactionsPage", () => {
     it("filtre les transactions par méthode CARD", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalled());
 
       const select = screen.getByRole("combobox");
       fireEvent.change(select, { target: { value: "CARD" } });
@@ -227,7 +252,7 @@ describe("TransactionsPage", () => {
     it("remet ALL affiche les 2 transactions", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalled());
 
       const select = screen.getByRole("combobox");
       fireEvent.change(select, { target: { value: "CASH" } });
@@ -242,7 +267,7 @@ describe("TransactionsPage", () => {
     it("filtre par texte de recherche (nom de produit)", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalled());
 
       const searchInput = screen.getByTestId("search-input");
       fireEvent.change(searchInput, { target: { value: "Café" } });
@@ -256,7 +281,7 @@ describe("TransactionsPage", () => {
     it("une recherche sans résultat donne 0 transaction", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalled());
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalled());
 
       const searchInput = screen.getByTestId("search-input");
       fireEvent.change(searchInput, { target: { value: "xyz_nonexistent" } });
@@ -269,35 +294,38 @@ describe("TransactionsPage", () => {
   });
 
   describe("Navigation de période", () => {
-    it("le bouton MONTH filtre côté client sans nouvel appel API", async () => {
+    it("le bouton MONTH déclenche un rechargement côté serveur", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalledTimes(1));
 
       const monthBtn = screen.getAllByText("Mes")[0];
       await act(async () => { fireEvent.click(monthBtn); });
 
-      // Filtrage client-side uniquement — pas de nouvel appel API
-      expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalledTimes(2);
+      });
     });
 
-    it("le bouton YEAR filtre côté client sans nouvel appel API", async () => {
+    it("le bouton YEAR déclenche un rechargement côté serveur", async () => {
       setup();
       render(<TransactionsPage />);
-      await waitFor(() => expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalledTimes(1));
 
       const yearBtn = screen.getAllByText("Año")[0];
       await act(async () => { fireEvent.click(yearBtn); });
 
-      // Filtrage client-side uniquement — pas de nouvel appel API
-      expect(TransactionService.fetchTransactions).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(TransactionService.fetchTransactionsPaged).toHaveBeenCalledTimes(2);
+      });
     });
   });
 
   describe("Erreur", () => {
-    it("affiche une alerte si fetchTransactions rejette", async () => {
+    it("affiche une alerte si fetchTransactionStats rejette", async () => {
       setup();
-      (TransactionService.fetchTransactions as jest.Mock).mockRejectedValue(new Error("Réseau hors ligne"));
+      (TransactionService.fetchTransactionStats as jest.Mock).mockRejectedValue(new Error("Réseau hors ligne"));
+      (TransactionService.fetchTransactionsPaged as jest.Mock).mockRejectedValue(new Error("Réseau hors ligne"));
       render(<TransactionsPage />);
 
       await waitFor(() => {
@@ -309,6 +337,8 @@ describe("TransactionsPage", () => {
   describe("Aucune transaction", () => {
     it("affiche 0 transaction si la liste est vide", async () => {
       setup([]);
+      (TransactionService.fetchTransactionStats as jest.Mock).mockResolvedValue({ count: 0, amount: 0, taxes: 0, refundCount: 0, refundAmount: 0 });
+      (TransactionService.fetchTransactionsPaged as jest.Mock).mockResolvedValue({ transactions: [], total: 0 });
       render(<TransactionsPage />);
 
       await waitFor(() => {

@@ -841,6 +841,8 @@
       "deleteLocked": "Cannot delete: this transaction is linked to a cash closing"
     },
     "filteredFrom": "· filtered from {{total}}",
+    "loadMore": "Load more ({{loaded}} / {{total}})",
+    "loadingMore": "Loading more...",
     "confirmDelete": "Are you sure you want to delete this transaction? This action cannot be undone.",
     "detail": {
       "title": "Transaction Details",

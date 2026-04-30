@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye, Trash2, RefreshCw, RotateCcw } from "lucide-react";
 import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
 import { IconButton, PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter } from "@/components";
@@ -28,6 +28,11 @@ export default function TransactionsPage() {
   };
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [listTotal, setListTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [stats, setStats] = useState<{ count: number; amount: number; taxes: number; refundCount: number; refundAmount: number } | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,21 +133,86 @@ export default function TransactionsPage() {
     }
   }, [tenantId]);
 
-  // Load transactions when date range changes
-  useEffect(() => {
-    if (tenantId) {
-      loadData();
-    }
-  }, [tenantId]);
+  // sessionStorage cache key for a given period
+  const getCacheKey = (tid: string, from: string, to: string) => `tx_stats_${tid}_${from}_${to}`;
 
-  // Rechargement quand l'utilisateur revient sur la page
+  // Load stats + first page of list in parallel — fast initial render
+  const loadData = useCallback(async (forceRefresh = false) => {
+    if (!tenantId) {
+      setError(t("transactions.error.tenantNotFound"));
+      setIsLoading(false);
+      setIsLoadingStats(false);
+      return;
+    }
+    const cacheKey = getCacheKey(tenantId, dateRange.from, dateRange.to);
+
+    // Reset list state
+    setAllTransactions([]);
+    setCurrentPage(1);
+    setError(null);
+    setIsLoading(true);
+    setIsLoadingStats(true);
+
+    // Try stats from sessionStorage cache first
+    if (!forceRefresh) {
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          setStats(JSON.parse(cached));
+          setIsLoadingStats(false);
+        }
+      } catch { /* ignore */ }
+    } else {
+      try { sessionStorage.removeItem(cacheKey); } catch { /* ignore */ }
+      setStats(null);
+    }
+
+    try {
+      // Fire stats + first page in parallel
+      const [statsResult, pageResult] = await Promise.all([
+        TransactionService.fetchTransactionStats(tenantId, dateRange.from, dateRange.to),
+        TransactionService.fetchTransactionsPaged(tenantId, dateRange.from, dateRange.to, 1, 50),
+      ]);
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(statsResult)); } catch { /* ignore quota */ }
+      setStats(statsResult);
+      setAllTransactions(pageResult.transactions);
+      setListTotal(pageResult.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("transactions.error.unknown"));
+    } finally {
+      setIsLoading(false);
+      setIsLoadingStats(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, dateRange.from, dateRange.to]);
+
+  const handleRefresh = () => loadData(true);
+
+  const loadMore = async () => {
+    if (!tenantId || isLoadingMore) return;
+    const nextPage = currentPage + 1;
+    try {
+      setIsLoadingMore(true);
+      const { transactions } = await TransactionService.fetchTransactionsPaged(
+        tenantId,
+        dateRange.from,
+        dateRange.to,
+        nextPage,
+        50
+      );
+      setAllTransactions((prev) => [...prev, ...transactions]);
+      setCurrentPage(nextPage);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("transactions.error.unknown"));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Reload when tenantId or date range changes
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible" && tenantId) loadData();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [tenantId]);
+    loadData();
+  }, [loadData]);
 
   // Update tax module status when features load
   useEffect(() => {
@@ -151,25 +221,6 @@ export default function TransactionsPage() {
     }
   }, [features?.taxes]);
 
-  const loadData = async () => {
-    if (!tenantId) {
-      setError(t("transactions.error.tenantNotFound"));
-      setIsLoading(false);
-      return;
-    }
-    try {
-      setIsLoading(true);
-      setError(null);
-      // Charge TOUTES les transactions — le filtre de période est appliqué côté client
-      const transactionsData = await TransactionService.fetchTransactions(tenantId);
-      setAllTransactions(transactionsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("transactions.error.unknown"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const getProductName = (productId: string, itemName?: string): string => {
     if (itemName) return itemName;
     const product = products.find((p) => p.id === productId);
@@ -177,12 +228,7 @@ export default function TransactionsPage() {
   };
 
   const filteredTransactions = useMemo(() => {
-    // Filtre client-side par période — pas d'appel API supplémentaire
-    let list = allTransactions.filter((tx) => {
-      const txDate = toNicaraguaDateString(tx.timestamp);
-      return txDate >= dateRange.from && txDate <= dateRange.to;
-    });
-
+    let list = allTransactions;
     if (filters.paymentMethod !== "ALL") {
       list = list.filter((tx) => tx.paymentMethod === filters.paymentMethod);
     }
@@ -197,7 +243,23 @@ export default function TransactionsPage() {
       );
     }
     return list;
-  }, [allTransactions, filters, dateRange]);
+  }, [allTransactions, filters]);
+
+  // For the summary bar: use server stats when available (covers full period),
+  // fall back to client-side computation from loaded rows
+  const displayTotals = useMemo(() => {
+    const hasFilter = filters.paymentMethod !== "ALL" || filters.search.trim();
+    if (!hasFilter && stats) {
+      return stats;
+    }
+    return {
+      count: filteredTransactions.filter((tx) => tx.status !== "REFUND").length,
+      amount: filteredTransactions.reduce((s, tx) => s + tx.total, 0),
+      taxes: filteredTransactions.reduce((s, tx) => s + (tx.tax || 0), 0),
+      refundCount: filteredTransactions.filter((tx) => tx.status === "REFUND").length,
+      refundAmount: filteredTransactions.filter((tx) => tx.status === "REFUND").reduce((s, tx) => s + Math.abs(tx.total), 0),
+    };
+  }, [stats, filteredTransactions, filters]);
 
   const groupedByDate = useMemo(() => {
     const grouped: Record<string, Transaction[]> = {};
@@ -213,14 +275,6 @@ export default function TransactionsPage() {
       .forEach((k) => (sorted[k] = grouped[k]));
     return sorted;
   }, [filteredTransactions]);
-
-  const totals = useMemo(() => ({
-    count: filteredTransactions.filter((tx) => tx.status !== "REFUND").length,
-    amount: filteredTransactions.reduce((s, tx) => s + tx.total, 0),
-    taxes: filteredTransactions.reduce((s, tx) => s + (tx.tax || 0), 0),
-    refundCount: filteredTransactions.filter((tx) => tx.status === "REFUND").length,
-    refundAmount: filteredTransactions.filter((tx) => tx.status === "REFUND").reduce((s, tx) => s + Math.abs(tx.total), 0),
-  }), [filteredTransactions]);
 
   const formatDateHeader = (dateString: string): string => {
     const [y, m, d] = dateString.split("-").map(Number);
@@ -240,7 +294,7 @@ export default function TransactionsPage() {
     try {
       setError(null);
       await TransactionService.deleteTransaction(tenantId, transactionId);
-      await loadData();
+      await loadData(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("transactions.error.delete"));
     }
@@ -277,7 +331,7 @@ export default function TransactionsPage() {
         amount_received: editForm.amount_received,
         change: editForm.change,
       });
-      await loadData();
+      await loadData(true);
       setSelectedTransaction(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("transactions.error.save"));
@@ -303,7 +357,7 @@ export default function TransactionsPage() {
       }
       setShowRefundModal(null);
       setRefundReason("");
-      await loadData();
+      await loadData(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("transactions.error.network"));
     } finally {
@@ -317,7 +371,7 @@ export default function TransactionsPage() {
         <DashboardHeader
           pageType="transactions"
           title={t("transactions.title")}
-          subtitle={`${totals.count} ${totals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}`}
+          subtitle={`${displayTotals.count} ${displayTotals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}`}
         />
 
         {featuresError && (
@@ -344,14 +398,14 @@ export default function TransactionsPage() {
                     <span className="text-sm text-blue-700 font-medium">
                       {t("transactions.stats.totalNet", { period: periodType === "WEEK" ? t("transactions.stats.periodWeek") : periodType === "MONTH" ? t("transactions.stats.periodMonth") : t("transactions.stats.periodYear") })}:
                     </span>
-                    <div className="text-lg font-bold text-blue-900">{fmt(totals.amount)}</div>
+                    <div className="text-lg font-bold text-blue-900">{isLoadingStats ? "..." : fmt(displayTotals.amount)}</div>
                   </div>
-                  {totals.refundCount > 0 && (
+                  {displayTotals.refundCount > 0 && (
                     <div>
                       <span className="text-sm text-red-600 font-medium">
-                        {t("transactions.stats.refunds", { count: String(totals.refundCount) })}
+                        {t("transactions.stats.refunds", { count: String(displayTotals.refundCount) })}
                       </span>
-                      <div className="text-lg font-bold text-red-600">-{fmt(totals.refundAmount)}</div>
+                      <div className="text-lg font-bold text-red-600">-{fmt(displayTotals.refundAmount)}</div>
                     </div>
                   )}
                   {isTaxModuleEnabled && (
@@ -359,12 +413,12 @@ export default function TransactionsPage() {
                       <span className="text-sm text-blue-700 font-medium">
                         {t("transactions.stats.taxes")}
                       </span>
-                      <div className="text-lg font-bold text-blue-900">{fmt(totals.taxes)}</div>
+                      <div className="text-lg font-bold text-blue-900">{isLoadingStats ? "..." : fmt(displayTotals.taxes)}</div>
                     </div>
                   )}
                 </div>
                 <button
-                  onClick={loadData}
+                  onClick={handleRefresh}
                   disabled={isLoading}
                   className="p-2 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
                   title={t("transactions.refresh")}
@@ -651,10 +705,27 @@ export default function TransactionsPage() {
               );
             })}
             <div className="px-3 lg:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
-              {totals.count} {totals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}
+              {displayTotals.count} {displayTotals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}
               {(filters.search || filters.paymentMethod !== "ALL") &&
                 ` ${t("transactions.filteredFrom", { total: String(allTransactions.length) })}`}
             </div>
+            {/* Load more */}
+            {allTransactions.length < listTotal && (
+              <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium transition-colors"
+                >
+                  {isLoadingMore
+                    ? t("transactions.loadingMore")
+                    : t("transactions.loadMore", {
+                        loaded: String(allTransactions.length),
+                        total: String(listTotal),
+                      })}
+                </button>
+              </div>
+            )}
           </div>
           )}
         </Card>
