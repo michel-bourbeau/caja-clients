@@ -5,7 +5,7 @@ import { ShoppingCart, RefreshCw } from "lucide-react";
 import { POSService } from "@/features/pos/services";
 import { TaxService } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
-import { CartItem, Product, LoyalCustomer, LoyalCustomerStats, Transaction, Tax } from "@/lib/types";
+import { CartItem, Category, Product, ProductVariant, LoyalCustomer, LoyalCustomerStats, Transaction, Tax } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
@@ -15,23 +15,6 @@ import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFoote
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 type Currency = "NIO" | "USD";
-
-interface Category {
-  id: string;
-  name: string;
-}
-
-interface ProductVariant {
-  id: string;
-  product_id: string;
-  label: string;
-  sku: string;
-  price: number;
-  cost_price?: number;
-  stock_quantity: number;
-  min_stock?: number;
-  sort_order?: number;
-}
 
 export default function POSPage() {
   const tenantId = useTenantId();

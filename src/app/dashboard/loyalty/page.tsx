@@ -10,10 +10,12 @@ import { LoyalCustomer } from "@/lib/types";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { FeatureGuard } from "@/components/FeatureGuard";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function LoyaltyPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
   const [customers, setCustomers] = useState<LoyalCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -59,7 +61,7 @@ export default function LoyaltyPage() {
     }
 
     if (attempts >= maxAttempts) {
-      showFlash('error', '⚠️ Could not generate unique card number, please try again');
+      showFlash('error', t('loyalty.list.errorUniqueCard'));
       return null;
     }
 
@@ -93,7 +95,7 @@ export default function LoyaltyPage() {
       setCustomers(data);
     } catch (error) {
       console.error("Error loading customers:", error);
-      showFlash("error", "Error cargando clientes fideles");
+      showFlash("error", t("loyalty.list.errorLoading"));
     } finally {
       setLoading(false);
     }
@@ -112,12 +114,12 @@ export default function LoyaltyPage() {
 
     try {
       await LoyaltyService.createCustomer(tenantId, formData);
-      showFlash("success", "✓ Cliente fiel creado exitosamente");
+      showFlash("success", t("loyalty.list.msgAdded"));
       setFormData({ card_number: "", name: "", phone: "", email: "" });
       setShowAddModal(false);
       await loadCustomers();
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Error creando cliente";
+      const errorMsg = error instanceof Error ? error.message : t("loyalty.list.msgAddError");
       showFlash("error", errorMsg);
     }
   };
@@ -127,11 +129,11 @@ export default function LoyaltyPage() {
 
     try {
       await LoyaltyService.deleteCustomer(tenantId, customerId);
-      showFlash("success", "✓ Cliente eliminado");
+      showFlash("success", t("loyalty.list.msgDeleted"));
       setShowDeleteConfirm(null);
       await loadCustomers();
     } catch (error) {
-      showFlash("error", "Error eliminando cliente");
+      showFlash("error", t("loyalty.list.msgDeleteError"));
     }
   };
 
@@ -141,11 +143,11 @@ export default function LoyaltyPage() {
         <Section>
           <DashboardHeader
             pageType="loyalty"
-            title="Clientes Fieles"
-            subtitle="Gestiona tu programa de fidelización"
+            title={t("loyalty.list.pageTitle")}
+            subtitle={t("loyalty.list.subtitle")}
           >
             <Button variant="primary" onClick={handleOpenAddModal}>
-              + Nuevo Cliente
+              {t("loyalty.list.newCustomerBtn")}
             </Button>
           </DashboardHeader>
 
@@ -155,7 +157,7 @@ export default function LoyaltyPage() {
           <SearchInput
             value={search}
             onChange={(value) => setSearch(value)}
-            placeholder="Buscar por nombre, teléfono o tarjeta..."
+            placeholder={t("loyalty.list.searchPlaceholder")}
             className="flex-1"
           />
 
@@ -166,7 +168,7 @@ export default function LoyaltyPage() {
             ) : customers.length === 0 ? (
               <EmptyState
                 state="empty"
-                message={search ? "No hay clientes que coincidan" : "No hay clientes fideles todavía"}
+                message={search ? t("loyalty.list.emptySearch") : t("loyalty.list.emptyList")}
               />
             ) : (
               <>
@@ -175,12 +177,12 @@ export default function LoyaltyPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-900">
-                        <th className="px-4 py-3 text-left font-semibold text-white">Nombre</th>
-                        <th className="px-4 py-3 text-left font-semibold text-white">Tarjeta</th>
-                        <th className="px-4 py-3 text-left font-semibold text-white hidden md:table-cell">Teléfono</th>
-                        <th className="px-4 py-3 text-right font-semibold text-white">Total Gastado</th>
-                        <th className="px-4 py-3 text-center font-semibold text-white">Visitas</th>
-                        <th className="px-4 py-3 text-center font-semibold text-white">Acciones</th>
+                        <th className="px-4 py-3 text-left font-semibold text-white">{t("loyalty.list.colName")}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-white">{t("loyalty.list.colCard")}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-white hidden md:table-cell">{t("loyalty.list.colPhone")}</th>
+                        <th className="px-4 py-3 text-right font-semibold text-white">{t("loyalty.list.colTotalSpent")}</th>
+                        <th className="px-4 py-3 text-center font-semibold text-white">{t("loyalty.list.colVisits")}</th>
+                        <th className="px-4 py-3 text-center font-semibold text-white">{t("loyalty.list.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -200,7 +202,7 @@ export default function LoyaltyPage() {
                               onClick={() => setShowDeleteConfirm(customer.id)}
                               className="text-red-600 hover:text-red-800 text-xs font-semibold hover:underline"
                             >
-                              Eliminar
+                              {t("loyalty.list.deleteBtn")}
                             </button>
                           </td>
                         </tr>
@@ -220,13 +222,13 @@ export default function LoyaltyPage() {
                       <div className="flex-1">
                         <p className="font-semibold text-slate-900">{customer.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Tarjeta: {customer.card_number}</span>
+                          <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t("loyalty.list.cardPrefix")}{customer.card_number}</span>
                         </div>
-                        <p className="text-xs text-slate-600 mt-1">{customer.phone || "Sin teléfono"}</p>
+                        <p className="text-xs text-slate-600 mt-1">{customer.phone || t("loyalty.list.noPhone")}</p>
                       </div>
                       <div className="text-right ml-2">
                         <p className="font-bold text-slate-900">{fmt(customer.total_accumulated)}</p>
-                        <p className="text-xs text-slate-600">{customer.total_visits} visitas</p>
+                        <p className="text-xs text-slate-600">{customer.total_visits} {t("loyalty.list.visitsLabel")}</p>
                         <button
                           onClick={(e) => {
                             e.preventDefault();
@@ -234,7 +236,7 @@ export default function LoyaltyPage() {
                           }}
                           className="text-red-600 hover:text-red-800 text-xs font-semibold mt-1"
                         >
-                          Eliminar
+                          {t("loyalty.list.deleteBtn")}
                         </button>
                       </div>
                     </Link>
@@ -247,20 +249,20 @@ export default function LoyaltyPage() {
           {/* Add Customer Modal */}
           <Dialog
             isOpen={showAddModal}
-            title="Agregar Cliente Fiel"
+            title={t("loyalty.list.addModalTitle")}
             onClose={() => setShowAddModal(false)}
             maxWidth="md"
             footer={
               <div className="flex justify-end">
                 <Button variant="primary" type="submit" form="addCustomerForm" className="whitespace-nowrap">
-                  Crear Cliente
-                </Button>
+                    {t("loyalty.list.createBtn")}
+                  </Button>
               </div>
             }
           >
             <form id="addCustomerForm" onSubmit={handleAddCustomer} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Número de Tarjeta</label>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">{t("loyalty.list.cardNumberLabel")}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -285,36 +287,36 @@ export default function LoyaltyPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Nombre *</label>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">{t("loyalty.list.nameLabel")}</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Juan Pérez"
+                  placeholder={t("loyalty.list.namePlaceholder")}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Teléfono</label>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">{t("loyalty.list.phoneLabel")}</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="+505 8765 4321"
+                  placeholder={t("loyalty.list.phonePlaceholder")}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">Correo</label>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">{t("loyalty.list.emailLabel")}</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="juan@ejemplo.com"
+                  placeholder={t("loyalty.list.emailPlaceholder")}
                 />
               </div>
             </form>
@@ -323,7 +325,7 @@ export default function LoyaltyPage() {
           {/* Delete Confirmation */}
           <DeleteConfirmDialog
             isOpen={!!showDeleteConfirm}
-            message="¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer."
+            message={t("loyalty.list.deleteConfirmMsg")}
             onConfirm={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}
             onCancel={() => setShowDeleteConfirm(null)}
           />

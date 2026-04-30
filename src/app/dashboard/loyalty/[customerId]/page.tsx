@@ -10,12 +10,14 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useParams } from "next/navigation";
 import { FeatureGuard } from "@/components/FeatureGuard";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function CustomerDetailsPage() {
   const tenantId = useTenantId();
   const params = useParams();
   const customerId = params.customerId as string;
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
   const [customer, setCustomer] = useState<LoyalCustomerStats | null>(null);
   const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -128,7 +130,7 @@ export default function CustomerDetailsPage() {
   }
 
   if (!customer) {
-    return <div className="text-center py-8 text-gray-500">Cliente no encontrado</div>;
+    return <div className="text-center py-8 text-gray-500">{t("loyalty.detail.notFound")}</div>;
   }
 
   const currentCounter = customer.current_counter || 0;
@@ -138,7 +140,7 @@ export default function CustomerDetailsPage() {
     <FeatureGuard feature="loyalty">
       <div className="space-y-6">
         <Link href="/dashboard/loyalty" className="text-blue-600 hover:underline text-sm font-medium">
-          ← Volver a Clientes
+          {t("loyalty.detail.backLink")}
         </Link>
 
       {/* Customer header */}
@@ -148,7 +150,7 @@ export default function CustomerDetailsPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{customer.name}</h1>
-                <p className="text-gray-600 text-sm">Tarjeta: {customer.card_number}</p>
+                <p className="text-gray-600 text-sm">{t("loyalty.detail.cardLabel")} {customer.card_number}</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <button 
@@ -156,7 +158,7 @@ export default function CustomerDetailsPage() {
                   className="px-3 py-2 rounded-lg font-medium transition-colors bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm"
                   title="Editar información del cliente"
                 >
-                  ✏️ Editar
+                  {t("loyalty.detail.editBtn")}
                 </button>
                 <button 
                   onClick={() => setShowRewardModal(true)} 
@@ -166,9 +168,9 @@ export default function CustomerDetailsPage() {
                       ? 'bg-purple-600 hover:bg-purple-700 text-white'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
-                  title={currentCounter < rewardThreshold ? `Falta ${fmt(rewardThreshold - currentCounter)} para recompensa` : 'Dar Recompensa'}
+                  title={currentCounter < rewardThreshold ? t("loyalty.detail.rewardBtnDisabledTitle", { amount: fmt(rewardThreshold - currentCounter) }) : t("loyalty.detail.rewardBtn")}
                 >
-                  🎁 Dar Recompensa
+                  {t("loyalty.detail.rewardBtn")}
                 </button>
               </div>
             </div>
@@ -176,29 +178,29 @@ export default function CustomerDetailsPage() {
             {/* Info grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
               <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600 uppercase font-semibold">Total Gastado</p>
+                <p className="text-xs text-slate-600 uppercase font-semibold">{t("loyalty.detail.statTotalSpent")}</p>
                 <p className="text-xl font-bold text-slate-900 mt-1">{fmt(customer.total_accumulated)}</p>
               </div>
               <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600 uppercase font-semibold">Visitas</p>
+                <p className="text-xs text-slate-600 uppercase font-semibold">{t("loyalty.detail.statVisits")}</p>
                 <p className="text-xl font-bold text-slate-900 mt-1">{customer.total_visits}</p>
               </div>
               <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600 uppercase font-semibold">Teléfono</p>
+                <p className="text-xs text-slate-600 uppercase font-semibold">{t("loyalty.detail.statPhone")}</p>
                 <p className="text-sm font-medium text-slate-900 mt-1">{customer.phone || "—"}</p>
               </div>
               <div className="p-3 bg-slate-50 rounded-lg">
-                <p className="text-xs text-slate-600 uppercase font-semibold">Email</p>
+                <p className="text-xs text-slate-600 uppercase font-semibold">{t("loyalty.detail.statEmail")}</p>
                 <p className="text-sm font-medium text-slate-900 mt-1">{customer.email || "—"}</p>
               </div>
             </div>
           </>
         ) : (
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">Editar Información del Cliente</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t("loyalty.detail.editTitle")}</h2>
             
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Nombre</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">{t("loyalty.detail.editNameLabel")}</label>
               <input
                 type="text"
                 value={editFormData.name}
@@ -208,7 +210,7 @@ export default function CustomerDetailsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Teléfono</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">{t("loyalty.detail.editPhoneLabel")}</label>
               <input
                 type="tel"
                 value={editFormData.phone}
@@ -218,7 +220,7 @@ export default function CustomerDetailsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-1.5">Email</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-1.5">{t("loyalty.detail.editEmailLabel")}</label>
               <input
                 type="email"
                 value={editFormData.email}
@@ -232,14 +234,14 @@ export default function CustomerDetailsPage() {
                 onClick={() => setIsEditingClient(false)}
                 className="flex-1 px-4 py-2 rounded-lg font-medium bg-gray-200 hover:bg-gray-300 text-gray-900 transition-colors"
               >
-                Cancelar
+                {t("loyalty.detail.cancelBtn")}
               </button>
               <button
                 onClick={handleSaveEdits}
                 disabled={savingEdits}
                 className="flex-1 px-4 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:bg-blue-400"
               >
-                {savingEdits ? "Guardando..." : "Guardar Cambios"}
+                {savingEdits ? t("loyalty.detail.saving") : t("loyalty.detail.saveBtn")}
               </button>
             </div>
           </div>
@@ -248,14 +250,14 @@ export default function CustomerDetailsPage() {
 
       {/* Reward progress */}
       <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-purple-900 mb-4">Progreso de Recompensa</h2>
+        <h2 className="text-lg font-semibold text-purple-900 mb-4">{t("loyalty.detail.rewardProgressTitle")}</h2>
         
         <div className="space-y-4">
           {/* Progress bar */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <p className="text-sm font-medium text-purple-900">
-                Puntos acumulados
+                {t("loyalty.detail.pointsAccumulated")}
               </p>
               <p className="text-sm font-bold text-purple-900">
                 {fmt(currentCounter)} / {fmt(rewardThreshold)}
@@ -270,8 +272,8 @@ export default function CustomerDetailsPage() {
             <p className="text-xs text-purple-700 mt-1">
               {rewardProgress.percentage.toFixed(0)}% - {
                 currentCounter >= rewardThreshold 
-                  ? `¡Recompensa disponible! (${Math.floor(currentCounter / rewardThreshold)} recompensas pendientes)`
-                  : `Falta ${fmt(rewardProgress.remainingAmount)} para recompensa`
+                  ? t("loyalty.detail.rewardAvailable", { count: Math.floor(currentCounter / rewardThreshold) })
+                  : t("loyalty.detail.rewardMissing", { amount: fmt(rewardProgress.remainingAmount) })
               }
             </p>
           </div>
@@ -279,7 +281,7 @@ export default function CustomerDetailsPage() {
           {/* Last reward info */}
           {customer.last_reward_date && (
             <div className="p-3 bg-white rounded-lg border border-purple-200">
-              <p className="text-xs text-purple-600 uppercase font-semibold">Última Recompensa</p>
+              <p className="text-xs text-purple-600 uppercase font-semibold">{t("loyalty.detail.lastRewardTitle")}</p>
               <p className="text-sm text-purple-900 mt-1">
                 {new Date(customer.last_reward_date).toLocaleDateString()}
               </p>
@@ -291,11 +293,11 @@ export default function CustomerDetailsPage() {
       {/* Rewards history */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h2 className="font-semibold text-gray-900">Historial de Recompensas</h2>
+          <h2 className="font-semibold text-gray-900">{t("loyalty.detail.rewardsHistoryTitle")}</h2>
         </div>
 
         {rewards.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No hay recompensas registradas</div>
+          <div className="p-6 text-center text-gray-500">{t("loyalty.detail.noRewards")}</div>
         ) : (
           <>
             {/* Desktop Table */}
@@ -303,10 +305,10 @@ export default function CustomerDetailsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Tipo</th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-700">Total Acumulado</th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-700">Notas</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">{t("loyalty.detail.colDate")}</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">{t("loyalty.detail.colType")}</th>
+                    <th className="px-6 py-3 text-right font-semibold text-gray-700">{t("loyalty.detail.colTotalAccumulated")}</th>
+                    <th className="px-6 py-3 text-left font-semibold text-gray-700">{t("loyalty.detail.colNotes")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -339,7 +341,7 @@ export default function CustomerDetailsPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center pt-1 border-t border-gray-100">
-                    <span className="text-xs text-gray-600">Total Acumulado</span>
+                    <span className="text-xs text-gray-600">{t("loyalty.detail.colTotalAccumulated")}</span>
                     <p className="font-bold text-gray-900">{fmt(reward.amount_at_reward)}</p>
                   </div>
                   {reward.notes && <p className="text-xs text-gray-600 italic">{reward.notes}</p>}
@@ -353,11 +355,11 @@ export default function CustomerDetailsPage() {
       {/* Purchases history */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-4 sm:px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h2 className="font-semibold text-gray-900">Historial de Compras Completo</h2>
+          <h2 className="font-semibold text-gray-900">{t("loyalty.detail.purchasesHistoryTitle")}</h2>
         </div>
 
         {purchases.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">No hay compras registradas</div>
+          <div className="p-6 text-center text-gray-500">{t("loyalty.detail.noPurchases")}</div>
         ) : (
           <div className="divide-y divide-gray-100">
             {purchases.map((purchase) => (
@@ -383,7 +385,7 @@ export default function CustomerDetailsPage() {
                           })}
                         </p>
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                          {purchase.description || "Compra"}
+                          {purchase.description || t("loyalty.detail.defaultPurchaseDesc")}
                         </p>
                       </div>
                     </div>
@@ -394,10 +396,10 @@ export default function CustomerDetailsPage() {
                       {purchase.transactionDetails && (
                         <p className="text-xs text-gray-500">
                           {purchase.transactionDetails.payment_method === "CASH"
-                            ? "💵 Efectivo"
+                            ? t("loyalty.detail.paymentCash")
                             : purchase.transactionDetails.payment_method === "CARD"
-                            ? "💳 Tarjeta"
-                            : "Pago"}
+                            ? t("loyalty.detail.paymentCard")
+                            : t("loyalty.detail.paymentOther")}
                         </p>
                       )}
                     </div>
@@ -419,7 +421,7 @@ export default function CustomerDetailsPage() {
                       {Array.isArray(purchase.transactionDetails.items) && (
                         <div>
                           <h4 className="font-semibold text-gray-900 text-sm mb-3">
-                            Artículos ({purchase.transactionDetails.items.length})
+                            {t("loyalty.detail.itemsTitle", { count: purchase.transactionDetails.items.length })}
                           </h4>
                           <div className="space-y-2">
                             {purchase.transactionDetails.items.map((item: any, idx: number) => (
@@ -430,7 +432,7 @@ export default function CustomerDetailsPage() {
                                 <div className="flex-1">
                                   <p className="font-medium text-gray-900">{item.name}</p>
                                   <p className="text-xs text-gray-500">
-                                    Qty: {item.quantity} × {fmt(item.price)}
+                                    {t("loyalty.detail.qtyLabel")} {item.quantity} × {fmt(item.price)}
                                   </p>
                                 </div>
                                 <p className="text-sm font-semibold text-gray-900">
@@ -446,7 +448,7 @@ export default function CustomerDetailsPage() {
                       <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200">
                         <div>
                           <p className="text-xs text-gray-600 uppercase font-semibold">
-                            Subtotal
+                            {t("loyalty.detail.subtotal")}
                           </p>
                           <p className="text-sm font-medium text-gray-900">
                             {fmt(
@@ -459,7 +461,7 @@ export default function CustomerDetailsPage() {
                         {purchase.transactionDetails.discount > 0 && (
                           <div>
                             <p className="text-xs text-gray-600 uppercase font-semibold">
-                              Descuento
+                              {t("loyalty.detail.discount")}
                             </p>
                             <p className="text-sm font-medium text-red-600">
                               -{fmt(purchase.transactionDetails.discount)}
@@ -469,7 +471,7 @@ export default function CustomerDetailsPage() {
                         {purchase.transactionDetails.tax > 0 && (
                           <div>
                             <p className="text-xs text-gray-600 uppercase font-semibold">
-                              Impuesto
+                              {t("loyalty.detail.tax")}
                             </p>
                             <p className="text-sm font-medium text-gray-900">
                               +{fmt(purchase.transactionDetails.tax)}
@@ -478,7 +480,7 @@ export default function CustomerDetailsPage() {
                         )}
                         <div>
                           <p className="text-xs text-gray-600 uppercase font-semibold">
-                            Total
+                          {t("loyalty.detail.total")}
                           </p>
                           <p className="text-sm font-bold text-gray-900">
                             {fmt(purchase.transactionDetails.total)}
@@ -486,7 +488,7 @@ export default function CustomerDetailsPage() {
                         </div>
                         <div className="col-span-2">
                           <p className="text-xs text-gray-600 uppercase font-semibold">
-                            Cajero
+                          {t("loyalty.detail.cashier")}
                           </p>
                           <p className="text-sm text-gray-900">
                             {purchase.transactionDetails.cashier_name || "—"}
@@ -505,7 +507,7 @@ export default function CustomerDetailsPage() {
       {/* Award Reward Modal */}
       <Dialog
         isOpen={showRewardModal}
-        title="Dar Recompensa"
+        title={t("loyalty.detail.awardModalTitle")}
         onClose={() => setShowRewardModal(false)}
         maxWidth="sm"
         footer={
@@ -514,13 +516,13 @@ export default function CustomerDetailsPage() {
               onClick={() => setShowRewardModal(false)}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
             >
-              Cancelar
+              {t("loyalty.detail.cancelBtn")}
             </Button>
             <Button
               onClick={handleAwardReward}
               className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700"
             >
-              Dar Recompensa
+              {t("loyalty.detail.rewardBtn")}
             </Button>
           </div>
         }
@@ -528,13 +530,13 @@ export default function CustomerDetailsPage() {
         <div className="space-y-4">
           <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
             <p className="text-sm text-purple-700">
-              <span className="font-semibold">{customer?.name}</span> ha gastado{" "}
+              <span className="font-semibold">{customer?.name}</span> {t("loyalty.detail.spentText")}{" "}
               <span className="font-semibold">{fmt(customer?.total_accumulated || 0)}</span>
             </p>
             <p className="text-sm text-purple-700 mt-2">
               {loyaltySettings && (
                 <>
-                  Recompensa: <span className="font-semibold">{loyaltySettings.loyalty_reward_value}</span>{" "}
+                  {t("loyalty.detail.rewardLabel")} <span className="font-semibold">{loyaltySettings.loyalty_reward_value}</span>{" "}
                   {loyaltySettings.loyalty_reward_type === "DISCOUNT_PERCENT" ? "%" : "C$"}
                 </>
               )}
@@ -542,7 +544,7 @@ export default function CustomerDetailsPage() {
           </div>
 
           <p className="text-sm text-gray-600">
-            ¿Deseas dar una recompensa a este cliente? El contador reiniciará desde cero después de registrar esta recompensa.
+            {t("loyalty.detail.awardConfirmText")}
           </p>
         </div>
       </Dialog>

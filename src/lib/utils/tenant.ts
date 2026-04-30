@@ -5,7 +5,6 @@
  * Helper methods for multi-tenant operations
  */
 
-import { useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 /**
@@ -13,14 +12,13 @@ import { useCallback } from "react";
  * Restores from localStorage if needed (for session persistence)
  */
 export function useTenantId(): string | null {
-  const searchParams = useSearchParams();
-
-  // 1. Try from URL parameters
-  const tenantFromUrl = searchParams.get("tenant");
-  if (tenantFromUrl) return tenantFromUrl;
-
-  // 2. Try from sessionStorage (set during login)
+  // 1. Try from URL parameters (using window.location to avoid Suspense requirement)
   if (typeof window !== "undefined") {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tenantFromUrl = urlParams.get("tenant");
+    if (tenantFromUrl) return tenantFromUrl;
+
+    // 2. Try from sessionStorage (set during login)
     const tenantFromSession = sessionStorage.getItem("defaultTenantId");
     if (tenantFromSession) return tenantFromSession;
 
@@ -38,10 +36,8 @@ export function useTenantId(): string | null {
         // Invalid JSON, ignore
       }
     }
-  }
 
-  // 4. Try from subdomain (chocorico.caja.com)
-  if (typeof window !== "undefined") {
+    // 4. Try from subdomain (chocorico.caja.com)
     const hostname = window.location.hostname;
     const subdomain = hostname.split(".")[0];
     if (subdomain && subdomain !== "localhost" && subdomain !== "www") {

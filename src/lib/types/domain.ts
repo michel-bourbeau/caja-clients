@@ -23,6 +23,19 @@ export interface Product {
   updatedAt: Date;
 }
 
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  sku: string;
+  price: number;
+  cost_price?: number;
+  stock_quantity: number;
+  min_stock?: number;
+  sort_order?: number;
+}
+
+
 export interface Category {
   id: string;
   name: string;

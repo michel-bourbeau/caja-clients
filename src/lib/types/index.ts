@@ -24,6 +24,7 @@
 export {
   // Product/Inventory
   type Product,
+  type ProductVariant,
   type Category,
   type InventoryMovement,
   // Transactions
