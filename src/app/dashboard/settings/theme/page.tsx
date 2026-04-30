@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTheme, FONT_SIZE_MAP, type FontSize } from "@/context/ThemeContext";
 import { useTenantId } from "@/lib/utils/tenant";
+import { useAuth } from "@/context/AuthContext";
 import { Button, Card, CardContent, CardHeader, CardTitle, Alert, Section, Container } from "@/components/StripeUIComponents";
 
 const FONT_SIZE_OPTIONS: { value: FontSize; label: string; description: string }[] = [
@@ -13,11 +15,18 @@ const FONT_SIZE_OPTIONS: { value: FontSize; label: string; description: string }
 ];
 
 export default function ThemePage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const tenantId = useTenantId();
   const { settings, updateTheme, setPreviewTheme, loading: themeLoading } = useTheme();
   const [fontSize, setFontSize] = useState<FontSize>("normal");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!user) { router.push("/login"); return; }
+    if (!user.permissions?.includes("settings.view")) { router.push("/dashboard"); return; }
+  }, [user, router]);
 
   useEffect(() => {
     setFontSize(settings.fontSize);

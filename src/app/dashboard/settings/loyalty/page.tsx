@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, Button } from "@/components/ui";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
+import { useAuth } from "@/context/AuthContext";
 
 interface LoyaltyConfig {
   enabled: boolean;
@@ -14,6 +16,8 @@ interface LoyaltyConfig {
 }
 
 export default function LoyaltySettingsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const { features, loading: featuresLoading } = useTenantFeatures();
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>({
     enabled: true,
@@ -53,6 +57,11 @@ export default function LoyaltySettingsPage() {
       setLoading(false);
     }
   }, [tenantId]);
+
+  useEffect(() => {
+    if (!user) { router.push("/login"); return; }
+    if (!user.permissions?.includes("settings.view")) { router.push("/dashboard"); return; }
+  }, [user, router]);
 
   useEffect(() => {
     loadLoyaltyConfig();

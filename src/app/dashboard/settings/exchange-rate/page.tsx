@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
 import { PageIcon, LoadingSpinner } from "@/components";
 import { DollarSign } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface ExchangeSettings {
   usdExchangeRate: number;
 }
 
 export default function ExchangeRatePage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [settings, setSettings] = useState<ExchangeSettings>({ usdExchangeRate: 37.00 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,6 +45,11 @@ export default function ExchangeRatePage() {
       setLoading(false);
     }
   }, [tenantId]);
+
+  useEffect(() => {
+    if (!user) { router.push("/login"); return; }
+    if (!user.permissions?.includes("settings.view")) { router.push("/dashboard"); return; }
+  }, [user, router]);
 
   useEffect(() => {
     loadSettings();

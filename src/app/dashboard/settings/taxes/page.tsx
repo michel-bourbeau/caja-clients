@@ -48,7 +48,10 @@ export default function TaxesSettingsPage() {
       router.push("/login");
       return;
     }
-    // Removido: verificação de permissão para permitir acesso a todos os admins
+    if (!user.permissions?.includes("settings.view")) {
+      router.push("/dashboard");
+      return;
+    }
     fetchTaxes();
     fetchReport();
   }, [tenantId, user, periodType, currentDate]);

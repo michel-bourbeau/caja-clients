@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { Container, Section, Card, CardHeader, CardTitle, CardContent, Button, Alert } from "@/components/StripeUIComponents";
+import { useAuth } from "@/context/AuthContext";
 
 type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
 
@@ -92,6 +94,8 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
 };
 
 export default function ModulesPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const tenantId = useTenantId();
   const { features, error: featuresError } = useTenantFeatures();
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>(
@@ -107,6 +111,11 @@ export default function ModulesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!user) { router.push("/login"); return; }
+    if (!user.permissions?.includes("settings.view")) { router.push("/dashboard"); return; }
+  }, [user, router]);
 
   // Update modules when features load
   useEffect(() => {

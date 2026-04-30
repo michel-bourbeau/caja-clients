@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Section, Container } from "@/components/StripeUIComponents";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
@@ -10,6 +11,7 @@ import { ThemeFontSizeSettings } from "@/components/ThemeFontSizeSettings";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useLanguage } from "@/context/LanguageContext";
 import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale } from "@/i18n/config";
+import { useAuth } from "@/context/AuthContext";
 
 interface PlanDetails {
   label: string;
@@ -73,6 +75,8 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
   const { setTenantDefault, t } = useLanguage();
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
@@ -150,6 +154,11 @@ export default function SettingsPage() {
       setLoadingPayment(false);
     }
   }, [tenantId]);
+
+  useEffect(() => {
+    if (!user) { router.push("/login"); return; }
+    if (!user.permissions?.includes("settings.view")) { router.push("/dashboard"); return; }
+  }, [user, router]);
 
   useEffect(() => { loadSettings(); }, [loadSettings]);
 
@@ -281,9 +290,22 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-slate-600 mb-4">{t("settings.modulesCardDesc")}</p>
-            <Link href="/dashboard/settings/modules">
-              <Button variant="primary">{t("settings.modulesCardBtn")}</Button>
-            </Link>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { href: "/dashboard/settings/modules",       icon: "🧩", label: t("settings.subModules") },
+                { href: "/dashboard/settings/taxes",         icon: "📋", label: t("settings.subTaxes") },
+                { href: "/dashboard/settings/exchange-rate", icon: "💱", label: t("settings.subExchangeRate") },
+                { href: "/dashboard/settings/theme",         icon: "🎨", label: t("settings.subTheme") },
+                { href: "/dashboard/settings/loyalty",       icon: "💳", label: t("settings.subLoyalty") },
+              ].map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
