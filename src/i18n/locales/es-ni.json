@@ -1864,5 +1864,23 @@
     "colAmount": "Monto",
     "colValidUntil": "Válido Hasta",
     "colMethod": "Método"
+  },
+  "planExpiration": {
+    "suspendedTitle": "🚨 CUENTA SUSPENDIDA",
+    "suspendedExpiredDays": "Tu suscripción ha expirado hace {{n}} días",
+    "suspendedModulesOff": "⚠️ TODOS LOS MÓDULOS, USUARIOS Y EMPLEADOS HAN SIDO DESACTIVADOS",
+    "suspendedContact": "Para restaurar el acceso completo, contacta con el administrador del sistema para efectuar el pago de inmediato.",
+    "viewPaymentStatus": "Ver Estado del Pago",
+    "expiringTitle": "⏰ Suscripción Expirando Pronto",
+    "expiringDays": "Tu suscripción expira en {{n}} días.",
+    "expiringWarning": "Asegúrate de realizar el pago a tiempo para evitar la suspensión de todos los módulos y usuarios.",
+    "renewNow": "Renovar Ahora"
+  },
+  "searchInput": {
+    "placeholder": "Buscar..."
+  },
+  "demoBanner": {
+    "message": "MODE DÉMO — Les données sont fictives. Les modifications ne sont pas sauvegardées.",
+    "exit": "Quitter la démo"
   }
 }

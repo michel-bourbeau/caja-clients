@@ -1867,5 +1867,23 @@
     "colAmount": "Amount",
     "colValidUntil": "Valid Until",
     "colMethod": "Method"
+  },
+  "planExpiration": {
+    "suspendedTitle": "🚨 ACCOUNT SUSPENDED",
+    "suspendedExpiredDays": "Your subscription expired {{n}} days ago",
+    "suspendedModulesOff": "⚠️ ALL MODULES, USERS AND EMPLOYEES HAVE BEEN DEACTIVATED",
+    "suspendedContact": "To restore full access, contact the system administrator to make payment immediately.",
+    "viewPaymentStatus": "View Payment Status",
+    "expiringTitle": "⏰ Subscription Expiring Soon",
+    "expiringDays": "Your subscription expires in {{n}} days.",
+    "expiringWarning": "Make sure to pay on time to avoid suspension of all modules and users.",
+    "renewNow": "Renew Now"
+  },
+  "searchInput": {
+    "placeholder": "Search..."
+  },
+  "demoBanner": {
+    "message": "DEMO MODE — Data is fictional. Changes are not saved.",
+    "exit": "Exit demo"
   }
 }

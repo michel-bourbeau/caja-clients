@@ -2,10 +2,12 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function DemoBanner() {
   const { isDemoMode, logout } = useAuth();
   const router = useRouter();
+  const { t } = useLanguage();
 
   if (!isDemoMode) return null;
 
@@ -21,14 +23,14 @@ export function DemoBanner() {
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          MODE DÉMO — Les données sont fictives. Les modifications ne sont pas sauvegardées.
+          {t("demoBanner.message")}
         </span>
       </div>
       <button
         onClick={handleExit}
         className="px-2 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-700 transition-colors text-xs whitespace-nowrap"
       >
-        Quitter la démo
+        {t("demoBanner.exit")}
       </button>
     </div>
   );

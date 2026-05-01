@@ -1,4 +1,5 @@
 import React from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface SearchInputProps {
   value: string;
@@ -8,7 +9,9 @@ interface SearchInputProps {
 }
 
 export const SearchInput = React.forwardRef<HTMLDivElement, SearchInputProps>(
-  ({ value, onChange, placeholder = "Buscar...", className = "" }, ref) => {
+  ({ value, onChange, placeholder, className = "" }, ref) => {
+    const { t } = useLanguage();
+    const resolvedPlaceholder = placeholder ?? t("searchInput.placeholder");
     return (
       <div ref={ref} className={`relative ${className}`}>
         <svg
@@ -28,7 +31,7 @@ export const SearchInput = React.forwardRef<HTMLDivElement, SearchInputProps>(
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           className="w-full pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           style={{ paddingLeft: '28px' }}
         />
