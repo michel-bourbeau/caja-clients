@@ -1885,5 +1885,56 @@
   "demoBanner": {
     "message": "DEMO MODE — Data is fictional. Changes are not saved.",
     "exit": "Exit demo"
+  },
+  "trialBanner": {
+    "expiredTitle": "⏰ Your free trial has expired",
+    "expiredDesc": "To continue using the app, please upgrade to a paid plan.",
+    "upgradeCta": "💳 Upgrade to a paid plan",
+    "warningTitle": "⚠️ You have {{n}} days left in your free trial",
+    "warningDesc": "Remember to upgrade to a paid plan to avoid interrupting your service.",
+    "urgentTitle": "⏳ Last {{n}} days of your trial!",
+    "urgentDesc": "Upgrade quickly to a paid plan to keep your data and access."
+  },
+  "themeFontSize": {
+    "cardTitle": "Global Font Size",
+    "save": "Save Changes",
+    "smallLabel": "Small",
+    "smallDesc": "Compact and dense",
+    "normalLabel": "Normal",
+    "normalDesc": "Standard size",
+    "largeLabel": "Large",
+    "largeDesc": "Better readability"
+  },
+  "loyaltySettings": {
+    "title": "Loyalty Settings",
+    "subtitle": "Customize your loyal customers program",
+    "savedOk": "✓ Settings updated successfully",
+    "saveError": "Error saving settings",
+    "moduleLabel": "Loyalty Module",
+    "moduleDesc": "Enable or disable the loyal customers program",
+    "thresholdLabel": "Reward Threshold",
+    "thresholdDesc": "Each time a customer spends this amount, they receive a reward",
+    "rewardTypeLabel": "Reward Type",
+    "typeDiscountPct": "Discount %",
+    "typeDiscountFixed": "Fixed Discount (C$)",
+    "typePoints": "Points",
+    "typeGift": "Gift",
+    "rewardValueLabel": "Reward Value",
+    "rewardValueDescPct": "Discount percentage (%)",
+    "rewardValueDescFixed": "Discount amount (C$)",
+    "rewardValueDescOther": "Prize value",
+    "exampleTitle": "Example:",
+    "exampleSpends": "Each time a customer spends",
+    "exampleReceives": ", they receive",
+    "exampleOf": "of",
+    "exampleDiscount": "discount",
+    "exampleReward": "reward",
+    "saving": "Saving...",
+    "save": "Save Changes",
+    "tipTitle": "💡 Tip",
+    "tip1": "Lower the reward threshold for more frequency",
+    "tip2": "A 5-10% discount is typical",
+    "tip3": "Customers can see their progress at the POS",
+    "tip4": "Rewards are recorded automatically"
   }
 }

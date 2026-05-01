@@ -6,9 +6,11 @@ import { LoyaltyService } from "@/features/loyalty/services";
 import { useTenantId } from "@/lib/utils/tenant";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { EmptyState, LoadingSpinner } from "@/components";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function LoyaltySettingsPage() {
   const tenantId = useTenantId();
+  const { t } = useLanguage();
   const [settings, setSettings] = useState({
     loyalty_module_enabled: false,
     loyalty_reward_threshold: 2000,
@@ -46,7 +48,7 @@ export default function LoyaltySettingsPage() {
     try {
       setSaving(true);
       await LoyaltyService.updateLoyaltySettings(tenantId, settings);
-      setMessage("✓ Configuración actualizada exitosamente");
+      setMessage(t("loyaltySettings.savedOk"));
       setMessageType("success");
 
       setTimeout(() => {
@@ -54,7 +56,7 @@ export default function LoyaltySettingsPage() {
         setMessageType(null);
       }, 3000);
     } catch (error: any) {
-      setMessage(error.message || "Error guardando configuración");
+      setMessage(error.message || t("loyaltySettings.saveError"));
       setMessageType("error");
     } finally {
       setSaving(false);
@@ -69,8 +71,8 @@ export default function LoyaltySettingsPage() {
     <FeatureGuard feature="loyalty">
       <div className="max-w-2xl space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Configuración de Fidelización</h1>
-          <p className="text-gray-600">Personaliza tu programa de clientes fieles</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t("loyaltySettings.title")}</h1>
+          <p className="text-gray-600">{t("loyaltySettings.subtitle")}</p>
         </div>
 
       {message && (
@@ -88,8 +90,8 @@ export default function LoyaltySettingsPage() {
         <div className="border-b pb-6">
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-semibold text-gray-900">Módulo de Fidelización</label>
-              <p className="text-sm text-gray-600 mt-1">Activa o desactiva el programa de clientes fieles</p>
+              <label className="text-sm font-semibold text-gray-900">{t("loyaltySettings.moduleLabel")}</label>
+              <p className="text-sm text-gray-600 mt-1">{t("loyaltySettings.moduleDesc")}</p>
             </div>
             <button
               type="button"
@@ -112,10 +114,10 @@ export default function LoyaltySettingsPage() {
             {/* Reward Threshold */}
             <div>
               <label htmlFor="threshold" className="block text-sm font-semibold text-gray-900 mb-2">
-                Monto para Recompensa
+                {t("loyaltySettings.thresholdLabel")}
               </label>
               <p className="text-sm text-gray-600 mb-3">
-                Cada vez que un cliente gasta este monto, recibe una recompensa
+                {t("loyaltySettings.thresholdDesc")}
               </p>
               <input
                 id="threshold"
@@ -133,7 +135,7 @@ export default function LoyaltySettingsPage() {
             {/* Reward Type */}
             <div>
               <label htmlFor="rewardType" className="block text-sm font-semibold text-gray-900 mb-2">
-                Tipo de Recompensa
+                {t("loyaltySettings.rewardTypeLabel")}
               </label>
               <select
                 id="rewardType"
@@ -143,24 +145,24 @@ export default function LoyaltySettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900"
               >
-                <option value="DISCOUNT_PERCENT">Descuento %</option>
-                <option value="DISCOUNT_FIXED">Descuento Fijo (C$)</option>
-                <option value="POINTS">Puntos</option>
-                <option value="GIFT">Regalo/Brinde</option>
+                <option value="DISCOUNT_PERCENT">{t("loyaltySettings.typeDiscountPct")}</option>
+                <option value="DISCOUNT_FIXED">{t("loyaltySettings.typeDiscountFixed")}</option>
+                <option value="POINTS">{t("loyaltySettings.typePoints")}</option>
+                <option value="GIFT">{t("loyaltySettings.typeGift")}</option>
               </select>
             </div>
 
             {/* Reward Value */}
             <div>
               <label htmlFor="rewardValue" className="block text-sm font-semibold text-gray-900 mb-2">
-                Valor de Recompensa
+                {t("loyaltySettings.rewardValueLabel")}
               </label>
               <p className="text-sm text-gray-600 mb-3">
                 {settings.loyalty_reward_type === "DISCOUNT_PERCENT"
-                  ? "Porcentaje de descuento (%)"
+                  ? t("loyaltySettings.rewardValueDescPct")
                   : settings.loyalty_reward_type === "DISCOUNT_FIXED"
-                  ? "Monto de descuento (C$)"
-                  : "Valor del premio"}
+                  ? t("loyaltySettings.rewardValueDescFixed")
+                  : t("loyaltySettings.rewardValueDescOther")}
               </p>
               <input
                 id="rewardValue"
@@ -177,15 +179,19 @@ export default function LoyaltySettingsPage() {
 
             {/* Preview */}
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm font-semibold text-blue-900">Ejemplo:</p>
+              <p className="text-sm font-semibold text-blue-900">{t("loyaltySettings.exampleTitle")}</p>
               <p className="text-sm text-blue-700 mt-1">
-                Cada vez que un cliente gasta{" "}
-                <span className="font-semibold">{settings.loyalty_reward_threshold.toLocaleString()} C$</span>, recibe{" "}
+                {t("loyaltySettings.exampleSpends")}{" "}
+                <span className="font-semibold">{settings.loyalty_reward_threshold.toLocaleString()} C$</span>
+                {t("loyaltySettings.exampleReceives")}{" "}
                 <span className="font-semibold">
                   {settings.loyalty_reward_value}
                   {settings.loyalty_reward_type === "DISCOUNT_PERCENT" ? "%" : " C$"}
                 </span>{" "}
-                de {settings.loyalty_reward_type === "DISCOUNT_PERCENT" ? "descuento" : "recompensa"}
+                {t("loyaltySettings.exampleOf")}{" "}
+                {settings.loyalty_reward_type === "DISCOUNT_PERCENT"
+                  ? t("loyaltySettings.exampleDiscount")
+                  : t("loyaltySettings.exampleReward")}
               </p>
             </div>
           </>
@@ -193,26 +199,26 @@ export default function LoyaltySettingsPage() {
 
         <div className="flex gap-3 pt-6 border-t">
           <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
-            {saving ? "Guardando..." : "Guardar Cambios"}
+          {saving ? t("loyaltySettings.saving") : t("loyaltySettings.save")}
           </Button>
           <Button
             type="button"
             variant="secondary"
             onClick={() => loadSettings()}
           >
-            Cancelar
+            {t("common.cancel")}
           </Button>
         </div>
       </form>
 
       {/* Info Box */}
       <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-        <p className="text-sm font-semibold text-amber-900">💡 Consejo</p>
+        <p className="text-sm font-semibold text-amber-900">{t("loyaltySettings.tipTitle")}</p>
         <ul className="text-sm text-amber-800 mt-2 space-y-1 list-disc pl-5">
-          <li>Reduce el monto de recompensa para más frecuencia</li>
-          <li>Un descuento del 5-10% es típico</li>
-          <li>Los clientes pueden ver su progreso en el POS</li>
-          <li>Las recompensas se registran automáticamente</li>
+          <li>{t("loyaltySettings.tip1")}</li>
+          <li>{t("loyaltySettings.tip2")}</li>
+          <li>{t("loyaltySettings.tip3")}</li>
+          <li>{t("loyaltySettings.tip4")}</li>
         </ul>
       </div>
       </div>

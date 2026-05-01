@@ -1880,7 +1880,58 @@
     "placeholder": "Buscar..."
   },
   "demoBanner": {
-    "message": "MODE DÉMO — Les données sont fictives. Les modifications ne sont pas sauvegardées.",
-    "exit": "Quitter la démo"
+    "message": "MODO DEMO — Los datos son ficticios. Los cambios no se guardan.",
+    "exit": "Salir del demo"
+  },
+  "trialBanner": {
+    "expiredTitle": "⏰ Tu periodo de prueba gratuito ha expirado",
+    "expiredDesc": "Para continuar usando la aplicación, pasa a un plan de pago.",
+    "upgradeCta": "💳 Pasar a un plan de pago",
+    "warningTitle": "⚠️ Te quedan {{n}} días de prueba gratuita",
+    "warningDesc": "Recuerda pasar a un plan de pago para no interrumpir tu servicio.",
+    "urgentTitle": "⏳ ¡Últimos {{n}} días de prueba!",
+    "urgentDesc": "Pasa rápidamente a un plan de pago para conservar tus datos y acceso."
+  },
+  "themeFontSize": {
+    "cardTitle": "Tamaño de Letra Global",
+    "save": "Guardar Cambios",
+    "smallLabel": "Pequeño",
+    "smallDesc": "Compacto y denso",
+    "normalLabel": "Normal",
+    "normalDesc": "Tamaño estándar",
+    "largeLabel": "Grande",
+    "largeDesc": "Mejor legibilidad"
+  },
+  "loyaltySettings": {
+    "title": "Configuración de Fidelización",
+    "subtitle": "Personaliza tu programa de clientes fieles",
+    "savedOk": "✓ Configuración actualizada exitosamente",
+    "saveError": "Error guardando configuración",
+    "moduleLabel": "Módulo de Fidelización",
+    "moduleDesc": "Activa o desactiva el programa de clientes fieles",
+    "thresholdLabel": "Monto para Recompensa",
+    "thresholdDesc": "Cada vez que un cliente gasta este monto, recibe una recompensa",
+    "rewardTypeLabel": "Tipo de Recompensa",
+    "typeDiscountPct": "Descuento %",
+    "typeDiscountFixed": "Descuento Fijo (C$)",
+    "typePoints": "Puntos",
+    "typeGift": "Regalo/Brinde",
+    "rewardValueLabel": "Valor de Recompensa",
+    "rewardValueDescPct": "Porcentaje de descuento (%)",
+    "rewardValueDescFixed": "Monto de descuento (C$)",
+    "rewardValueDescOther": "Valor del premio",
+    "exampleTitle": "Ejemplo:",
+    "exampleSpends": "Cada vez que un cliente gasta",
+    "exampleReceives": ", recibe",
+    "exampleOf": "de",
+    "exampleDiscount": "descuento",
+    "exampleReward": "recompensa",
+    "saving": "Guardando...",
+    "save": "Guardar Cambios",
+    "tipTitle": "💡 Consejo",
+    "tip1": "Reduce el monto de recompensa para más frecuencia",
+    "tip2": "Un descuento del 5-10% es típico",
+    "tip3": "Los clientes pueden ver su progreso en el POS",
+    "tip4": "Las recompensas se registran automáticamente"
   }
 }

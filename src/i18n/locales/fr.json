@@ -1881,5 +1881,56 @@
   "demoBanner": {
     "message": "MODE DÉMO — Les données sont fictives. Les modifications ne sont pas sauvegardées.",
     "exit": "Quitter la démo"
+  },
+  "trialBanner": {
+    "expiredTitle": "⏰ Votre essai gratuit a expiré",
+    "expiredDesc": "Pour continuer à utiliser l'application, veuillez passer à un plan payant.",
+    "upgradeCta": "💳 Passer à un plan payant",
+    "warningTitle": "⚠️ Il vous reste {{n}} jours d'essai gratuit",
+    "warningDesc": "Pensez à passer à un plan payant pour ne pas interrompre votre service.",
+    "urgentTitle": "⏳ Derniers {{n}} jours d'essai !",
+    "urgentDesc": "Passez rapidement à un plan payant pour conserver vos données et accès."
+  },
+  "themeFontSize": {
+    "cardTitle": "Taille de Police Globale",
+    "save": "Enregistrer les Modifications",
+    "smallLabel": "Petit",
+    "smallDesc": "Compact et dense",
+    "normalLabel": "Normal",
+    "normalDesc": "Taille standard",
+    "largeLabel": "Grand",
+    "largeDesc": "Meilleure lisibilité"
+  },
+  "loyaltySettings": {
+    "title": "Paramètres de Fidélisation",
+    "subtitle": "Personnalisez votre programme clients fidèles",
+    "savedOk": "✓ Paramètres mis à jour avec succès",
+    "saveError": "Erreur lors de la sauvegarde",
+    "moduleLabel": "Module de Fidélisation",
+    "moduleDesc": "Activez ou désactivez le programme clients fidèles",
+    "thresholdLabel": "Montant pour Récompense",
+    "thresholdDesc": "Chaque fois qu'un client dépense ce montant, il reçoit une récompense",
+    "rewardTypeLabel": "Type de Récompense",
+    "typeDiscountPct": "Remise %",
+    "typeDiscountFixed": "Remise Fixe (C$)",
+    "typePoints": "Points",
+    "typeGift": "Cadeau",
+    "rewardValueLabel": "Valeur de la Récompense",
+    "rewardValueDescPct": "Pourcentage de remise (%)",
+    "rewardValueDescFixed": "Montant de remise (C$)",
+    "rewardValueDescOther": "Valeur du prix",
+    "exampleTitle": "Exemple :",
+    "exampleSpends": "Chaque fois qu'un client dépense",
+    "exampleReceives": ", il reçoit",
+    "exampleOf": "de",
+    "exampleDiscount": "remise",
+    "exampleReward": "récompense",
+    "saving": "Enregistrement...",
+    "save": "Enregistrer les Modifications",
+    "tipTitle": "💡 Conseil",
+    "tip1": "Réduisez le montant de récompense pour plus de fréquence",
+    "tip2": "Une remise de 5 à 10 % est typique",
+    "tip3": "Les clients peuvent voir leur progression au POS",
+    "tip4": "Les récompenses sont enregistrées automatiquement"
   }
 }

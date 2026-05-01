@@ -3,17 +3,19 @@
 import { useState, useEffect } from "react";
 import { useTheme, FONT_SIZE_MAP, type FontSize } from "@/context/ThemeContext";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/components/StripeUIComponents";
-
-const FONT_SIZE_OPTIONS: { value: FontSize; label: string; description: string }[] = [
-  { value: "small", label: "Pequeño", description: "Compacto y denso" },
-  { value: "normal", label: "Normal", description: "Tamaño estándar" },
-  { value: "large", label: "Grande", description: "Mejor legibilidad" },
-];
+import { useLanguage } from "@/context/LanguageContext";
 
 export const ThemeFontSizeSettings: React.FC = () => {
+  const { t } = useLanguage();
   const { settings, updateTheme, setPreviewTheme } = useTheme();
   const [fontSize, setFontSize] = useState<FontSize>("normal");
   const [saving, setSaving] = useState(false);
+
+  const FONT_SIZE_OPTIONS: { value: FontSize; label: string; description: string }[] = [
+    { value: "small", label: t("themeFontSize.smallLabel"), description: t("themeFontSize.smallDesc") },
+    { value: "normal", label: t("themeFontSize.normalLabel"), description: t("themeFontSize.normalDesc") },
+    { value: "large", label: t("themeFontSize.largeLabel"), description: t("themeFontSize.largeDesc") },
+  ];
 
   useEffect(() => {
     setFontSize(settings.fontSize);
@@ -44,7 +46,7 @@ export const ThemeFontSizeSettings: React.FC = () => {
       {/* Font Size Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Tamaño de Letra Global</CardTitle>
+          <CardTitle>{t("themeFontSize.cardTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
@@ -78,7 +80,7 @@ export const ThemeFontSizeSettings: React.FC = () => {
               variant="primary"
               loading={saving}
             >
-              Guardar Cambios
+              {t("themeFontSize.save")}
             </Button>
           </div>
         </CardContent>
