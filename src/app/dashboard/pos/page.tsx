@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { ShoppingCart, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { POSService } from "@/features/pos/services";
 import { TaxService } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
@@ -10,8 +10,8 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { Button, Alert, Card, Container, Section } from "@/components/StripeUIComponents";
-import { PageIcon, SearchInput, DashboardHeader, IconButton, Dialog, DialogFooter, ReceiptModal, EmptyState, type ReceiptSettings } from "@/components";
+import { Button, Alert } from "@/components/StripeUIComponents";
+import { SearchInput, DashboardHeader, Dialog, ReceiptModal, EmptyState, type ReceiptSettings } from "@/components";
 
 type PaymentMethod = "CASH" | "CARD" | "TRANSFER";
 type Currency = "NIO" | "USD";

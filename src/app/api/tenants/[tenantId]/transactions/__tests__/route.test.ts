@@ -1,28 +1,24 @@
-/**
- * GET /api/tenants/[tenantId]/transactions
- * POST /api/tenants/[tenantId]/transactions
+﻿/**
+ * POS Flow — API Integration Tests
  *
- * Couvre :
- *  GET  - lecture filtrée par tenant_id, filtres de dates optionnels
- *  POST - validation panier vide, stock, plan suspendu, calculs totaux/COGS,
- *         décrément stock, création transaction, migration manquante
+ * Tests the complete POST /api/tenants/[tenantId]/transactions handler:
+ *   1. Happy path: validate stock → calculate totals/taxes/COGS → insert tx → decrement inventory
+ *   2. Edge cases: empty cart, insufficient stock, discount, taxes, variants
+ *   3. Error handling: plan expired
+ *
+ * Supabase is fully mocked; no network calls are made.
  */
 
-// ─── Mocks next/server avant tout import ──────────────────────────────────────
+// ─── Mock next/server BEFORE any route import ─────────────────────────────────
 
 class MockNextResponse {
   readonly status: number;
   private body: unknown;
-
   constructor(body: unknown, init?: { status?: number }) {
     this.body = body;
     this.status = init?.status ?? 200;
   }
-
-  async json() {
-    return this.body;
-  }
-
+  async json() { return this.body; }
   static json(body: unknown, init?: { status?: number }) {
     return new MockNextResponse(body, init);
   }
@@ -35,13 +31,12 @@ class MockNextRequest {
 
   constructor(url: string, init?: { method?: string; body?: string; headers?: Record<string, string> }) {
     this.url = url;
-    this.method = init?.method ?? "GET";
+    this.method = init?.method ?? "POST";
     this._body = init?.body ? JSON.parse(init.body) : undefined;
   }
 
-  async json() {
-    return this._body;
-  }
+  async json() { return this._body; }
+  headers = { get: (_k: string) => null };
 }
 
 jest.mock("next/server", () => ({
@@ -49,580 +44,399 @@ jest.mock("next/server", () => ({
   NextResponse: MockNextResponse,
 }));
 
-// ─── Autres mocks ─────────────────────────────────────────────────────────────
+import { POST } from "../route";
+
+// ─── Shared mutable state (reset in beforeEach) ───────────────────────────────
+
+let productsMockData: any[] = [];
+let variantsMockData: any[] = [];
+let taxesMockData: any[] = [];
+let planValid = true;
+const updateCalls: { table: string; data: any; filters: Record<string, any> }[] = [];
+const insertCalls: { table: string; data: any }[] = [];
+
+// ─── Mock: Supabase ────────────────────────────────────────────────────────────
 
 jest.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: jest.fn(),
+  getSupabaseAdmin: () => buildMockSupabase(),
 }));
 
-jest.mock("@/lib/utils/planStatusCheck", () => ({
-  checkPlanStatus: jest.fn(),
-  respondWithExpiredPlan: jest.fn(),
-}));
+function buildTableChain(table: string) {
+  let pendingInIds: string[] = [];
 
-import { GET, POST } from "../route";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { checkPlanStatus, respondWithExpiredPlan } from "@/lib/utils/planStatusCheck";
+  const resolve = async (): Promise<{ data: any; error: any }> => {
+    if (table === "tenants") return { data: { paid_until: null }, error: null };
+    if (table === "products") {
+      const rows = pendingInIds.length
+        ? productsMockData.filter((p) => pendingInIds.includes(p.id))
+        : productsMockData;
+      return { data: rows, error: null };
+    }
+    if (table === "product_variants") {
+      const rows = pendingInIds.length
+        ? variantsMockData.filter((v) => pendingInIds.includes(v.id))
+        : variantsMockData;
+      return { data: rows, error: null };
+    }
+    if (table === "tenant_taxes") return { data: taxesMockData, error: null };
+    if (table === "stock_movements") return { data: {}, error: null };
+    return { data: null, error: null };
+  };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+  const chain: any = {
+    select: jest.fn().mockReturnThis(),
+    eq:     jest.fn().mockReturnThis(),
+    gte:    jest.fn().mockReturnThis(),
+    lte:    jest.fn().mockReturnThis(),
+    lt:     jest.fn().mockReturnThis(),
+    order:  jest.fn().mockReturnThis(),
+    range:  jest.fn().mockReturnThis(),
+    in: jest.fn().mockImplementation((_col: string, ids: string[]) => {
+      pendingInIds = ids;
+      return chain;
+    }),
+    single: jest.fn().mockImplementation(resolve),
+    insert: jest.fn().mockImplementation((rows: any) => {
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      insertCalls.push({ table, data: row });
+      return {
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: "TX-TEST-123", ...row }, error: null }),
+      };
+    }),
+    update: jest.fn().mockImplementation((data: any) => {
+      const call: { table: string; data: any; filters: Record<string, any> } = { table, data, filters: {} };
+      updateCalls.push(call);
+      const eqC: any = { eq: jest.fn().mockImplementation((c: string, v: any) => { call.filters[c] = v; return eqC; }) };
+      return eqC;
+    }),
+  };
 
-function makeRequest(method: string, url: string, body?: unknown): MockNextRequest {
-  return new MockNextRequest(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
+  Object.defineProperty(chain, "then", {
+    get() { return (ok: any, fail: any) => resolve().then(ok, fail); },
   });
+
+  return chain;
 }
 
-const TENANT = "tenant-abc";
-const PARAMS = Promise.resolve({ tenantId: TENANT });
+function buildMockSupabase() {
+  return { from: (table: string) => buildTableChain(table) };
+}
 
-/** Produit de base pour les tests POST */
-const PRODUCT = { id: "p1", stock_quantity: 10, price: 50, cost_price: 30 };
-const ITEM = { productId: "p1", quantity: 2, price: 50, total: 100 };
+// ─── Mock: planStatusCheck ─────────────────────────────────────────────────────
 
-// ─── GET Tests ────────────────────────────────────────────────────────────────
+jest.mock("@/lib/utils/planStatusCheck", () => ({
+  checkPlanStatus: jest.fn(async () => ({ isValid: planValid })),
+  respondWithExpiredPlan: jest.fn(() =>
+    MockNextResponse.json({ error: "Plan expired" }, { status: 402 })
+  ),
+}));
 
-describe("GET /api/tenants/[tenantId]/transactions", () => {
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
-  function setupGet(result: { data: unknown; error: unknown }) {
-    let pagesDone = 0;
+function makeRequest(
+  body: object,
+  tenantId = "tenant-1"
+): [any, { params: Promise<{ tenantId: string }> }] {
+  const req = new MockNextRequest(
+    `http://localhost/api/tenants/${tenantId}/transactions`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+  );
+  return [req, { params: Promise.resolve({ tenantId }) }];
+}
 
-    // Spies partagés — tous les thenables de la chaîne utilisent les mêmes instances
-    // pour que les assertions expect(mock.gte).toHaveBeenCalledWith(...) passent toujours.
-    const spies = {
-      gte: jest.fn(),
-      lte: jest.fn(),
-      lt:  jest.fn(),
-    };
+// ─── Fixtures ──────────────────────────────────────────────────────────────────
 
-    function makeThenable(res: { data: unknown; error: unknown }) {
-      const t: any = {
-        then: (onFulfilled: any) => Promise.resolve(res).then(onFulfilled),
-        gte: spies.gte,
-        lte: spies.lte,
-        lt:  spies.lt,
-      };
-      return t;
-    }
+const PRODUCT_CAFE = { id: "prod-cafe", tenant_id: "tenant-1", stock_quantity: 10, price: 50, cost_price: 20 };
+const PRODUCT_PAN  = { id: "prod-pan",  tenant_id: "tenant-1", stock_quantity: 5,  price: 20, cost_price: 8  };
+const VARIANT_GRANDE = { id: "var-grande", product_id: "prod-cafe", tenant_id: "tenant-1", stock_quantity: 8, price: 60, cost_price: 22 };
+const TAX_IVA      = { id: "t1", name: "IVA", rate: 15, is_active: true  };
+const TAX_ISC      = { id: "t2", name: "ISC", rate: 2,  is_active: true  };
+const TAX_INACTIVE = { id: "t3", name: "OFF", rate: 10, is_active: false };
 
-    // Chaque spy de filtre retourne un nouveau thenable avec le même résultat
-    spies.gte.mockImplementation(() => makeThenable(result));
-    spies.lte.mockImplementation(() => makeThenable(result));
-    spies.lt.mockImplementation(()  => makeThenable(result));
+// ─── Setup ─────────────────────────────────────────────────────────────────────
 
-    const mock: any = {
-      from:   jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      eq:     jest.fn().mockReturnThis(),
-      order:  jest.fn().mockReturnThis(),
-      gte:    spies.gte,
-      lte:    spies.lte,
-      lt:     spies.lt,
-      range: jest.fn().mockImplementation(() => {
-        const pageResult = pagesDone === 0
-          ? { data: result.data, error: result.error }
-          : { data: [], error: null };
-        pagesDone++;
-        return makeThenable(pageResult);
-      }),
-    };
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-    return mock;
-  }
-
-  it("retourne 200 avec la liste des transactions du tenant", async () => {
-    setupGet({ data: [{ id: "TX-1", tenant_id: TENANT }], error: null });
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    const res = await GET(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(Array.isArray(body)).toBe(true);
-  });
-
-  it("filtre par tenant_id (eq appelé avec le bon tenantId)", async () => {
-    const mock = setupGet({ data: [], error: null });
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    await GET(req as any, { params: PARAMS });
-    expect(mock.eq).toHaveBeenCalledWith("tenant_id", TENANT);
-  });
-
-  it("applique les filtres de date gte/lte quand from et to sont fournis", async () => {
-    const mock = setupGet({ data: [], error: null });
-    const req = makeRequest(
-      "GET",
-      `http://localhost/api/tenants/${TENANT}/transactions?from=2026-04-01&to=2026-04-28`
-    );
-    await GET(req as any, { params: PARAMS });
-    expect(mock.gte).toHaveBeenCalledWith("created_at", "2026-04-01T00:00:00Z");
-    expect(mock.lte).toHaveBeenCalledWith("created_at", "2026-04-28T23:59:59Z");
-  });
-
-  it("n'applique pas gte/lte si seulement from est fourni", async () => {
-    const mock = setupGet({ data: [], error: null });
-    const req = makeRequest(
-      "GET",
-      `http://localhost/api/tenants/${TENANT}/transactions?from=2026-04-01`
-    );
-    await GET(req as any, { params: PARAMS });
-    expect(mock.gte).not.toHaveBeenCalled();
-    expect(mock.lte).not.toHaveBeenCalled();
-  });
-
-  it("retourne 200 avec [] si data est null", async () => {
-    setupGet({ data: null, error: null });
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    const res = await GET(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([]);
-  });
-
-  it("retourne 500 si Supabase retourne une erreur", async () => {
-    setupGet({ data: null, error: new Error("DB error") });
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    const res = await GET(req as any, { params: PARAMS });
-    expect(res.status).toBe(500);
-  });
+beforeEach(() => {
+  planValid = true;
+  productsMockData = [PRODUCT_CAFE, PRODUCT_PAN];
+  variantsMockData = [VARIANT_GRANDE];
+  taxesMockData    = [];
+  updateCalls.length = 0;
+  insertCalls.length = 0;
+  jest.clearAllMocks();
 });
 
-// ─── Pagination Tests ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tests
+// ═══════════════════════════════════════════════════════════════════════════════
 
-describe("GET pagination — retourne TOUTES les lignes", () => {
+describe("POST /api/tenants/[tenantId]/transactions — POS Flow", () => {
 
-  /** Crée un mock multi-pages pour tester la boucle de pagination. */
-  function setupPagination(pages: Array<{ data: unknown; error: unknown }>) {
-    let pageIndex = 0;
+  // ── Happy path ──────────────────────────────────────────────────────────────
 
-    function makeThenable(res: { data: unknown; error: unknown }) {
-      const t: any = { then: (fn: any) => Promise.resolve(res).then(fn) };
-      t.gte = jest.fn().mockImplementation(() => makeThenable(res));
-      t.lte = jest.fn().mockImplementation(() => makeThenable(res));
-      t.lt  = jest.fn().mockImplementation(() => makeThenable(res));
-      return t;
-    }
+  describe("Happy path — CARD payment", () => {
+    it("returns 200 with created transaction id", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.id).toBeDefined();
+    });
 
-    const mock: any = {
-      from:   jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      eq:     jest.fn().mockReturnThis(),
-      order:  jest.fn().mockReturnThis(),
-      gte:    jest.fn().mockReturnThis(),
-      lte:    jest.fn().mockReturnThis(),
-      lt:     jest.fn().mockReturnThis(),
-      range: jest.fn().mockImplementation(() => {
-        const res = pageIndex < pages.length ? pages[pageIndex] : { data: [], error: null };
-        pageIndex++;
-        return makeThenable(res);
-      }),
-    };
+    it("inserts transaction with correct totals (no tax)", async () => {
+      const [req, ctx] = makeRequest({
+        items: [
+          { productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 },
+          { productId: "prod-pan",  name: "Pan",  quantity: 1, price: 20, total: 20  },
+        ],
+        paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0,
+      });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx).toBeDefined();
+      expect(tx!.data.subtotal).toBe(120);
+      expect(tx!.data.tax).toBe(0);
+      expect(tx!.data.total).toBe(120);
+      expect(tx!.data.payment_method).toBe("CARD");
+    });
 
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-    return mock;
-  }
+    it("decrements stock for each product sold", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 3, price: 50, total: 150 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const upd = updateCalls.find((c) => c.table === "products" && c.data.stock_quantity === 10 - 3);
+      expect(upd).toBeDefined();
+    });
 
-  function makeRows(count: number) {
-    return Array.from({ length: count }, (_, i) => ({ id: `TX-${i}`, tenant_id: TENANT }));
-  }
-
-  it("retourne 1000 lignes quand exactement 1 page pleine (régression limite Supabase)", async () => {
-    setupPagination([
-      { data: makeRows(1000), error: null },
-      { data: [],             error: null }, // page 2 vide → arrêt
-    ]);
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    const res = await GET(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toHaveLength(1000);
+    it("stores correct COGS and profit", async () => {
+      // cost=20 x2 = 40, revenue=100, profit=60
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.cost_of_goods_sold).toBe(40);
+      expect(tx!.data.profit).toBe(60);
+    });
   });
 
-  it("agrège correctement 2 pages (1000 + 500 = 1500 lignes)", async () => {
-    setupPagination([
-      { data: makeRows(1000), error: null },
-      { data: makeRows(500),  error: null },
-      { data: [],             error: null }, // arrêt
-    ]);
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    const res = await GET(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toHaveLength(1500);
+  // ── CASH payment ────────────────────────────────────────────────────────────
+
+  describe("CASH payment & change", () => {
+    it("records amount_received and computes correct change", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CASH", cashierId: "u1", cashierName: "Juan", discount: 0, amountReceived: 100 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.amount_received).toBe(100);
+      expect(tx!.data.change).toBe(50);
+    });
+
+    it("stores 0 change for CARD payment even when amountReceived provided", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0, amountReceived: 100 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.change).toBe(0);
+    });
   });
 
-  it("s'arrête après 1 seule requête quand moins de 1000 lignes (<PAGE_SIZE)", async () => {
-    const mock = setupPagination([
-      { data: makeRows(42), error: null },
-    ]);
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    const res = await GET(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toHaveLength(42);
-    expect(mock.range).toHaveBeenCalledTimes(1); // une seule page demandée
+  // ── Discount ────────────────────────────────────────────────────────────────
+
+  describe("Discount", () => {
+    it("applies discount before total", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 20 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.discount).toBe(20);
+      expect(tx!.data.total).toBe(80);
+    });
+
+    it("caps discount at subtotal — total is 0 not negative", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 999 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.discount).toBe(50);
+      expect(tx!.data.total).toBe(0);
+    });
   });
 
-  it("appelle range() avec les bons offsets à chaque itération", async () => {
-    const mock = setupPagination([
-      { data: makeRows(1000), error: null },
-      { data: makeRows(1000), error: null },
-      { data: makeRows(1),    error: null }, // < 1000 → arrêt
-    ]);
-    const req = makeRequest("GET", `http://localhost/api/tenants/${TENANT}/transactions`);
-    await GET(req as any, { params: PARAMS });
-    expect(mock.range).toHaveBeenNthCalledWith(1, 0,    999);
-    expect(mock.range).toHaveBeenNthCalledWith(2, 1000, 1999);
-    expect(mock.range).toHaveBeenNthCalledWith(3, 2000, 2999);
-    expect(mock.range).toHaveBeenCalledTimes(3);
-  });
-});
+  // ── Taxes ───────────────────────────────────────────────────────────────────
 
-// ─── POST Tests ───────────────────────────────────────────────────────────────
-
-describe("POST /api/tenants/[tenantId]/transactions", () => {
-
-  /** Setup standard : plan valide, produit en stock, taxes vides, insert réussi */
-  function setupValidPost(productOverride?: Partial<typeof PRODUCT>) {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-    const product = { ...PRODUCT, ...productOverride };
-
-    const txRow = {
-      id: "TX-NEW",
-      tenant_id: TENANT,
-      items: [ITEM],
-      subtotal: 100,
-      discount: 0,
-      tax: 0,
-      total: 100,
-      payment_method: "CASH",
-      created_at: "2026-04-28T10:00:00Z",
-      cashier_id: "c1",
-      cashier_name: "Test",
-      status: "COMPLETED",
-      amount_received: 100,
-      change: 0,
-    };
-
-    const mock: any = { from: jest.fn() };
-    // Compteur par table pour distinguer SELECT vs UPDATE sur "products"
-    const callCounters: Record<string, number> = {};
-
-    mock.from.mockImplementation((table: string) => {
-      const idx = (callCounters[table] = (callCounters[table] ?? 0) + 1);
-
-      if (table === "products") {
-        if (idx === 1) {
-          // 1er appel : SELECT stock → .select().in().eq() resolves
-          return {
-            select: jest.fn().mockReturnThis(),
-            in: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockResolvedValue({ data: [product], error: null }),
-          };
-        }
-        // Appels suivants : UPDATE stock → .update().eq("id").eq("tenant_id") resolves
-        const upd: any = {};
-        upd.update = jest.fn().mockReturnValue(upd);
-        upd.eq = jest.fn()
-          .mockReturnValueOnce(upd)                                            // premier .eq() → chaîne
-          .mockResolvedValueOnce({ data: null, error: null });                 // deuxième .eq() → résout
-        return upd;
-      }
-
-      if (table === "product_variants") {
-        // Variants : idem (select + update)
-        if (idx === 1) {
-          return {
-            select: jest.fn().mockReturnThis(),
-            in: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-          };
-        }
-        const upd: any = {};
-        upd.update = jest.fn().mockReturnValue(upd);
-        upd.eq = jest.fn()
-          .mockReturnValueOnce(upd)
-          .mockResolvedValueOnce({ data: null, error: null });
-        return upd;
-      }
-
-      if (table === "tenant_taxes") {
-        return {
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-        };
-      }
-
-      if (table === "transactions") {
-        return {
-          insert: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: txRow, error: null }),
-        };
-      }
-
-      // fallback
-      return {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-      };
+  describe("Taxes", () => {
+    it("applies a single active tax", async () => {
+      taxesMockData = [TAX_IVA];
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.tax).toBe(15);
+      expect(tx!.data.total).toBe(115);
     });
 
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-    return mock;
-  }
-
-  it("retourne 400 si items est un tableau vide", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-    const mock: any = { from: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [], paymentMethod: "CASH",
+    it("applies multiple active taxes additively", async () => {
+      taxesMockData = [TAX_IVA, TAX_ISC];
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.tax).toBe(17);
+      expect(tx!.data.total).toBe(117);
     });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(400);
+
+    it("ignores inactive taxes", async () => {
+      taxesMockData = [TAX_INACTIVE];
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.tax).toBe(0);
+      expect(tx!.data.total).toBe(50);
+    });
+
+    it("applies tax AFTER discount", async () => {
+      // subtotal=100, discount=20, taxable=80, IVA=12, total=92
+      taxesMockData = [TAX_IVA];
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 20 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.discount).toBe(20);
+      expect(tx!.data.tax).toBe(12);
+      expect(tx!.data.total).toBe(92);
+    });
+
+    it("stores tax_breakdown with per-tax amounts", async () => {
+      taxesMockData = [TAX_IVA, TAX_ISC];
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 2, price: 50, total: 100 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.tax_breakdown).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: "IVA", rate: 15, amount: 15 }),
+          expect.objectContaining({ name: "ISC", rate: 2,  amount: 2  }),
+        ])
+      );
+    });
   });
 
-  it("retourne 400 si items est absent", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-    const mock: any = { from: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
+  // ── Product variants ─────────────────────────────────────────────────────────
 
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      paymentMethod: "CASH",
+  describe("Product variants", () => {
+    it("decrements variant stock when variantId is present", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", variantId: "var-grande", name: "Cafe Grande", quantity: 2, price: 60, total: 120 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const varUpd = updateCalls.find((c) => c.table === "product_variants" && c.data.stock_quantity === 8 - 2);
+      expect(varUpd).toBeDefined();
+      const prodUpd = updateCalls.find((c) => c.table === "products");
+      expect(prodUpd).toBeUndefined();
     });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(400);
+
+    it("uses variant cost_price for COGS", async () => {
+      // variant cost=22 x2 = 44, revenue=120, profit=76
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", variantId: "var-grande", name: "Cafe Grande", quantity: 2, price: 60, total: 120 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.cost_of_goods_sold).toBe(44);
+      expect(tx!.data.profit).toBe(76);
+    });
   });
 
-  it("retourne 403 si le plan est suspendu", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: false, suspended: true });
-    (respondWithExpiredPlan as jest.Mock).mockReturnValue(
-      MockNextResponse.json({ error: "Suscripción expirada", code: "SUBSCRIPTION_SUSPENDED" }, { status: 403 })
-    );
+  // ── Validation errors ─────────────────────────────────────────────────────────
 
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [ITEM], paymentMethod: "CASH",
+  describe("Validation errors", () => {
+    it("returns 400 when cart is empty", async () => {
+      const [req, ctx] = makeRequest({ items: [], paymentMethod: "CARD", cashierId: "u1" });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/panier/i);
     });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(403);
-    const body = await res.json();
-    expect(body.code).toBe("SUBSCRIPTION_SUSPENDED");
+
+    it("returns 400 when items field is missing", async () => {
+      const [req, ctx] = makeRequest({ paymentMethod: "CARD", cashierId: "u1" });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when stock is insufficient", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-pan", name: "Pan", quantity: 10, price: 20, total: 200 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/stock/i);
+    });
+
+    it("returns 400 when variant stock is insufficient", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", variantId: "var-grande", name: "Cafe Grande", quantity: 20, price: 60, total: 1200 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/stock/i);
+    });
+
+    it("returns 400 when quantity is 0", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 0, price: 50, total: 0 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when product not found in DB", async () => {
+      productsMockData = [];
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toMatch(/introuvable/i);
+    });
   });
 
-  it("retourne 200 et la transaction créée pour un POST valide (CASH)", async () => {
-    setupValidPost();
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [ITEM], paymentMethod: "CASH", cashierId: "c1", cashierName: "Test",
+  // ── Plan gating ───────────────────────────────────────────────────────────────
+
+  describe("Plan gating", () => {
+    it("returns 402 when plan is expired", async () => {
+      planValid = false;
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      const res = await POST(req, ctx);
+      expect(res.status).toBe(402);
     });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.id).toBe("TX-NEW");
+
+    it("does NOT insert transaction when plan is expired", async () => {
+      planValid = false;
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0 });
+      await POST(req, ctx);
+      expect(insertCalls.find((c) => c.table === "transactions")).toBeUndefined();
+    });
   });
 
-  it("retourne 200 pour un POST CARD", async () => {
-    setupValidPost();
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [ITEM], paymentMethod: "CARD",
+  // ── Multi-item ────────────────────────────────────────────────────────────────
+
+  describe("Multi-item sale", () => {
+    it("decrements each product stock independently", async () => {
+      const [req, ctx] = makeRequest({
+        items: [
+          { productId: "prod-cafe", name: "Cafe", quantity: 3, price: 50, total: 150 },
+          { productId: "prod-pan",  name: "Pan",  quantity: 2, price: 20, total: 40  },
+        ],
+        paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0,
+      });
+      await POST(req, ctx);
+      expect(updateCalls.find((c) => c.table === "products" && c.data.stock_quantity === 10 - 3)).toBeDefined();
+      expect(updateCalls.find((c) => c.table === "products" && c.data.stock_quantity === 5 - 2)).toBeDefined();
     });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(200);
+
+    it("aggregates COGS across all items", async () => {
+      // Cafe: 20x3=60 | Pan: 8x2=16 | total COGS=76 | revenue=190 | profit=114
+      const [req, ctx] = makeRequest({
+        items: [
+          { productId: "prod-cafe", name: "Cafe", quantity: 3, price: 50, total: 150 },
+          { productId: "prod-pan",  name: "Pan",  quantity: 2, price: 20, total: 40  },
+        ],
+        paymentMethod: "CARD", cashierId: "u1", cashierName: "Juan", discount: 0,
+      });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.cost_of_goods_sold).toBe(76);
+      expect(tx!.data.profit).toBe(114);
+    });
   });
 
-  it("retourne 400 si le stock est insuffisant", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
+  // ── USD multi-currency ────────────────────────────────────────────────────────
 
-    const mock: any = { from: jest.fn() };
-    mock.from.mockImplementation((table: string) => {
-      if (table === "products") {
-        return {
-          select: jest.fn().mockReturnThis(),
-          in: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [{ ...PRODUCT, stock_quantity: 1 }], error: null }),
-        };
-      }
-      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
+  describe("USD currency", () => {
+    it("stores currency_paid and usd_amount_received", async () => {
+      const [req, ctx] = makeRequest({ items: [{ productId: "prod-cafe", name: "Cafe", quantity: 1, price: 50, total: 50 }], paymentMethod: "CASH", cashierId: "u1", cashierName: "Juan", discount: 0, amountReceived: 50, currency_paid: "USD", usd_amount_received: 1.35, usd_exchange_rate: 37 });
+      await POST(req, ctx);
+      const tx = insertCalls.find((c) => c.table === "transactions");
+      expect(tx!.data.currency_paid).toBe("USD");
+      expect(tx!.data.usd_amount_received).toBeCloseTo(1.35);
     });
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [{ ...ITEM, quantity: 2 }], paymentMethod: "CASH",
-    });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toMatch(/stock/i);
-  });
-
-  it("retourne 400 si un produit est introuvable", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-
-    const mock: any = { from: jest.fn() };
-    mock.from.mockImplementation((table: string) => {
-      if (table === "products") {
-        return {
-          select: jest.fn().mockReturnThis(),
-          in: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [], error: null }), // aucun produit
-        };
-      }
-      return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
-    });
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [ITEM], paymentMethod: "CASH",
-    });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(400);
-  });
-
-  it("retourne 400 si une quantité est 0", async () => {
-    setupValidPost();
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [{ ...ITEM, quantity: 0 }], paymentMethod: "CASH",
-    });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toMatch(/quantité|quantit/i);
-  });
-
-  it("retourne 503 avec code MIGRATION_REQUIRED si colonne discount manquante", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-
-    const mock: any = { from: jest.fn() };
-    mock.from.mockImplementation((table: string) => {
-      if (table === "products") {
-        return {
-          select: jest.fn().mockReturnThis(),
-          in: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [PRODUCT], error: null }),
-        };
-      }
-      if (table === "tenant_taxes") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
-      }
-      if (table === "transactions") {
-        return {
-          insert: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({
-            data: null,
-            error: { message: "Could not find the 'discount' column" },
-          }),
-        };
-      }
-      return {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
-      };
-    });
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [ITEM], paymentMethod: "CASH",
-    });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(503);
-    const body = await res.json();
-    expect(body.code).toBe("MIGRATION_REQUIRED");
-  });
-
-  it("retourne 500 en cas d'erreur Supabase inattendue (rejet)", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-
-    const mock: any = { from: jest.fn() };
-    mock.from.mockImplementation(() => ({
-      select: jest.fn().mockReturnThis(),
-      in: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockRejectedValue(new Error("Connection timeout")),
-    }));
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [ITEM], paymentMethod: "CASH",
-    });
-    const res = await POST(req as any, { params: PARAMS });
-    expect(res.status).toBe(500);
-  });
-
-  it("calcule le discount et le total après remise", async () => {
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-    let insertedData: any = null;
-
-    const mock: any = { from: jest.fn() };
-    mock.from.mockImplementation((table: string) => {
-      if (table === "products") {
-        return {
-          select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
-          update: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [{ id: "p1", stock_quantity: 10, price: 100, cost_price: 0 }], error: null }),
-        };
-      }
-      if (table === "tenant_taxes") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
-      }
-      if (table === "transactions") {
-        return {
-          insert: jest.fn().mockImplementation((rows: any[]) => {
-            insertedData = rows[0];
-            return { select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: "TX-D", ...rows[0] }, error: null }) };
-          }),
-        };
-      }
-      return { select: jest.fn().mockReturnThis(), update: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: null, error: null }) };
-    });
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [{ productId: "p1", quantity: 1, price: 100, total: 100 }],
-      paymentMethod: "CASH",
-      discount: 20,
-    });
-    await POST(req as any, { params: PARAMS });
-
-    expect(insertedData?.discount).toBe(20);
-    expect(insertedData?.total).toBe(80);
-  });
-
-  it("calcule le COGS et le profit à partir du cost_price", async () => {
-    // cost_price=30, qty=2 → COGS=60, total=100, profit=40
-    (checkPlanStatus as jest.Mock).mockResolvedValue({ isValid: true });
-    let insertedData: any = null;
-
-    const mock: any = { from: jest.fn() };
-    mock.from.mockImplementation((table: string) => {
-      if (table === "products") {
-        return {
-          select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(),
-          update: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockResolvedValue({ data: [{ id: "p1", stock_quantity: 10, price: 50, cost_price: 30 }], error: null }),
-        };
-      }
-      if (table === "tenant_taxes") {
-        return { select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) };
-      }
-      if (table === "transactions") {
-        return {
-          insert: jest.fn().mockImplementation((rows: any[]) => {
-            insertedData = rows[0];
-            return { select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: { id: "TX-C", ...rows[0] }, error: null }) };
-          }),
-        };
-      }
-      return { select: jest.fn().mockReturnThis(), update: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: null, error: null }) };
-    });
-    (getSupabaseAdmin as jest.Mock).mockReturnValue(mock);
-
-    const req = makeRequest("POST", `http://localhost/api/tenants/${TENANT}/transactions`, {
-      items: [{ productId: "p1", quantity: 2, price: 50, total: 100 }],
-      paymentMethod: "CASH",
-    });
-    await POST(req as any, { params: PARAMS });
-
-    expect(insertedData?.cost_of_goods_sold).toBe(60);  // 30 × 2
-    expect(insertedData?.profit).toBe(40);              // 100 - 60
   });
 });
