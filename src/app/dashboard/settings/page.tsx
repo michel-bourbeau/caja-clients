@@ -88,6 +88,11 @@ export default function SettingsPage() {
   const [savingPayroll, setSavingPayroll] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreFileInfo, setRestoreFileInfo] = useState<{ exportedAt: string; counts: Record<string, number>; tenantId: string } | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreConfirmText, setRestoreConfirmText] = useState("");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") : null;
@@ -263,11 +268,70 @@ export default function SettingsPage() {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-      showMessage("success", `${t("settings.messages.backupSuccess")}: ${filename}`);
+      showMessage("success", `Backup téléchargé : ${filename}`);
     } catch {
-      showMessage("error", t("settings.messages.backupError"));
+      showMessage("error", "Erreur lors de la génération du backup.");
     } finally {
       setBackupLoading(false);
+    }
+  };
+
+  const handleRestoreFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setRestoreFile(file);
+    setRestoreFileInfo(null);
+    setRestoreConfirmText("");
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        if (parsed.version !== "2.0") {
+          showMessage("error", `Format de backup non supporté (version ${parsed.version}). Utilisez un backup version 2.0.`);
+          setRestoreFile(null);
+          return;
+        }
+        if (parsed.tenantId !== tenantId) {
+          showMessage("error", "Ce backup appartient à un autre tenant. Restauration annulée.");
+          setRestoreFile(null);
+          return;
+        }
+        setRestoreFileInfo({ exportedAt: parsed.exportedAt, counts: parsed.counts ?? {}, tenantId: parsed.tenantId });
+      } catch {
+        showMessage("error", "Fichier JSON invalide.");
+        setRestoreFile(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleRestore = async () => {
+    if (!tenantId || !restoreFile || restoreConfirmText !== "RESTAURAR") return;
+    setRestoreLoading(true);
+    setShowRestoreConfirm(false);
+    try {
+      const formData = new FormData();
+      formData.append("file", restoreFile);
+      const res = await fetch(`/api/tenants/${tenantId}/backup`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const detail = data.details?.join("; ") ?? data.error ?? "Erreur inconnue";
+        showMessage("error", `Restauration échouée — données d'origine conservées. Détail : ${detail}`);
+      } else if (data.warning) {
+        showMessage("error", `Restauration partielle. ${data.warning} ${(data.details ?? []).join("; ")}`);
+      } else {
+        showMessage("success", `Restauration réussie depuis le ${new Date(data.restoredFrom).toLocaleString()}`);
+        setRestoreFile(null);
+        setRestoreFileInfo(null);
+        setRestoreConfirmText("");
+      }
+    } catch {
+      showMessage("error", "Erreur réseau lors de la restauration.");
+    } finally {
+      setRestoreLoading(false);
     }
   };
 
@@ -789,6 +853,103 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ── Backup & Restore Card ─────────────────────────────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle>🗄️ Sauvegarde &amp; Restauration</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+
+              {/* Export */}
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Exporter les données</h3>
+                <p className="text-sm text-slate-600 mb-3">
+                  Télécharge un fichier JSON complet de toutes vos données (produits, transactions, employés, dépenses, etc.).
+                  Conservez ce fichier en lieu sûr pour pouvoir restaurer en cas de besoin.
+                </p>
+                <Button
+                  onClick={downloadBackup}
+                  disabled={backupLoading}
+                  loading={backupLoading}
+                  variant="primary"
+                >
+                  {backupLoading ? "Génération en cours…" : "⬇ Télécharger le backup"}
+                </Button>
+              </div>
+
+              <div className="border-t border-slate-200" />
+
+              {/* Import / Restore */}
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-1">Restaurer depuis un backup</h3>
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+                  <p className="text-sm font-semibold text-red-700">⚠ Opération destructive</p>
+                  <p className="text-sm text-red-600 mt-1">
+                    La restauration <strong>remplace toutes les données actuelles</strong> par celles du fichier backup.
+                    Un snapshot automatique est effectué avant la restauration pour permettre un rollback si une erreur survient.
+                    Utilisez uniquement un backup généré par cette application (version 2.0).
+                  </p>
+                </div>
+
+                {/* File picker */}
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700 mb-2 block">Sélectionner le fichier backup (.json)</span>
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={handleRestoreFileChange}
+                    disabled={restoreLoading}
+                    className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 file:cursor-pointer"
+                  />
+                </label>
+
+                {/* Backup info preview */}
+                {restoreFileInfo && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                    <p className="text-sm font-semibold text-blue-800">Backup valide détecté</p>
+                    <p className="text-xs text-blue-700">
+                      Date d&apos;export : <strong>{new Date(restoreFileInfo.exportedAt).toLocaleString()}</strong>
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-blue-700 pt-1">
+                      {Object.entries(restoreFileInfo.counts).map(([key, count]) => (
+                        <span key={key} className="bg-blue-100 rounded px-2 py-1">
+                          <span className="font-semibold">{count}</span> {key}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Confirmation input */}
+                    <div className="pt-3 border-t border-blue-200">
+                      <label className="block text-sm font-semibold text-red-700 mb-1">
+                        Tapez <span className="font-mono bg-red-100 px-1 rounded">RESTAURAR</span> pour confirmer
+                      </label>
+                      <input
+                        type="text"
+                        value={restoreConfirmText}
+                        onChange={(e) => setRestoreConfirmText(e.target.value)}
+                        placeholder="RESTAURAR"
+                        className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-red-400"
+                        disabled={restoreLoading}
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleRestore}
+                      disabled={restoreConfirmText !== "RESTAURAR" || restoreLoading}
+                      loading={restoreLoading}
+                      variant="secondary"
+                      className="mt-2 bg-red-600 hover:bg-red-700 text-white border-red-600 disabled:opacity-40"
+                    >
+                      {restoreLoading ? "Restauration en cours…" : "🔁 Restaurer les données"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
           </>
         )}

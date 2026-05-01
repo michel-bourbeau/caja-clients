@@ -521,14 +521,25 @@ function handleDelete(path: string[]): NextResponse {
 function buildDemoPeriods() {
   const periods = [];
   const now = new Date();
-  for (let i = 0; i < 6; i++) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+  // Find the most recent Monday (weekStartDay = 1)
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon…
+  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const thisMonday = new Date(now);
+  thisMonday.setDate(now.getDate() - daysToMonday);
+  thisMonday.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 8; i++) {
+    const start = new Date(thisMonday);
+    start.setDate(thisMonday.getDate() - i * 7);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const fmt = (d: Date) =>
+      d.toLocaleString("es-NI", { day: "numeric", month: "short" });
     periods.push({
       id: `period-${i}`,
       startDate: start.toISOString().split("T")[0],
       endDate: end.toISOString().split("T")[0],
-      label: start.toLocaleString("es-NI", { month: "long", year: "numeric" }),
+      label: `${fmt(start)} – ${fmt(end)} ${end.getFullYear()}`,
       isCurrent: i === 0,
     });
   }
@@ -536,16 +547,20 @@ function buildDemoPeriods() {
 }
 
 function buildDemoPayrollSummary() {
-  return DEMO_EMPLOYEES.filter((e) => e.status === "ACTIVE").map((emp) => ({
-    employeeId: emp.id,
-    firstName: emp.first_name,
-    lastName: emp.last_name,
-    hourlyRate: emp.salary / 160,
-    hoursWorked: 160,
-    shiftsCount: 20,
-    salaryDue: emp.salary,
-    hasOpenShift: false,
-  }));
+  return DEMO_EMPLOYEES.filter((e) => e.status === "ACTIVE").map((emp) => {
+    const hourlyRate = emp.salary / 160;
+    const hoursWorked = 40;
+    return {
+      employeeId: emp.id,
+      firstName: emp.first_name,
+      lastName: emp.last_name,
+      hourlyRate,
+      hoursWorked,
+      shiftsCount: 5,
+      salaryDue: hourlyRate * hoursWorked,
+      hasOpenShift: false,
+    };
+  });
 }
 
 // ─── Route Handlers ───────────────────────────────────────────────────────────
