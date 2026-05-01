@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useTheme, THEME_SCHEMES } from "@/context/ThemeContext";
 import { useTenantFeatures } from "@/lib/utils/tenantFeatures";
 import { ROUTES } from "@/lib/constants";
@@ -13,6 +14,7 @@ export const Sidebar: React.FC = () => {
   const { hasPermission, refreshPermissions, user } = useAuth();
   const { features } = useTenantFeatures();
   const { settings } = useTheme();
+  const { t } = useLanguage();
   const pathname = usePathname();
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -82,26 +84,26 @@ export const Sidebar: React.FC = () => {
       {/* Navigation */}
       <nav className="sidebar-nav">
         {/* Dashboard - Always visible */}
-        <NavLink href={ROUTES.DASHBOARD} label="Dashboard" iconType="dashboard" />
+        <NavLink href={ROUTES.DASHBOARD} label={t("nav.dashboard")} iconType="dashboard" />
 
         <div className="sidebar-divider"></div>
 
         {/* POS — Accordion, open by default */}
         {(hasPermission("pos.view") || hasPermission("pos.create")) && (
           <Accordion
-            label="Punto de Venta"
+            label={t("nav.pos")}
             iconType="pos"
             isOpen={expandedSections.pos}
             onToggle={() => toggleSection("pos")}
           >
             {hasPermission("pos.create") && (
-              <NavLink href={ROUTES.POS} label="Caja" iconType="pos" isNested />
+              <NavLink href={ROUTES.POS} label={t("nav.caja")} iconType="pos" isNested />
             )}
             {hasPermission("pos.view") && (
-              <NavLink href={ROUTES.TRANSACTIONS} label="Transacciones" iconType="transactions" isNested />
+              <NavLink href={ROUTES.TRANSACTIONS} label={t("nav.transactions")} iconType="transactions" isNested />
             )}
             {(hasPermission("pos.cierre") || hasPermission("pos.cierre_review")) && (
-              <NavLink href={ROUTES.CIERRE} label="Cierre de Caja" iconType="cierre" isNested />
+              <NavLink href={ROUTES.CIERRE} label={t("nav.cierreCaja")} iconType="cierre" isNested />
             )}
           </Accordion>
         )}
@@ -109,12 +111,12 @@ export const Sidebar: React.FC = () => {
         {/* Inventario — Accordion */}
         {hasPermission("inventory.view") && (
           <Accordion
-            label="Inventario"
+            label={t("nav.inventario")}
             iconType="inventory"
             isOpen={expandedSections.inventario}
             onToggle={() => toggleSection("inventario")}
           >
-            <NavLink href={ROUTES.PRODUCTS} label="Gestión de Productos" iconType="inventory" isNested />
+            <NavLink href={ROUTES.PRODUCTS} label={t("nav.gestionProductos")} iconType="inventory" isNested />
           </Accordion>
         )}
 
@@ -125,21 +127,21 @@ export const Sidebar: React.FC = () => {
           hasPermission("payroll.view") ||
           hasPermission("payroll.create")) && (
           <Accordion
-            label="Personal"
+            label={t("nav.personal")}
             iconType="employees"
             isOpen={expandedSections.personal}
             onToggle={() => toggleSection("personal")}
           >
             {hasPermission("employees.view") && (
-              <NavLink href={ROUTES.EMPLOYEES} label="Empleados" iconType="employees" isNested />
+              <NavLink href={ROUTES.EMPLOYEES} label={t("nav.empleados")} iconType="employees" isNested />
             )}
             {(hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
-              <NavLink href={ROUTES.SCHEDULES} label="Asistencia" iconType="schedules" isNested />
+              <NavLink href={ROUTES.SCHEDULES} label={t("nav.asistencia")} iconType="schedules" isNested />
             )}
             {(hasPermission("payroll.view") || hasPermission("payroll.create")) && (
               <>
-                <NavLink href={ROUTES.PAYROLL_PERIODS} label="Períodos de Pago" iconType="periods" isNested />
-                <NavLink href={ROUTES.PAYROLL} label="Recibos de Nómina" iconType="payroll" isNested />
+                <NavLink href={ROUTES.PAYROLL_PERIODS} label={t("nav.periodosPago")} iconType="periods" isNested />
+                <NavLink href={ROUTES.PAYROLL} label={t("nav.reciboNomina")} iconType="payroll" isNested />
               </>
             )}
           </Accordion>
@@ -151,24 +153,24 @@ export const Sidebar: React.FC = () => {
           hasPermission("expenses.view_all") ||
           hasPermission("expenses.view_own")) && (
           <Accordion
-            label="Finanzas"
+            label={t("nav.finanzas")}
             iconType="reports"
             isOpen={expandedSections.finanzas}
             onToggle={() => toggleSection("finanzas")}
           >
             {hasPermission("reports.view") && (
               <>
-                <NavLink href={ROUTES.REPORTS} label="Reportes de Ventas" iconType="reports" isNested />
-                <NavLink href="/dashboard/profits" label="Análisis de Ganancias" iconType="reports" isNested />
+                <NavLink href={ROUTES.REPORTS} label={t("nav.reportesVentas")} iconType="reports" isNested />
+                <NavLink href="/dashboard/profits" label={t("nav.analisisGanancias")} iconType="reports" isNested />
                 {features?.reports && (
-                  <NavLink href="/dashboard/bilan" label="Bilan Financiero" iconType="bilan" isNested />
+                  <NavLink href="/dashboard/bilan" label={t("nav.bilanFinanciero")} iconType="bilan" isNested />
                 )}
               </>
             )}
             {(hasPermission("expenses.create") ||
               hasPermission("expenses.view_all") ||
               hasPermission("expenses.view_own")) && (
-              <NavLink href="/dashboard/expenses" label="Gastos" iconType="expenses" isNested />
+              <NavLink href="/dashboard/expenses" label={t("nav.gastos")} iconType="expenses" isNested />
             )}
           </Accordion>
         )}
@@ -176,16 +178,16 @@ export const Sidebar: React.FC = () => {
         {/* Clientes — Accordion */}
         {(hasPermission("loyalty.view") || hasPermission("contacts.view")) && (
           <Accordion
-            label="Clientes"
+            label={t("nav.clientes")}
             iconType="loyalty"
             isOpen={expandedSections.clientes}
             onToggle={() => toggleSection("clientes")}
           >
             {hasPermission("loyalty.view") && (
-              <NavLink href="/dashboard/loyalty" label="Clientes Fieles" iconType="loyalty" isNested />
+              <NavLink href="/dashboard/loyalty" label={t("nav.clientesFieles")} iconType="loyalty" isNested />
             )}
             {hasPermission("contacts.view") && (
-              <NavLink href="/dashboard/contacts" label="Contactos" iconType="contacts" isNested />
+              <NavLink href="/dashboard/contacts" label={t("nav.contactos")} iconType="contacts" isNested />
             )}
           </Accordion>
         )}
@@ -195,16 +197,16 @@ export const Sidebar: React.FC = () => {
           <>
             <div className="sidebar-divider"></div>
             <Accordion
-              label="Admin"
+              label={t("nav.admin")}
               iconType="admin"
               isOpen={expandedSections.admin}
               onToggle={() => toggleSection("admin")}
             >
               {canManageRoles && (
-                <NavLink href="/dashboard/admin/roles" label="Gestionar Roles" iconType="roles" isNested />
+                <NavLink href="/dashboard/admin/roles" label={t("nav.gestionarRoles")} iconType="roles" isNested />
               )}
               {(canManageRoles || canManageModules) && (
-                <NavLink href={ROUTES.SETTINGS} label="Configuración General" iconType="settings" isNested />
+                <NavLink href={ROUTES.SETTINGS} label={t("nav.configuracionGeneral")} iconType="settings" isNested />
               )}
             </Accordion>
           </>

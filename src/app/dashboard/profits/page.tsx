@@ -74,15 +74,6 @@ export default function ProfitsPage() {
     fetchData();
   }, [tenantId]);
 
-  // Rechargement quand l'utilisateur revient sur la page (depuis un autre onglet/route)
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") fetchData();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [tenantId]);
-
   // Filtre client-side selon la période sélectionnée — aucun appel API supplémentaire
   const transactions = useMemo(() => {
     const from = new Date(`${dateFrom}T00:00:00`);
@@ -143,7 +134,8 @@ export default function ProfitsPage() {
     const map: Record<string, { productId: string; name: string; quantity: number; totalRevenue: number; totalCOGS: number; totalProfit: number }> = {};
     transactions.forEach((tx) => {
       (tx.items || []).forEach((item) => {
-        const key = item.productId || item.name || "unknown";
+        // Use variantId as key when present so each format appears as a separate row
+        const key = (item as any).variantId || item.productId || item.name || "unknown";
         if (!map[key]) map[key] = { productId: key, name: item.name || key, quantity: 0, totalRevenue: 0, totalCOGS: 0, totalProfit: 0 };
         const qty = item.quantity || 1;
         const rev = (item.price || 0) * qty;
@@ -157,6 +149,30 @@ export default function ProfitsPage() {
     return Object.values(map)
       .map((p) => ({ ...p, avgMargin: p.totalRevenue > 0 ? (p.totalProfit / p.totalRevenue) * 100 : 0 }))
       .sort((a, b) => b.totalProfit - a.totalProfit);
+  }, [transactions]);
+
+  // Flat list of individual sales per item, newest first — used in the "Por Producto" detail view
+  const productItems = useMemo(() => {
+    const rows: { txId: string; timestamp: Date; name: string; quantity: number; revenue: number; cogs: number; profit: number; margin: number }[] = [];
+    transactions.forEach((tx) => {
+      (tx.items || []).forEach((item: any) => {
+        const qty = item.quantity || 1;
+        const rev = (item.price || 0) * qty;
+        const cogs = (item.cost_price || 0) * qty;
+        const profit = rev - cogs;
+        rows.push({
+          txId: tx.id,
+          timestamp: tx.timestamp instanceof Date ? tx.timestamp : new Date(String(tx.timestamp)),
+          name: item.name || item.productId || "—",
+          quantity: qty,
+          revenue: rev,
+          cogs,
+          profit,
+          margin: rev > 0 ? (profit / rev) * 100 : 0,
+        });
+      });
+    });
+    return rows.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [transactions]);
 
   const categoryData = useMemo(() => {
@@ -318,6 +334,13 @@ export default function ProfitsPage() {
 
       {/* Tab Content */}
       <Section>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-slate-500 font-medium">Cargando datos…</p>
+          </div>
+        ) : (
+          <>
         {/* SUMMARY TAB */}
         {activeTab === "summary" && (
           <div className="space-y-6">
@@ -389,6 +412,7 @@ export default function ProfitsPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Fecha</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Producto</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-700">Cantidad</th>
                   <th className="px-4 py-3 text-right font-semibold text-slate-700">Ingresos</th>
@@ -398,20 +422,24 @@ export default function ProfitsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {productData.length > 0 ? (
-                  productData.map((product) => (
-                    <tr key={product.productId} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900 truncate max-w-xs">{product.name}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{product.quantity}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{fmt(product.totalRevenue)}</td>
-                      <td className="px-4 py-3 text-right text-slate-600">{fmt(product.totalCOGS)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-green-700">{fmt(product.totalProfit)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-blue-700">{product.avgMargin.toFixed(1)}%</td>
+                {productItems.length > 0 ? (
+                  productItems.map((row, i) => (
+                    <tr key={`${row.txId}-${i}`} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        <div className="font-medium text-slate-700">{row.timestamp.toLocaleDateString("es-NI", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                        <div className="text-xs text-slate-400">{row.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-900 truncate max-w-xs">{row.name}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{row.quantity}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{fmt(row.revenue)}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{fmt(row.cogs)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-green-700">{fmt(row.profit)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-blue-700">{row.margin.toFixed(1)}%</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                       No hay datos disponibles
                     </td>
                   </tr>
@@ -514,6 +542,8 @@ export default function ProfitsPage() {
               </table>
             </div>
           </div>
+        )}
+          </>
         )}
       </Section>
     </Container>

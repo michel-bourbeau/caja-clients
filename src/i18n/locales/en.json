@@ -1527,5 +1527,30 @@
     "flashCatUpdated": "Category updated",
     "flashCatCreated": "Category created",
     "flashCatDeleted": "Category deleted"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "pos": "Point of Sale",
+    "caja": "Register",
+    "transactions": "Transactions",
+    "cierreCaja": "Cash Closing",
+    "inventario": "Inventory",
+    "gestionProductos": "Product Management",
+    "personal": "Staff",
+    "empleados": "Employees",
+    "asistencia": "Attendance",
+    "periodosPago": "Pay Periods",
+    "reciboNomina": "Payroll Receipts",
+    "finanzas": "Finance",
+    "reportesVentas": "Sales Reports",
+    "analisisGanancias": "Profit Analysis",
+    "bilanFinanciero": "Financial Balance",
+    "gastos": "Expenses",
+    "clientes": "Customers",
+    "clientesFieles": "Loyal Customers",
+    "contactos": "Contacts",
+    "admin": "Admin",
+    "gestionarRoles": "Manage Roles",
+    "configuracionGeneral": "General Settings"
   }
 }

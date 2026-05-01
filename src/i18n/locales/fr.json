@@ -1523,5 +1523,30 @@
     "flashCatUpdated": "Cat\u00e9gorie mise \u00e0 jour",
     "flashCatCreated": "Cat\u00e9gorie cr\u00e9\u00e9e",
     "flashCatDeleted": "Cat\u00e9gorie supprim\u00e9e"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "pos": "Point de Vente",
+    "caja": "Caisse",
+    "transactions": "Transactions",
+    "cierreCaja": "Cl\u00f4ture de Caisse",
+    "inventario": "Inventaire",
+    "gestionProductos": "Gestion des Produits",
+    "personal": "Personnel",
+    "empleados": "Employ\u00e9s",
+    "asistencia": "Pr\u00e9sences",
+    "periodosPago": "P\u00e9riodes de Paie",
+    "reciboNomina": "Bulletins de Salaire",
+    "finanzas": "Finances",
+    "reportesVentas": "Rapports de Ventes",
+    "analisisGanancias": "Analyse des Profits",
+    "bilanFinanciero": "Bilan Financier",
+    "gastos": "D\u00e9penses",
+    "clientes": "Clients",
+    "clientesFieles": "Clients Fid\u00e8les",
+    "contactos": "Contacts",
+    "admin": "Admin",
+    "gestionarRoles": "G\u00e9rer les R\u00f4les",
+    "configuracionGeneral": "Configuration G\u00e9n\u00e9rale"
   }
 }

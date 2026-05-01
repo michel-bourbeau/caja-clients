@@ -10,6 +10,7 @@ import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { ButtonGroup } from "@/components/ButtonGroup";
 import { DashboardHeader } from "@/components";
+import { buildPrintDocument, openPrintWindow, escHtml } from "@/lib/export";
 
 type PeriodType = "week" | "month" | "year";
 type TabType = "resumen" | "gastos" | "salarios";
@@ -198,13 +199,159 @@ export default function BilanPage() {
   const maxAbs = Math.max(salesSummary.grossProfit, totalExpenses, totalSalaries, 1);
   const pct = (v: number) => Math.round((Math.abs(v) / maxAbs) * 100);
 
+  // ── Print bilan ──────────────────────────────────────────────────────────
+  const handlePrintBilan = () => {
+    const printedAt = new Intl.DateTimeFormat("es-NI", {
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date());
+
+    const fmtNum = (n: number) =>
+      n.toLocaleString("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = (n: number) => `C$ ${fmtNum(n)}`;
+
+    // ── KPI cards ──────────────────────────────────────────────────────
+    const kpiHtml = `
+<div class="stats-grid">
+  <div class="stat-card" style="border-left:4px solid #16a34a">
+    <div class="stat-label">Ganancia Bruta</div>
+    <div class="stat-value" style="color:#15803d">${money(salesSummary.grossProfit)}</div>
+    <div class="stat-sub">${salesSummary.txCount} ventas · ${money(salesSummary.revenue)} ingresos</div>
+  </div>
+  <div class="stat-card" style="border-left:4px solid #ea580c">
+    <div class="stat-label">Gastos</div>
+    <div class="stat-value" style="color:#c2410c">− ${money(totalExpenses)}</div>
+    <div class="stat-sub">${expenses.length} entrada${expenses.length !== 1 ? "s" : ""}</div>
+  </div>
+  <div class="stat-card" style="border-left:4px solid #9333ea">
+    <div class="stat-label">Salarios</div>
+    <div class="stat-value" style="color:#7e22ce">− ${money(totalSalaries)}</div>
+    <div class="stat-sub">${salaryPayments.length} pago${salaryPayments.length !== 1 ? "s" : ""}</div>
+  </div>
+  <div class="stat-card" style="border-left:4px solid ${netProfit >= 0 ? "#2563eb" : "#dc2626"}">
+    <div class="stat-label">Ganancia Neta</div>
+    <div class="stat-value" style="color:${netProfit >= 0 ? "#1d4ed8" : "#dc2626"}">${money(netProfit)}</div>
+    <div class="stat-sub">${salesSummary.revenue > 0 ? `Margen: ${((netProfit / salesSummary.revenue) * 100).toFixed(1)}%` : "Sin ventas"}</div>
+  </div>
+</div>`;
+
+    // ── Estado de resultados ────────────────────────────────────────────
+    const estadoHtml = `
+<h2 class="section-title">Estado de Resultados</h2>
+<table>
+  <tbody>
+    <tr><td>Ingresos por ventas</td><td class="right">${money(salesSummary.revenue)}</td></tr>
+    <tr><td>Costo de productos vendidos</td><td class="right" style="color:#dc2626">− ${money(salesSummary.cogs)}</td></tr>
+    <tr class="subtotal"><td><b>Ganancia Bruta</b></td><td class="right" style="color:#15803d"><b>${money(salesSummary.grossProfit)}</b></td></tr>
+    <tr><td>Gastos operacionales</td><td class="right" style="color:#c2410c">− ${money(totalExpenses)}</td></tr>
+    <tr><td>Salarios</td><td class="right" style="color:#7e22ce">− ${money(totalSalaries)}</td></tr>
+    <tr class="total"><td><b>GANANCIA NETA</b></td><td class="right" style="color:${netProfit >= 0 ? "#1d4ed8" : "#dc2626"}"><b>${money(netProfit)}</b></td></tr>
+  </tbody>
+</table>`;
+
+    // ── Gastos por categoría ────────────────────────────────────────────
+    const catHtml = expensesByCategory.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">Gastos por Categoría</h2>
+<table>
+  <thead><tr><th>Categoría</th><th class="right">Monto</th></tr></thead>
+  <tbody>
+    ${expensesByCategory.map((c) => `<tr><td>${escHtml(c.name)}</td><td class="right" style="color:#c2410c">${money(c.amount)}</td></tr>`).join("")}
+  </tbody>
+</table>` : "";
+
+    // ── Gastos detalle ──────────────────────────────────────────────────
+    const expDetailHtml = expenses.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">Detalle de Gastos</h2>
+<table>
+  <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th class="right">Monto</th></tr></thead>
+  <tbody>
+    ${expenses.map((e) => `<tr>
+      <td>${new Date(e.expense_date).toLocaleDateString("es-NI")}</td>
+      <td>${escHtml(e.description || "—")}</td>
+      <td>${escHtml(e.category || "—")}</td>
+      <td class="right" style="color:#c2410c">${money(Number(e.amount))}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>` : "";
+
+    // ── Salarios por empleado ───────────────────────────────────────────
+    const salEmpHtml = salariesByEmployee.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">Salarios por Empleado</h2>
+<table>
+  <thead><tr><th>Empleado</th><th class="right">Pagos</th><th class="right">Total</th></tr></thead>
+  <tbody>
+    ${salariesByEmployee.map((emp) => `<tr>
+      <td>${escHtml(emp.name)}</td>
+      <td class="right">${emp.count}</td>
+      <td class="right" style="color:#7e22ce">${money(emp.amount)}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>` : "";
+
+    // ── Salarios detalle ────────────────────────────────────────────────
+    const salDetailHtml = salaryPayments.length > 0 ? `
+<h2 class="section-title" style="margin-top:20px">Detalle de Salarios</h2>
+<table>
+  <thead><tr><th>Empleado</th><th>Período</th><th class="right">Horas</th><th class="right">Monto</th></tr></thead>
+  <tbody>
+    ${salaryPayments.map((p) => {
+      const name = p.employees
+        ? `${p.employees.first_name || ""} ${p.employees.last_name || ""}`.trim()
+        : p.employee_id;
+      return `<tr>
+        <td>${escHtml(name || "—")}</td>
+        <td>${escHtml(`${p.period_start || ""} → ${p.period_end || ""}`)}</td>
+        <td class="right">${p.hours_worked ? `${Number(p.hours_worked).toFixed(1)}h` : "—"}</td>
+        <td class="right" style="color:#7e22ce">${money(Number(p.amount))}</td>
+      </tr>`;
+    }).join("")}
+  </tbody>
+</table>` : "";
+
+    const bodyHtml = `
+<div class="report-header">
+  <h1>Bilan Financiero</h1>
+  <div class="meta" style="text-transform:capitalize">${escHtml(periodLabel)} &nbsp;·&nbsp; ${printedAt}</div>
+</div>
+${kpiHtml}
+${estadoHtml}
+${catHtml}
+${expDetailHtml}
+${salEmpHtml}
+${salDetailHtml}
+<div class="report-footer">${printedAt}</div>
+`;
+
+    openPrintWindow(
+      buildPrintDocument(bodyHtml, {
+        title: `Bilan Financiero — ${periodLabel}`,
+        layout: "a4",
+        extraStyles: `
+          .section-title { font-size:13px; font-weight:700; color:#0f172a; margin:16px 0 6px; border-bottom:1px solid #e2e8f0; padding-bottom:4px; }
+          .subtotal td { border-top:1px solid #cbd5e1; }
+          .total td { border-top:2px solid #94a3b8; font-size:15px; }
+        `,
+      })
+    );
+  };
+
   return (
     <Container className="space-y-6">
       <DashboardHeader
         pageType="reports"
         title="Bilan Financiero"
         subtitle="Ventas · Gastos · Salarios · Ganancia neta del período"
-      />
+      >
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handlePrintBilan}
+          disabled={loading}
+          title="Imprimer le bilan"
+        >
+          🖨 Imprimer
+        </Button>
+      </DashboardHeader>
 
       {error && <Alert variant="error">{error}</Alert>}
 

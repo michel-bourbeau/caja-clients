@@ -270,6 +270,10 @@ export default function TransactionsPage() {
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(tx);
     });
+    // Sort each day's transactions newest → oldest
+    Object.values(grouped).forEach((txs) =>
+      txs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    );
     const sorted: Record<string, Transaction[]> = {};
     Object.keys(grouped)
       .sort()
@@ -838,7 +842,8 @@ export default function TransactionsPage() {
                         {dayTxs.map((tx) => (
                           <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
                             <td className="px-2 lg:px-3 py-2.5 text-slate-500 text-sm whitespace-nowrap">
-                              {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                              <div>{new Date(tx.timestamp).toLocaleDateString("es-NI", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                              <div className="text-xs text-slate-400">{new Date(tx.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
                             </td>
                             <td className="px-2 lg:px-3 py-2.5 max-w-[180px] lg:max-w-[240px]">
                               {tx.items && tx.items.length > 0 ? (
@@ -926,9 +931,14 @@ export default function TransactionsPage() {
                         {/* Time + Total */}
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-slate-500">
-                              {tx.timestamp.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
-                            </span>
+                            <div>
+                              <div className="text-xs font-semibold text-slate-700">
+                                {new Date(tx.timestamp).toLocaleDateString("es-NI", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {new Date(tx.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            </div>
                             {tx.status === "REFUND" && (
                               <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full">{t("transactions.status.refundedShort")}</span>
                             )}

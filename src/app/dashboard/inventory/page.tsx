@@ -257,6 +257,7 @@ export default function InventoryPage() {
         
         setProducts(loadedProducts);
         setCategories(await categoriesRes.json());
+        return loadedProducts as Product[];
       }
     } catch (error) {
       console.error("Error loading inventory:", error);
@@ -264,6 +265,7 @@ export default function InventoryPage() {
     } finally {
       setLoading(false);
     }
+    return [] as Product[];
   }, [tenantId]);
 
   const fetchMovements = useCallback(async (params?: {
@@ -706,10 +708,33 @@ export default function InventoryPage() {
         }),
       });
       if (res.ok) {
+        const updatedVariant = await res.json();
         setMessage(t("inventory.success.variantUpdated"));
         setEditingVariantData(null);
-        setEditProductModal(null);
-        await fetchData();
+
+        // Update local state without triggering a full page reload
+        const patchVariant = (v: ProductVariant) =>
+          v.id === variantId
+            ? {
+                ...v,
+                label: updatedVariant.label ?? label,
+                price: updatedVariant.price ?? parseFloat(price),
+                cost_price: updatedVariant.cost_price ?? (cost_price ? parseFloat(cost_price) : 0),
+              }
+            : v;
+
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === productId
+              ? { ...p, variants: p.variants?.map(patchVariant) }
+              : p
+          )
+        );
+        setEditProductModal((prev: any) =>
+          prev?.id === productId
+            ? { ...prev, variants: prev.variants?.map(patchVariant) }
+            : prev
+        );
       } else {
         setMessage(t("inventory.errors.updateError"));
       }
