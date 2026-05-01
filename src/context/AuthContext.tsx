@@ -2,6 +2,30 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { User, AuthContextType, ImpersonationSession, EmployeeImpersonationSession } from "@/lib/types";
+import { DEMO_TENANT_ID } from "@/lib/demo/mockData";
+
+const DEMO_SESSION_KEY = "caja_demo_mode";
+
+const DEMO_USER: User = {
+  id: "demo-user",
+  email: "demo@caja.app",
+  firstName: "Admin",
+  lastName: "Demo",
+  roleId: "admin",
+  tenantId: DEMO_TENANT_ID,
+  permissions: [
+    "pos.create", "pos.view", "pos.void", "pos.configure",
+    "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.adjust",
+    "employees.view", "employees.create", "employees.edit", "employees.delete",
+    "schedules.view", "schedules.edit", "schedules.checkin",
+    "payroll.view", "payroll.create", "payroll.approve", "payroll.pay",
+    "settings.view", "settings.edit", "settings.manage_roles",
+    "reports.view", "reports.export",
+    "contacts.view", "contacts.create", "contacts.edit", "contacts.delete",
+    "pos.cierre", "pos.cierre_review", "manage_products",
+  ],
+  hasPermission: (permission: string) => true,
+};
 import { saveSession, getStoredSession, clearSession, isSessionValid } from "@/lib/utils/session";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
@@ -100,6 +124,26 @@ export const EMPLOYEE_IMPERSONATION_KEY = "employee_impersonation";
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Restore demo mode on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem(DEMO_SESSION_KEY) === "true") {
+      setUser(DEMO_USER);
+      setIsDemoMode(true);
+      sessionStorage.setItem("defaultTenantId", DEMO_TENANT_ID);
+      setIsLoading(false);
+    }
+  }, []);
+
+  const loginAsDemo = useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(DEMO_SESSION_KEY, "true");
+      sessionStorage.setItem("defaultTenantId", DEMO_TENANT_ID);
+    }
+    setUser(DEMO_USER);
+    setIsDemoMode(true);
+  }, []);
 
   // Extract restore logic into a reusable function
   const checkAndRestoreImpersonation = useCallback(async () => {
@@ -195,6 +239,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const restoreSession = async () => {
       try {
+        // First check if demo mode is active
+        if (typeof window !== "undefined" && sessionStorage.getItem(DEMO_SESSION_KEY) === "true") {
+          setUser(DEMO_USER);
+          setIsDemoMode(true);
+          sessionStorage.setItem("defaultTenantId", DEMO_TENANT_ID);
+          setIsLoading(false);
+          return;
+        }
+
         // First try to restore impersonation
         const hasImpersonation = await checkAndRestoreImpersonation();
         if (hasImpersonation) return;
@@ -317,13 +370,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const logout = useCallback(async () => {
+    if (isDemoMode) {
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(DEMO_SESSION_KEY);
+        sessionStorage.removeItem("defaultTenantId");
+      }
+      setUser(null);
+      setIsDemoMode(false);
+      return;
+    }
     await supabase.auth.signOut();
     setUser(null);
     clearSession();
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("defaultTenantId");
     }
-  }, []);
+  }, [isDemoMode]);
 
   /** Re-fetch permissions from tenant_roles for the current user. Call after role changes. */
   const refreshPermissions = useCallback(async () => {
@@ -332,6 +394,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Skip profile resolution for superadmin impersonation
     if (user.id === "superadmin" && user.email === "superadmin@caja.app") {
       // Superadmin already has ADMIN_PERMISSIONS set during impersonation
+      return Promise.resolve();
+    }
+
+    // Skip profile resolution for demo mode — DEMO_USER already has all permissions
+    if (user.id === "demo-user") {
       return Promise.resolve();
     }
     
@@ -407,7 +474,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoading,
+        isDemoMode,
         login,
+        loginAsDemo,
         logout,
         refreshPermissions,
         hasPermission,

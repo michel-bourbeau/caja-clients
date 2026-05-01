@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { ShoppingCart, AlertCircle } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { DemoBanner } from "@/components/DemoBanner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/context/LanguageContext";
 import { LOCALES } from "@/i18n/config";
@@ -25,7 +26,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading, logout, isDemoMode } = useAuth();
   const { setTenantDefault } = useLanguage();
 
   // Load tenant's default language (applies only if user has no personal preference)
@@ -93,6 +94,8 @@ export default function DashboardLayout({
   // CHECK PAYMENT STATUS - Block if suspended
   useEffect(() => {
     if (!user || isLoading) return;
+    // Skip payment check entirely in demo mode
+    if (isDemoMode) return;
 
     const checkPaymentStatus = async () => {
       try {
@@ -136,7 +139,7 @@ export default function DashboardLayout({
     };
 
     checkPaymentStatus();
-  }, [user, isLoading]);
+  }, [user, isLoading, isDemoMode]);
 
   const exitImpersonation = () => {
     // Remove impersonation keys but DON'T logout the Superadmin session
@@ -220,6 +223,9 @@ export default function DashboardLayout({
 
         {/* Main Content */}
         <main className="flex-1 overflow-hidden flex flex-col w-full min-w-0">
+
+          {/* Demo mode banner */}
+          <DemoBanner />
 
           {/* SuperAdmin impersonation banner */}
           {impersonation && (

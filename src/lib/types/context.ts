@@ -12,7 +12,9 @@ import { User } from "./domain";
 export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  isDemoMode: boolean;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  loginAsDemo: () => void;
   logout: () => void;
   refreshPermissions: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
