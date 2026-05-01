@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Contact, CreateContactInput } from "@/lib/types/contacts";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Mail, Phone, MessageCircle, MapPin, Building2, Briefcase, Edit2, Trash2, Plus, X, Clock, User, CheckCircle, Image, FileText } from "lucide-react";
 import { Container, Section } from "@/components/StripeUIComponents";
 import { SearchInput, DashboardHeader, FlashMessage, useFlash, EmptyState } from "@/components";
@@ -28,6 +29,7 @@ export default function ContactsPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { features } = useTenantFeatures();
+  const { t } = useLanguage();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -43,7 +45,7 @@ export default function ContactsPage() {
 
   // Check permissions - Admins always have access
   if (user?.roleId !== "admin" && !user?.hasPermission?.("contacts.view")) {
-    return <div className="p-4">No tienes permiso para ver contactos</div>;
+    return <div className="p-4">{t("contacts.noPermission")}</div>;
   }
 
   const tenantId = user?.tenantId || sessionStorage.getItem("defaultTenantId");
@@ -66,7 +68,7 @@ export default function ContactsPage() {
       setContacts(data.contacts || []);
     } catch (err) {
       console.error("Error loading contacts:", err);
-      showFlash("error", "Error cargando contactos");
+      showFlash("error", t("contacts.flashErrorLoad"));
     } finally {
       setLoading(false);
     }
@@ -77,7 +79,7 @@ export default function ContactsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantId || !form.full_name.trim()) {
-      showFlash("error", "El nombre es requerido");
+      showFlash("error", t("contacts.nameRequired"));
       return;
     }
 
@@ -90,8 +92,8 @@ export default function ContactsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        if (!res.ok) throw new Error("Error actualizando contacto");
-        showFlash("success", "Contacto actualizado");
+        if (!res.ok) throw new Error(t("contacts.flashErrorSave"));
+        showFlash("success", t("contacts.flashUpdated"));
       } else {
         // Create
         const res = await fetch(`/api/tenants/${tenantId}/contacts`, {
@@ -99,8 +101,8 @@ export default function ContactsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
         });
-        if (!res.ok) throw new Error("Error creando contacto");
-        showFlash("success", "Contacto creado");
+        if (!res.ok) throw new Error(t("contacts.flashErrorSave"));
+        showFlash("success", t("contacts.flashCreated"));
       }
       setForm(EMPTY_FORM);
       setEditingId(null);
@@ -108,7 +110,7 @@ export default function ContactsPage() {
       setPhotoPreview(null);
       await loadContacts();
     } catch (err) {
-      showFlash("error", err instanceof Error ? err.message : "Error guardando");
+      showFlash("error", err instanceof Error ? err.message : t("contacts.flashErrorSave"));
     } finally {
       setSaving(false);
     }
@@ -122,7 +124,7 @@ export default function ContactsPage() {
     const MAX_SIZE_MB = 2;
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
     if (file.size > MAX_SIZE_BYTES) {
-      showFlash("error", `Foto demasiado grande. Máximo ${MAX_SIZE_MB}MB`);
+      showFlash("error", t("contacts.flashPhotoTooBig", { max: MAX_SIZE_MB }));
       setPhotoPreview(null);
       return;
     }
@@ -146,12 +148,12 @@ export default function ContactsPage() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Error subiendo foto");
+      if (!res.ok) throw new Error(t("contacts.flashPhotoError"));
       const data = await res.json();
       setForm({ ...form, photo_url: data.url });
-      showFlash("success", "Foto subida correctamente");
+      showFlash("success", t("contacts.flashPhotoSuccess"));
     } catch (err) {
-      showFlash("error", err instanceof Error ? err.message : "Error subiendo foto");
+      showFlash("error", err instanceof Error ? err.message : t("contacts.flashPhotoError"));
       setPhotoPreview(null);
     } finally {
       setUploadingPhoto(false);
@@ -180,16 +182,16 @@ export default function ContactsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!tenantId || !confirm("¿Eliminar este contacto?")) return;
+    if (!tenantId || !confirm(t("contacts.deleteConfirm"))) return;
     try {
       const res = await fetch(`/api/tenants/${tenantId}/contacts/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Error eliminando");
-      showFlash("success", "Contacto eliminado");
+      if (!res.ok) throw new Error(t("contacts.flashErrorDelete"));
+      showFlash("success", t("contacts.flashDeleted"));
       await loadContacts();
     } catch (err) {
-      showFlash("error", err instanceof Error ? err.message : "Error");
+      showFlash("error", err instanceof Error ? err.message : t("contacts.flashErrorDelete"));
     }
   };
 
@@ -204,8 +206,8 @@ export default function ContactsPage() {
       <Section>
         <DashboardHeader
           pageType="contacts"
-          title="Contactos"
-          subtitle={`Gestiona tus contactos importantes`}
+          title={t("contacts.title")}
+          subtitle={t("contacts.subtitle")}
         >
           {(user?.roleId === "admin" || user?.hasPermission?.("contacts.create")) && (
             <button
@@ -213,7 +215,7 @@ export default function ContactsPage() {
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Nuevo Contacto
+              {t("contacts.newContact")}
             </button>
           )}
         </DashboardHeader>
@@ -226,7 +228,7 @@ export default function ContactsPage() {
           <SearchInput
             value={search}
             onChange={(value) => setSearch(value)}
-            placeholder="Buscar por nombre, email, teléfono, empresa..."
+            placeholder={t("contacts.searchPlaceholder")}
             className="flex-1"
           />
         </div>
@@ -237,7 +239,7 @@ export default function ContactsPage() {
             <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
                 <h2 className="text-xl font-bold text-slate-900">
-                  {editingId ? "Editar Contacto" : "Nuevo Contacto"}
+                  {editingId ? t("contacts.formEdit") : t("contacts.formAdd")}
                 </h2>
                 <button
                   onClick={handleCloseForm}
@@ -250,11 +252,11 @@ export default function ContactsPage() {
               <form onSubmit={handleSave} className="p-6 space-y-4">
                 {/* Basic Info */}
                 <div>
-                  <h3 className="font-semibold text-slate-900 mb-3">Información Básica</h3>
+                  <h3 className="font-semibold text-slate-900 mb-3">{t("contacts.sectionBasic")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Nombre Completo *
+                        {t("contacts.labelFullName")}
                       </label>
                       <input
                         required
@@ -262,19 +264,19 @@ export default function ContactsPage() {
                         value={form.full_name}
                         onChange={(e) => setForm({ ...form, full_name: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="Juan Pérez"
+                        placeholder={t("contacts.placeholderName")}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Cargo
+                        {t("contacts.labelPosition")}
                       </label>
                       <input
                         type="text"
                         value={form.position || ""}
                         onChange={(e) => setForm({ ...form, position: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="Director, Gerente, etc."
+                        placeholder={t("contacts.placeholderPosition")}
                       />
                     </div>
                   </div>
@@ -283,21 +285,21 @@ export default function ContactsPage() {
                 {/* Company */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Empresa
+                    {t("contacts.labelCompany")}
                   </label>
                   <input
                     type="text"
                     value={form.company_name || ""}
                     onChange={(e) => setForm({ ...form, company_name: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    placeholder="Nombre de la empresa"
+                    placeholder={t("contacts.placeholderCompany")}
                   />
                 </div>
 
                 {/* Photo Upload */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Foto
+                    {t("contacts.labelPhoto")}
                   </label>
                   <div className="flex gap-4 items-start">
                     {/* Preview */}
@@ -322,12 +324,12 @@ export default function ContactsPage() {
                             className="hidden"
                           />
                           <p className="text-sm text-slate-600">
-                            {uploadingPhoto ? "Subiendo..." : "Haz clic para subir una foto"}
+                            {uploadingPhoto ? t("contacts.photoUploading") : t("contacts.photoUpload")}
                           </p>
                         </div>
                       </label>
                       <p className="text-xs text-slate-500 mt-2">
-                        Dimensiones ideales: 500x500px (1:1) • Máximo 2MB
+                        {t("contacts.photoHint")}
                       </p>
                       {form.photo_url && (
                         <button
@@ -338,7 +340,7 @@ export default function ContactsPage() {
                           }}
                           className="mt-2 text-sm text-slate-500 hover:text-red-600 transition-colors"
                         >
-                          Eliminar foto
+                          {t("contacts.photoRemove")}
                         </button>
                       )}
                     </div>
@@ -347,54 +349,54 @@ export default function ContactsPage() {
 
                 {/* Contact Methods */}
                 <div>
-                  <h3 className="font-semibold text-slate-900 mb-3">Métodos de Contacto</h3>
+                  <h3 className="font-semibold text-slate-900 mb-3">{t("contacts.sectionContact")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Email
+                        {t("contacts.labelEmail")}
                       </label>
                       <input
                         type="email"
                         value={form.email || ""}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="juan@empresa.com"
+                        placeholder={t("contacts.placeholderEmail")}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Teléfono
+                        {t("contacts.labelPhone")}
                       </label>
                       <input
                         type="tel"
                         value={form.phone_number || ""}
                         onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder={t("contacts.placeholderPhone")}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        WhatsApp
+                        {t("contacts.labelWhatsapp")}
                       </label>
                       <input
                         type="tel"
                         value={form.whatsapp_number || ""}
                         onChange={(e) => setForm({ ...form, whatsapp_number: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder={t("contacts.placeholderPhone")}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Google Maps Link
+                        {t("contacts.labelGoogleMaps")}
                       </label>
                       <input
                         type="url"
                         value={form.google_maps_link || ""}
                         onChange={(e) => setForm({ ...form, google_maps_link: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="https://maps.google.com/..."
+                        placeholder={t("contacts.placeholderMaps")}
                       />
                     </div>
                   </div>
@@ -402,14 +404,14 @@ export default function ContactsPage() {
 
                 {/* Address */}
                 <div>
-                  <h3 className="font-semibold text-slate-900 mb-3">Dirección</h3>
+                  <h3 className="font-semibold text-slate-900 mb-3">{t("contacts.sectionAddress")}</h3>
                   <div className="space-y-3">
                     <input
                       type="text"
                       value={form.address || ""}
                       onChange={(e) => setForm({ ...form, address: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                      placeholder="Calle y número"
+                      placeholder={t("contacts.placeholderAddress")}
                     />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <input
@@ -417,21 +419,21 @@ export default function ContactsPage() {
                         value={form.city || ""}
                         onChange={(e) => setForm({ ...form, city: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="Ciudad"
+                        placeholder={t("contacts.placeholderCity")}
                       />
                       <input
                         type="text"
                         value={form.country || ""}
                         onChange={(e) => setForm({ ...form, country: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="País"
+                        placeholder={t("contacts.placeholderCountry")}
                       />
                       <input
                         type="text"
                         value={form.postal_code || ""}
                         onChange={(e) => setForm({ ...form, postal_code: e.target.value })}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
-                        placeholder="Código postal"
+                        placeholder={t("contacts.placeholderPostal")}
                       />
                     </div>
                   </div>
@@ -439,12 +441,12 @@ export default function ContactsPage() {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notas</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{t("contacts.labelNotes")}</label>
                   <textarea
                     value={form.notes || ""}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
-                    placeholder="Notas adicionales sobre el contacto..."
+                    placeholder={t("contacts.placeholderNotes")}
                     rows={3}
                   />
                 </div>
@@ -456,14 +458,14 @@ export default function ContactsPage() {
                     disabled={saving}
                     className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white font-semibold rounded-lg transition-colors"
                   >
-                    {saving ? "Guardando..." : editingId ? "Actualizar" : "Guardar"}
+                    {saving ? t("contacts.saving") : editingId ? t("contacts.update") : t("contacts.save")}
                   </button>
                   <button
                     type="button"
                     onClick={handleCloseForm}
                     className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
                   >
-                    Cancelar
+                    {t("contacts.cancel")}
                   </button>
                 </div>
               </form>
@@ -478,19 +480,21 @@ export default function ContactsPage() {
             <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
                 <p className="text-sm font-semibold text-slate-700">
-                  {contacts.length} Contacto{contacts.length !== 1 ? "s" : ""}
+                  {contacts.length === 1
+                    ? t("contacts.count", { count: contacts.length })
+                    : t("contacts.countPlural", { count: contacts.length })}
                 </p>
               </div>
               
               {loading ? (
-                <EmptyState state="loading" message="Cargando contactos..." />
+                <EmptyState state="loading" message={t("contacts.loading")} />
               ) : contacts.length === 0 ? (
                 <EmptyState
                   state="empty"
-                  message="No hay contactos"
+                  message={t("contacts.empty")}
                   action={
                     (user?.roleId === "admin" || user?.hasPermission?.("contacts.create"))
-                      ? { label: "Crear el primer contacto", onClick: () => setShowForm(true) }
+                      ? { label: t("contacts.createFirst"), onClick: () => setShowForm(true) }
                       : undefined
                   }
                 />
@@ -589,7 +593,7 @@ export default function ContactsPage() {
                   <div className="mb-6">
                     <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                       <Building2 className="w-4 h-4" />
-                      Empresa
+                      {t("contacts.sectionCompany")}
                     </h3>
                     <p className="text-slate-900">{selectedContact.company_name}</p>
                   </div>
@@ -601,7 +605,7 @@ export default function ContactsPage() {
                   selectedContact.whatsapp_number) && (
                   <div className="mb-6">
                     <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                      Métodos de Contacto
+                      {t("contacts.sectionContact")}
                     </h3>
                     <div className="space-y-2">
                       {selectedContact.email && (
@@ -647,7 +651,7 @@ export default function ContactsPage() {
                   <div className="mb-6">
                     <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      Dirección
+                      {t("contacts.sectionAddress")}
                     </h3>
                     <div className="text-slate-900 space-y-1">
                       {selectedContact.address && <p>{selectedContact.address}</p>}
@@ -673,7 +677,7 @@ export default function ContactsPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors text-sm"
                     >
-                      📍 Ver en Google Maps
+                      {t("contacts.viewMaps")}
                     </a>
                   </div>
                 )}
@@ -688,7 +692,7 @@ export default function ContactsPage() {
                       className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 font-medium rounded-lg transition-colors text-sm border border-green-200"
                     >
                       <FileText className="w-4 h-4" />
-                      Ver conversación WhatsApp
+                      {t("contacts.viewWhatsapp")}
                     </a>
                   </div>
                 )}
@@ -696,7 +700,7 @@ export default function ContactsPage() {
                 {/* Notes */}
                 {selectedContact.notes && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-2">Notas</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-2">{t("contacts.labelNotes")}</h3>
                     <p className="text-slate-700 whitespace-pre-wrap">
                       {selectedContact.notes}
                     </p>
@@ -705,15 +709,15 @@ export default function ContactsPage() {
 
                 {/* Audit Information */}
                 <div className="pt-6 border-t border-slate-200">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Información</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">{t("contacts.sectionInfo")}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {/* Status */}
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-slate-400" />
                       <div>
-                        <p className="text-slate-600">Estado</p>
+                        <p className="text-slate-600">{t("contacts.labelStatus")}</p>
                         <p className={`font-medium ${selectedContact.is_active ? "text-green-700" : "text-slate-400"}`}>
-                          {selectedContact.is_active ? "Activo" : "Inactivo"}
+                          {selectedContact.is_active ? t("contacts.statusActive") : t("contacts.statusInactive")}
                         </p>
                       </div>
                     </div>
@@ -723,7 +727,7 @@ export default function ContactsPage() {
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-slate-400" />
                         <div>
-                          <p className="text-slate-600">Creado por</p>
+                          <p className="text-slate-600">{t("contacts.labelCreatedBy")}</p>
                           <p className="font-medium text-slate-900">{selectedContact.created_by}</p>
                         </div>
                       </div>
@@ -733,7 +737,7 @@ export default function ContactsPage() {
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-slate-400" />
                       <div>
-                        <p className="text-slate-600">Creado</p>
+                        <p className="text-slate-600">{t("contacts.labelCreated")}</p>
                         <p className="font-medium text-slate-900">
                           {new Date(selectedContact.created_at).toLocaleDateString('es-ES', {
                             year: 'numeric',
@@ -751,7 +755,7 @@ export default function ContactsPage() {
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-slate-400" />
                         <div>
-                          <p className="text-slate-600">Modificado</p>
+                          <p className="text-slate-600">{t("contacts.labelModified")}</p>
                           <p className="font-medium text-slate-900">
                             {new Date(selectedContact.updated_at).toLocaleDateString('es-ES', {
                               year: 'numeric',
@@ -769,7 +773,7 @@ export default function ContactsPage() {
               </div>
             ) : (
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-12 text-center">
-                <p className="text-slate-500 mb-4">Selecciona un contacto para ver los detalles</p>
+                <p className="text-slate-500 mb-4">{t("contacts.selectToView")}</p>
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { ButtonGroup } from "@/components/ButtonGroup";
 import { DashboardHeader } from "@/components";
@@ -29,13 +30,14 @@ export default function BilanPage() {
   const { fmt } = useCurrency();
   const { user, hasPermission } = useAuth();
   const { features } = useTenantFeatures();
+  const { t } = useLanguage();
 
   // Feature + permission guard
   if (features && !features.reports) {
     return (
       <Container>
         <Alert variant="warning">
-          El módulo de Reportes no está activado en tu plan actual.
+          {t("bilan.noReports")}
         </Alert>
       </Container>
     );
@@ -44,7 +46,7 @@ export default function BilanPage() {
     return (
       <Container>
         <Alert variant="error">
-          No tienes permisos para ver el Bilan Financiero.
+          {t("bilan.noPermission")}
         </Alert>
       </Container>
     );
@@ -130,7 +132,7 @@ export default function BilanPage() {
         setSalaryPayments(Array.isArray(salData) ? salData : []);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al cargar datos");
+      setError(err instanceof Error ? err.message : t("bilan.loading"));
     } finally {
       setLoading(false);
     }
@@ -339,8 +341,8 @@ ${salDetailHtml}
     <Container className="space-y-6">
       <DashboardHeader
         pageType="reports"
-        title="Bilan Financiero"
-        subtitle="Ventas · Gastos · Salarios · Ganancia neta del período"
+        title={t("bilan.title")}
+        subtitle={t("bilan.subtitle")}
       >
         <Button
           variant="secondary"
@@ -349,7 +351,7 @@ ${salDetailHtml}
           disabled={loading}
           title="Imprimer le bilan"
         >
-          🖨 Imprimer
+          {t("bilan.print")}
         </Button>
       </DashboardHeader>
 
@@ -360,9 +362,9 @@ ${salDetailHtml}
         <div className="space-y-4">
           <ButtonGroup
             options={[
-              { id: "week", label: "Semana", color: "blue" },
-              { id: "month", label: "Mes", color: "blue" },
-              { id: "year", label: "Año", color: "blue" },
+              { id: "week", label: t("bilan.periodWeek"), color: "blue" },
+              { id: "month", label: t("bilan.periodMonth"), color: "blue" },
+              { id: "year", label: t("bilan.periodYear"), color: "blue" },
             ]}
             value={periodType}
             onChange={(v) => setPeriodType(v as PeriodType)}
@@ -388,7 +390,7 @@ ${salDetailHtml}
               </button>
             </div>
             <Button onClick={fetchAll} disabled={loading}>
-              {loading ? "Cargando..." : "Actualizar"}
+              {loading ? t("bilan.loading") : t("bilan.refresh")}
             </Button>
           </div>
         </div>
@@ -399,13 +401,13 @@ ${salDetailHtml}
         <Card className="p-4 bg-green-50 border border-green-200">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="w-4 h-4 text-green-600" />
-            <p className="text-xs text-green-700 font-semibold">Ganancias Brutas</p>
+            <p className="text-xs text-green-700 font-semibold">{t("bilan.cardGrossProfit")}</p>
           </div>
           <p className="text-2xl font-bold text-green-700">{fmt(salesSummary.grossProfit)}</p>
-          <p className="text-xs text-green-600 mt-1">{salesSummary.txCount} ventas · {fmt(salesSummary.revenue)} ingresos</p>
+          <p className="text-xs text-green-600 mt-1">{salesSummary.txCount} {t("bilan.sales")} · {fmt(salesSummary.revenue)} {t("bilan.income")}</p>
           {(salesSummary.refundCount ?? 0) > 0 && (
             <p className="text-xs text-red-600 mt-0.5">
-              {salesSummary.refundCount} remboursement{(salesSummary.refundCount ?? 0) > 1 ? "s" : ""} : -{fmt(salesSummary.refundTotal ?? 0)}
+              {salesSummary.refundCount} {(salesSummary.refundCount ?? 0) > 1 ? t("bilan.refunds") : t("bilan.refund")} : -{fmt(salesSummary.refundTotal ?? 0)}
             </p>
           )}
         </Card>
@@ -413,42 +415,42 @@ ${salDetailHtml}
         <Card className="p-4 bg-orange-50 border border-orange-200">
           <div className="flex items-center gap-2 mb-1">
             <TrendingDown className="w-4 h-4 text-orange-600" />
-            <p className="text-xs text-orange-700 font-semibold">Gastos</p>
+            <p className="text-xs text-orange-700 font-semibold">{t("bilan.cardExpenses")}</p>
           </div>
           <p className="text-2xl font-bold text-orange-700">{fmt(totalExpenses)}</p>
-          <p className="text-xs text-orange-600 mt-1">{expenses.length} entrada{expenses.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-orange-600 mt-1">{expenses.length} {expenses.length !== 1 ? t("bilan.entries") : t("bilan.entry")}</p>
         </Card>
 
         <Card className="p-4 bg-purple-50 border border-purple-200">
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-4 h-4 text-purple-600" />
-            <p className="text-xs text-purple-700 font-semibold">Salarios</p>
+            <p className="text-xs text-purple-700 font-semibold">{t("bilan.cardSalaries")}</p>
           </div>
           <p className="text-2xl font-bold text-purple-700">{fmt(totalSalaries)}</p>
-          <p className="text-xs text-purple-600 mt-1">{salaryPayments.length} pago{salaryPayments.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-purple-600 mt-1">{salaryPayments.length} {salaryPayments.length !== 1 ? t("bilan.payments") : t("bilan.payment")}</p>
         </Card>
 
         <Card className={`p-4 border ${netProfit >= 0 ? "bg-blue-50 border-blue-200" : "bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-2 mb-1">
             <DollarSign className={`w-4 h-4 ${netProfit >= 0 ? "text-blue-600" : "text-red-600"}`} />
-            <p className={`text-xs font-semibold ${netProfit >= 0 ? "text-blue-700" : "text-red-700"}`}>Ganancia Neta</p>
+            <p className={`text-xs font-semibold ${netProfit >= 0 ? "text-blue-700" : "text-red-700"}`}>{t("bilan.cardNetProfit")}</p>
           </div>
           <p className={`text-2xl font-bold ${netProfit >= 0 ? "text-blue-700" : "text-red-700"}`}>{fmt(netProfit)}</p>
           <p className={`text-xs mt-1 ${netProfit >= 0 ? "text-blue-600" : "text-red-600"}`}>
             {salesSummary.revenue > 0
-              ? `Margen: ${((netProfit / salesSummary.revenue) * 100).toFixed(1)}%`
-              : "Sin ventas"}
+              ? `${t("bilan.margin")}: ${((netProfit / salesSummary.revenue) * 100).toFixed(1)}%`
+              : t("bilan.noSales")}
           </p>
         </Card>
       </div>
 
       {/* Visual breakdown bar */}
       <Card className="p-6">
-        <h3 className="font-semibold text-slate-900 mb-4">Desglose visual</h3>
+        <h3 className="font-semibold text-slate-900 mb-4">{t("bilan.visualBreakdown")}</h3>
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="font-medium text-green-700">Ganancia Bruta</span>
+              <span className="font-medium text-green-700">{t("bilan.grossProfitLabel")}</span>
               <span className="font-semibold text-green-700">{fmt(salesSummary.grossProfit)}</span>
             </div>
             <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
@@ -460,7 +462,7 @@ ${salDetailHtml}
           </div>
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="font-medium text-orange-700">Gastos</span>
+              <span className="font-medium text-orange-700">{t("bilan.expensesLabel")}</span>
               <span className="font-semibold text-orange-700">− {fmt(totalExpenses)}</span>
             </div>
             <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
@@ -472,7 +474,7 @@ ${salDetailHtml}
           </div>
           <div>
             <div className="flex justify-between text-sm mb-1">
-              <span className="font-medium text-purple-700">Salarios</span>
+              <span className="font-medium text-purple-700">{t("bilan.salariesLabel")}</span>
               <span className="font-semibold text-purple-700">− {fmt(totalSalaries)}</span>
             </div>
             <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
@@ -484,7 +486,7 @@ ${salDetailHtml}
           </div>
           <div className="border-t border-slate-200 pt-3">
             <div className="flex justify-between text-sm mb-1">
-              <span className="font-bold text-slate-900">Ganancia Neta</span>
+              <span className="font-bold text-slate-900">{t("bilan.netProfitLabel")}</span>
               <span className={`font-bold ${netProfit >= 0 ? "text-blue-700" : "text-red-700"}`}>{fmt(netProfit)}</span>
             </div>
             <div className="h-4 bg-slate-100 rounded-full overflow-hidden">
@@ -501,9 +503,9 @@ ${salDetailHtml}
       <div className="flex flex-wrap gap-2 border-b border-slate-200">
         {(
           [
-            { id: "resumen", label: "Resumen" },
-            { id: "gastos", label: `Gastos (${expenses.length})` },
-            { id: "salarios", label: `Salarios (${salaryPayments.length})` },
+            { id: "resumen", label: t("bilan.tabResumen") },
+            { id: "gastos", label: `${t("bilan.tabGastos")} (${expenses.length})` },
+            { id: "salarios", label: `${t("bilan.tabSalarios")} (${salaryPayments.length})` },
           ] as { id: TabType; label: string }[]
         ).map((tab) => (
           <button
@@ -526,30 +528,30 @@ ${salDetailHtml}
           <div className="space-y-6">
             {/* Income statement */}
             <Card className="p-6">
-              <h3 className="font-semibold text-slate-900 mb-4">Estado de Resultados</h3>
+              <h3 className="font-semibold text-slate-900 mb-4">{t("bilan.incomeStatement")}</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-600">Ingresos por ventas</span>
+                  <span className="text-slate-600">{t("bilan.salesRevenue")}</span>
                   <span className="font-semibold text-slate-900">{fmt(salesSummary.revenue)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-600">Costo de productos vendidos</span>
+                  <span className="text-slate-600">{t("bilan.cogs")}</span>
                   <span className="font-semibold text-red-600">− {fmt(salesSummary.cogs)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-200 font-semibold">
-                  <span className="text-green-700">Ganancia Bruta</span>
+                  <span className="text-green-700">{t("bilan.grossProfit")}</span>
                   <span className="text-green-700">{fmt(salesSummary.grossProfit)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-600">Gastos operacionales</span>
+                  <span className="text-slate-600">{t("bilan.operatingExpenses")}</span>
                   <span className="font-semibold text-orange-600">− {fmt(totalExpenses)}</span>
                 </div>
                 <div className="flex justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-600">Salarios</span>
+                  <span className="text-slate-600">{t("bilan.salaries")}</span>
                   <span className="font-semibold text-purple-600">− {fmt(totalSalaries)}</span>
                 </div>
                 <div className={`flex justify-between py-2 font-bold text-base ${netProfit >= 0 ? "text-blue-700" : "text-red-700"}`}>
-                  <span>GANANCIA NETA</span>
+                  <span>{t("bilan.netProfit")}</span>
                   <span>{fmt(netProfit)}</span>
                 </div>
               </div>
@@ -558,7 +560,7 @@ ${salDetailHtml}
             {/* Expenses by category */}
             {expensesByCategory.length > 0 && (
               <Card className="p-6">
-                <h3 className="font-semibold text-slate-900 mb-4">Gastos por Categoría</h3>
+                <h3 className="font-semibold text-slate-900 mb-4">{t("bilan.expensesByCategory")}</h3>
                 <div className="space-y-2">
                   {expensesByCategory.map((cat) => (
                     <div key={cat.name} className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
@@ -573,7 +575,7 @@ ${salDetailHtml}
             {/* Salaries by employee */}
             {salariesByEmployee.length > 0 && (
               <Card className="p-6">
-                <h3 className="font-semibold text-slate-900 mb-4">Salarios por Empleado</h3>
+                <h3 className="font-semibold text-slate-900 mb-4">{t("bilan.salariesByEmployee")}</h3>
                 <div className="space-y-2">
                   {salariesByEmployee.map((emp) => (
                     <div key={emp.name} className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
@@ -592,11 +594,11 @@ ${salDetailHtml}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-4">
-                <p className="text-xs text-slate-500 font-semibold">Total Gastos</p>
+                <p className="text-xs text-slate-500 font-semibold">{t("bilan.totalExpenses")}</p>
                 <p className="text-xl font-bold mt-1 text-orange-700">{fmt(totalExpenses)}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-xs text-slate-500 font-semibold">Categorías</p>
+                <p className="text-xs text-slate-500 font-semibold">{t("bilan.categories")}</p>
                 <p className="text-xl font-bold mt-1">{expensesByCategory.length}</p>
               </Card>
             </div>
@@ -604,15 +606,15 @@ ${salDetailHtml}
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Fecha</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Descripción</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700 hidden sm:table-cell">Categoría</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Monto</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("bilan.colDate")}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("bilan.colDesc")}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 hidden sm:table-cell">{t("bilan.colCategory")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("bilan.colAmount")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {expenses.length === 0 ? (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No hay gastos en este período</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">{t("bilan.noExpenses")}</td></tr>
                   ) : (
                     expenses.map((e) => (
                       <tr key={e.id} className="hover:bg-slate-50">
@@ -636,11 +638,11 @@ ${salDetailHtml}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Card className="p-4">
-                <p className="text-xs text-slate-500 font-semibold">Total Salarios</p>
+                <p className="text-xs text-slate-500 font-semibold">{t("bilan.totalSalaries")}</p>
                 <p className="text-xl font-bold mt-1 text-purple-700">{fmt(totalSalaries)}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-xs text-slate-500 font-semibold">Empleados pagados</p>
+                <p className="text-xs text-slate-500 font-semibold">{t("bilan.paidEmployees")}</p>
                 <p className="text-xl font-bold mt-1">{salariesByEmployee.length}</p>
               </Card>
             </div>
@@ -648,15 +650,15 @@ ${salDetailHtml}
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Empleado</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700 hidden sm:table-cell">Período</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700 hidden sm:table-cell">Horas</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("bilan.colEmployee")}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700 hidden sm:table-cell">{t("bilan.colPeriod")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700 hidden sm:table-cell">{t("bilan.colHours")}</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Monto</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {salaryPayments.length === 0 ? (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">No hay salarios pagados en este período</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">{t("bilan.noSalaries")}</td></tr>
                   ) : (
                     salaryPayments.map((p) => {
                       const name = p.employees

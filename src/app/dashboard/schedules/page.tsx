@@ -4,6 +4,7 @@ import { useEffect, useCallback, useMemo, useState } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { PageIcon, ButtonGroup, DashboardHeader, Dialog, DialogFooter, EmptyState } from "@/components";
 
@@ -107,6 +108,7 @@ const EMPTY_MANUAL = {
 export default function AttendancePage() {
   const tenantId = useTenantId();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<"manual" | "punch" | "history">("manual");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [todayEntries, setTodayEntries] = useState<TimeEntry[]>([]);
@@ -152,9 +154,9 @@ export default function AttendancePage() {
 
   const handleEditSave = async () => {
     if (!tenantId || !editEntry) return;
-    if (!editForm.checkInTime) return showMsg(false, "Ingresa la hora de entrada");
+    if (!editForm.checkInTime) return showMsg(false, t("schedules.errCheckInRequired"));
     if (editForm.checkOutTime && editForm.checkOutTime <= editForm.checkInTime) {
-      return showMsg(false, "La hora de salida debe ser posterior a la entrada");
+      return showMsg(false, t("schedules.errCheckOutAfter"));
     }
     setEditSaving(true);
     try {
@@ -172,7 +174,7 @@ export default function AttendancePage() {
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
       setEditEntry(null);
-      showMsg(true, "Registro actualizado");
+      showMsg(true, t("schedules.flashUpdated"));
       // Always refresh today (drives Tiempo Real tab), plus history if currently viewing it
       await loadToday();
       if (tab === "history") await loadHistory();
@@ -307,11 +309,11 @@ export default function AttendancePage() {
   const handleManualEntry = async () => {
     if (!tenantId) return;
     const { employeeId, date, checkInTime, checkOutTime, notes } = manualForm;
-    if (!employeeId) return showMsg(false, "Selecciona un empleado");
-    if (!date) return showMsg(false, "Selecciona una fecha");
-    if (!checkInTime) return showMsg(false, "Ingresa la hora de entrada");
+    if (!employeeId) return showMsg(false, t("schedules.errSelectEmployee"));
+    if (!date) return showMsg(false, t("schedules.errSelectDate"));
+    if (!checkInTime) return showMsg(false, t("schedules.errCheckInRequired"));
     if (checkOutTime && checkOutTime <= checkInTime) {
-      return showMsg(false, "La hora de salida debe ser posterior a la entrada");
+      return showMsg(false, t("schedules.errCheckOutAfter"));
     }
     setManualSaving(true);
     try {
@@ -328,7 +330,7 @@ export default function AttendancePage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
-      showMsg(true, "Horas registradas correctamente");
+      showMsg(true, t("schedules.flashManualSaved"));
       // Reset only times/notes, keep employee + date for fast multi-entry
       setManualForm((f) => ({ ...f, checkInTime: "", checkOutTime: "", notes: "" }));
       if (date === toNicaraguaDateString(new Date())) await loadToday();
@@ -350,7 +352,7 @@ export default function AttendancePage() {
         body: JSON.stringify({ employeeId }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
-      showMsg(true, "Entrada registrada");
+      showMsg(true, t("schedules.flashCheckIn"));
       await loadToday();
     } catch (e) {
       showMsg(false, e instanceof Error ? e.message : "Error");
@@ -369,7 +371,7 @@ export default function AttendancePage() {
         body: JSON.stringify({ checkOut: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Error");
-      showMsg(true, "Salida registrada");
+      showMsg(true, t("schedules.flashCheckOut"));
       await loadToday();
     } catch (e) {
       showMsg(false, e instanceof Error ? e.message : "Error");
@@ -384,9 +386,9 @@ export default function AttendancePage() {
       await fetch(`/api/tenants/${tenantId}/attendance/${entryId}`, { method: "DELETE" });
       setDeleteConfirm(null);
       await (tab === "history" ? loadHistory() : loadToday());
-      showMsg(true, "Entrada eliminada");
+      showMsg(true, t("schedules.flashDeleted"));
     } catch {
-      showMsg(false, "Error al eliminar");
+      showMsg(false, t("schedules.flashErrorDelete"));
     }
   };
 
@@ -503,13 +505,13 @@ export default function AttendancePage() {
       {/* Edit entry modal */}
       <Dialog
         isOpen={!!editEntry}
-        title="Editar Registro"
+        title={t("schedules.editTitle")}
         onClose={() => setEditEntry(null)}
         maxWidth="sm"
         footer={
           <div className="flex justify-end">
             <Button variant="primary" onClick={handleEditSave} disabled={editSaving || !editForm.checkInTime} className="whitespace-nowrap">
-              {editSaving ? "Guardando..." : "Guardar"}
+              {editSaving ? t("schedules.saving") : t("schedules.save")}
             </Button>
           </div>
         }
@@ -519,7 +521,7 @@ export default function AttendancePage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Hora entrada</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">{t("schedules.labelCheckIn")}</label>
             <input
               type="time"
               value={editForm.checkInTime}
@@ -528,7 +530,7 @@ export default function AttendancePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Hora salida</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">{t("schedules.labelCheckOut")}</label>
             <input
               type="time"
               value={editForm.checkOutTime}
@@ -538,7 +540,7 @@ export default function AttendancePage() {
           </div>
         </div>
         {editForm.checkInTime && editForm.checkOutTime && editForm.checkOutTime > editForm.checkInTime && (
-          <Alert variant="success" title="Duración">
+          <Alert variant="success" title={t("schedules.durationTitle")}>
             {fmtDuration(Math.floor(
               (new Date(`2000-01-01T${editForm.checkOutTime}`).getTime() -
                 new Date(`2000-01-01T${editForm.checkInTime}`).getTime()) / 60000
@@ -546,12 +548,12 @@ export default function AttendancePage() {
           </Alert>
         )}
         <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-1">Notas</label>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">{t("schedules.labelNotes")}</label>
           <input
             type="text"
             value={editForm.notes}
             onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-            placeholder="Opcional..."
+            placeholder={t("schedules.optional")}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -560,14 +562,14 @@ export default function AttendancePage() {
       {/* Header */}
       <DashboardHeader 
         pageType="schedules"
-        title="Asistencia"
-        subtitle={`${fmtDateLong(toNicaraguaDateString(new Date()))} — ${visibleEmployees.length} empleado${visibleEmployees.length !== 1 ? "s" : ""} ${!isAdmin && "a tu cargo"}${!isAdmin ? "" : "activo" + (visibleEmployees.length !== 1 ? "s" : "")}`}
+        title={t("nav.schedulesName")}
+        subtitle={`${fmtDateLong(toNicaraguaDateString(new Date()))} — ${visibleEmployees.length} ${visibleEmployees.length !== 1 ? t("schedules.subtitlePlural") : t("schedules.subtitle")}`}
       >
         <Button variant="secondary" onClick={loadToday} disabled={loading}>
           <svg className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581M4.582 9A8 8 0 0120 15M19.418 15A8 8 0 014 9" />
           </svg>
-          {loading ? "Cargando..." : "Actualizar"}
+          {loading ? t("schedules.loading") : t("schedules.refresh")}
         </Button>
       </DashboardHeader>
 
@@ -575,9 +577,9 @@ export default function AttendancePage() {
       <div className="mb-6">
         <ButtonGroup
           options={[
-            { id: "manual", label: "Entrada Manual", color: "amber" },
-            { id: "punch", label: "Tiempo Real", color: "green" },
-            { id: "history", label: "Historial", color: "blue" },
+            { id: "manual", label: t("schedules.tabManual"), color: "amber" },
+            { id: "punch", label: t("schedules.tabPunch"), color: "green" },
+            { id: "history", label: t("schedules.tabHistory"), color: "blue" },
           ]}
           value={tab}
           onChange={(newTab) => setTab(newTab as typeof tab)}
@@ -597,11 +599,8 @@ export default function AttendancePage() {
       {/* Info message for system users (tenants) */}
       {user && (user as any).is_system_user && (
         <div className="mb-5 px-4 py-3 rounded-lg border bg-blue-50 border-blue-200 text-blue-800 text-sm">
-          <strong>ℹ️ Sistema de Asistencia</strong>
-          <p className="mt-1">
-            Solo los empleados pueden registrar entrada y salida de tiempo. Si deseas punchar tiempo, 
-            debes crear una cuenta de empleado para ti mismo en la gestión de empleados.
-          </p>
+          <strong>{t("schedules.systemUserTitle")}</strong>
+          <p className="mt-1">{t("schedules.systemUserText")}</p>
         </div>
       )}
 
@@ -609,14 +608,12 @@ export default function AttendancePage() {
       {tab === "manual" && (
         <div className="max-w-lg">
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-5">
-            <p className="text-sm text-slate-600">
-              Registra las horas trabajadas de un empleado para cualquier día.
-            </p>
+            <p className="text-sm text-slate-600">{t("schedules.manualDesc")}</p>
 
             {/* Employee */}
             <div>
               <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                Empleado <span className="text-red-500">*</span>
+                {t("schedules.labelEmployee")} <span className="text-red-500">*</span>
               </label>
               {loading ? (
                 <div className="h-10 bg-slate-100 animate-pulse rounded-lg" />
@@ -626,7 +623,7 @@ export default function AttendancePage() {
                   onChange={(e) => setManualForm((f) => ({ ...f, employeeId: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">-- Seleccionar empleado --</option>
+                  <option value="">{t("schedules.selectEmployee")}</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.first_name} {emp.last_name}
@@ -635,7 +632,7 @@ export default function AttendancePage() {
                 </select>
               ) : (
                 <div className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-slate-50">
-                  {visibleEmployees[0] ? `${visibleEmployees[0].first_name} ${visibleEmployees[0].last_name}` : "Tu empleado"}
+                  {visibleEmployees[0] ? `${visibleEmployees[0].first_name} ${visibleEmployees[0].last_name}` : t("schedules.myEmployee")}
                   <input type="hidden" value={manualForm.employeeId} />
                 </div>
               )}
@@ -644,7 +641,7 @@ export default function AttendancePage() {
             {/* Date */}
             <div>
               <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                Fecha <span className="text-red-500">*</span>
+                {t("schedules.labelDate")} <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -659,7 +656,7 @@ export default function AttendancePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Hora de entrada <span className="text-red-500">*</span>
+                  {t("schedules.labelCheckInTime")} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="time"
@@ -670,7 +667,7 @@ export default function AttendancePage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Hora de salida
+                  {t("schedules.labelCheckOutTime")}
                 </label>
                 <input
                   type="time"
@@ -687,7 +684,7 @@ export default function AttendancePage() {
                 <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Duracion: <span className="font-bold ml-1">
+                {t("schedules.durationLabel")} <span className="font-bold ml-1">
                   {fmtDuration(
                     Math.floor(
                       (new Date(`2000-01-01T${manualForm.checkOutTime}`).getTime() -
@@ -701,19 +698,19 @@ export default function AttendancePage() {
             {/* Notes */}
             <div>
               <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                Notas <span className="text-slate-400 font-normal">(opcional)</span>
+                {t("schedules.labelNotes")} <span className="text-slate-400 font-normal">({t("schedules.optional").replace("...", "")})</span>
               </label>
               <input
                 type="text"
                 value={manualForm.notes}
                 onChange={(e) => setManualForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Ej: Turno de manana, cubriendo a Juan..."
+                placeholder={t("schedules.optional")}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <Button variant="primary" onClick={handleManualEntry} disabled={manualSaving || !manualForm.employeeId || !manualForm.checkInTime} className="w-full">
-              {manualSaving ? "Guardando..." : "Guardar Registro"}
+              {manualSaving ? t("schedules.saving") : t("schedules.saveEntry")}
             </Button>
           </div>
         </div>
@@ -731,7 +728,7 @@ export default function AttendancePage() {
           ) : visibleEmployees.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <p className="text-4xl mb-3">&#x1F465;</p>
-              <p className="font-medium">No hay empleados activos.</p>
+              <p className="font-medium">{t("schedules.noActiveEmployees")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -756,19 +753,19 @@ export default function AttendancePage() {
                       <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
                         isInside ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
                       }`}>
-                        {isInside ? "DENTRO" : "FUERA"}
+                        {isInside ? t("schedules.statusInside") : t("schedules.statusOutside")}
                       </span>
                     </div>
 
                     <div className="text-sm text-slate-600 space-y-0.5 min-h-[2.5rem]">
                       {isInside && s.openEntry && (
                         <p>
-                          Entro: <span className="font-semibold text-slate-800">{fmtTime(s.openEntry.check_in)}</span>
-                          {" "}&mdash; turno: <span className="font-semibold text-green-700">{fmtDuration(elapsedMin)}</span>
+                          {t("schedules.arrivedAt")} <span className="font-semibold text-slate-800">{fmtTime(s.openEntry.check_in)}</span>
+                          {" "}&mdash; {t("schedules.shiftLabel")} <span className="font-semibold text-green-700">{fmtDuration(elapsedMin)}</span>
                         </p>
                       )}
                       {totalMin > 0 && (
-                        <p>Total hoy: <span className="font-semibold text-slate-800">{fmtDuration(totalMin)}</span></p>
+                        <p>{t("schedules.totalToday")} <span className="font-semibold text-slate-800">{fmtDuration(totalMin)}</span></p>
                       )}
                     </div>
 
@@ -776,12 +773,12 @@ export default function AttendancePage() {
                       <div className="text-xs text-slate-500 space-y-1 border-t border-slate-100 pt-2">
                         {s.entries.map((entry, i) => (
                           <div key={entry.id} className="flex justify-between">
-                            <span className="text-slate-400">Turno {i + 1}</span>
+                            <span className="text-slate-400">{t("schedules.shift")} {i + 1}</span>
                             <span>
                               {fmtTime(entry.check_in)} &rarr;{" "}
                               {entry.check_out
                                 ? `${fmtTime(entry.check_out)} (${fmtDuration(minutesDiff(entry.check_in, entry.check_out))})`
-                                : <span className="text-green-600 font-semibold">en curso</span>
+                                : <span className="text-green-600 font-semibold">{t("schedules.ongoing")}</span>
                               }
                             </span>
                           </div>
@@ -798,7 +795,7 @@ export default function AttendancePage() {
                           : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
                       }`}
                     >
-                      {isProcessing ? "Registrando..." : isInside ? "Registrar Salida" : "Registrar Entrada"}
+                      {isProcessing ? t("schedules.registering") : isInside ? t("schedules.checkOutBtn") : t("schedules.checkInBtn")}
                     </button>
                     {/* Allow editing the open entry to set a custom check-out time */}
                     {isInside && s.openEntry && (
@@ -806,7 +803,7 @@ export default function AttendancePage() {
                         onClick={() => openEdit(s.openEntry!)}
                         className="w-full py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
                       >
-                        Editar / Corregir hora
+                        {t("schedules.editCorrect")}
                       </button>
                     )}
                   </div>
@@ -834,7 +831,7 @@ export default function AttendancePage() {
                   ←
                 </button>
                 <span className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 text-center">
-                  Sem. {fmtWeekRange(historyWeekStart, weekStartDay)}
+                  {t("schedules.weekShort")} {fmtWeekRange(historyWeekStart, weekStartDay)}
                 </span>
                 <button
                   onClick={() => goToWeek(1)}
@@ -853,11 +850,11 @@ export default function AttendancePage() {
                     disabled={historyLoading}
                     className="px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors disabled:opacity-50"
                   >
-                    ← Anterior
+                    {t("schedules.prevWeek")}
                   </button>
                   <div className="text-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg min-w-[280px]">
                     <p className="text-sm font-semibold text-blue-900">
-                      Semana del {fmtWeekRange(historyWeekStart, weekStartDay)}
+                      {t("schedules.weekOf")} {fmtWeekRange(historyWeekStart, weekStartDay)}
                     </p>
                   </div>
                   <button
@@ -865,7 +862,7 @@ export default function AttendancePage() {
                     disabled={historyLoading}
                     className="px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors disabled:opacity-50"
                   >
-                    Siguiente →
+                    {t("schedules.nextWeek")}
                   </button>
                 </div>
                 <button
@@ -873,7 +870,7 @@ export default function AttendancePage() {
                   disabled={historyLoading}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
                 >
-                  Esta Semana
+                  {t("schedules.thisWeek")}
                 </button>
               </div>
             </div>
@@ -881,13 +878,13 @@ export default function AttendancePage() {
             {/* Employee Filter (Admin Only) */}
             {isAdmin && (
               <div className="max-w-xs">
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Filtrar por empleado</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">{t("schedules.filterEmployee")}</label>
                 <select
                   value={historyFilterEmployeeId || ""}
                   onChange={(e) => setHistoryFilterEmployeeId(e.target.value || null)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">-- Todos los empleados --</option>
+                  <option value="">{t("schedules.allEmployees")}</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.first_name} {emp.last_name}
@@ -900,11 +897,11 @@ export default function AttendancePage() {
 
           {/* Content Section */}
           {historyLoading ? (
-            <EmptyState state="loading" message="Cargando historial..." />
+            <EmptyState state="loading" message={t("schedules.loadingHistory")} />
           ) : visibleHistoryEntries.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <p className="text-3xl mb-2">📋</p>
-              <p>No hay registros para esta semana.</p>
+              <p>{t("schedules.noRecords")}</p>
             </div>
           ) : (
             <>
@@ -912,7 +909,7 @@ export default function AttendancePage() {
               {weeklyEmployeeSummary.size > 0 && (
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
-                    <h3 className="font-semibold text-slate-900">Resumen de la Semana</h3>
+                    <h3 className="font-semibold text-slate-900">{t("schedules.weeklySummary")}</h3>
                   </div>
                   <div className="divide-y divide-slate-100">
                     {[...weeklyEmployeeSummary.entries()]
@@ -921,7 +918,7 @@ export default function AttendancePage() {
                         <div key={empId} className="px-5 py-4 flex items-center justify-between">
                           <div>
                             <p className="font-medium text-slate-900">{name || empId}</p>
-                            <p className="text-xs text-slate-500">{dayCount} día{dayCount !== 1 ? "s" : ""} registrado{dayCount !== 1 ? "s" : ""}</p>
+                            <p className="text-xs text-slate-500">{dayCount} {dayCount !== 1 ? t("schedules.daysRegistered") : t("schedules.dayRegistered")}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-lg text-blue-700">{fmtDuration(totalMin)}</p>
@@ -966,21 +963,21 @@ export default function AttendancePage() {
                                           <span className="text-slate-500 ml-auto">({fmtDuration(minutesDiff(entry.check_in, entry.check_out))})</span>
                                         </>
                                       ) : (
-                                        <span className="text-amber-600 font-semibold ml-auto">Sin salida</span>
+                                        <span className="text-amber-600 font-semibold ml-auto">{t("schedules.noCheckout")}</span>
                                       )}
                                     </div>
                                     <div className="flex gap-2">
                                       <button
                                         onClick={() => openEdit(entry)}
                                         className="text-blue-500 hover:text-blue-700 font-semibold transition-colors"
-                                        title="Editar"
+                                        title={t("schedules.edit")}
                                       >
-                                        Editar
+                                        {t("schedules.edit")}
                                       </button>
                                       {deleteConfirm === entry.id ? (
                                         <>
-                                          <button onClick={() => handleDeleteEntry(entry.id)} className="text-red-600 hover:text-red-700 font-semibold">Confirmar</button>
-                                          <button onClick={() => setDeleteConfirm(null)} className="text-slate-400">Cancelar</button>
+                                          <button onClick={() => handleDeleteEntry(entry.id)} className="text-red-600 hover:text-red-700 font-semibold">{t("schedules.confirm")}</button>
+                                          <button onClick={() => setDeleteConfirm(null)} className="text-slate-400">{t("schedules.cancel")}</button>
                                         </>
                                       ) : (
                                         <button onClick={() => setDeleteConfirm(entry.id)} className="text-slate-400 hover:text-red-500 transition-colors">✕</button>

@@ -233,7 +233,7 @@ describe("ExpensesPage", () => {
       setup();
       render(<ExpensesPage />);
       // h1 direct dans le JSX (pas via DashboardHeader)
-      await waitFor(() => expect(screen.getByText("Gastos")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole("heading", { name: "Gastos" })).toBeInTheDocument());
     });
 
     it("charge et affiche les dépenses via fetch", async () => {

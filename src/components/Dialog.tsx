@@ -66,7 +66,7 @@ export const Dialog: React.FC<DialogProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => {
+      onMouseDown={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
         }
@@ -76,6 +76,7 @@ export const Dialog: React.FC<DialogProps> = ({
         className={`bg-white rounded-lg shadow-xl w-[80%] max-w-[800px] p-6 space-y-4 ${
           scrollable ? "max-h-[90vh] overflow-y-auto" : ""
         }`}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between mb-2">

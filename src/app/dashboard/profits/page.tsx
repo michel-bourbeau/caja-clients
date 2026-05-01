@@ -5,6 +5,7 @@ import { Calendar, TrendingUp, DollarSign, Target, ChevronLeft, ChevronRight } f
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
+import { useLanguage } from "@/context/LanguageContext";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { ButtonGroup } from "@/components/ButtonGroup";
 import { DashboardHeader, PageIcon } from "@/components";
@@ -17,6 +18,7 @@ type PeriodType = "week" | "month" | "year";
 export default function ProfitsPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>("summary");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -232,18 +234,18 @@ export default function ProfitsPage() {
   }, [transactions, periodGroupBy]);
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: "summary", label: "Resumen", icon: <Target className="w-4 h-4" /> },
-    { id: "by-product", label: "Por Producto", icon: <TrendingUp className="w-4 h-4" /> },
-    { id: "by-category", label: "Por Categoría", icon: <DollarSign className="w-4 h-4" /> },
-    { id: "periods", label: "Períodos", icon: <Calendar className="w-4 h-4" /> },
+    { id: "summary", label: t("profits.tabSummary"), icon: <Target className="w-4 h-4" /> },
+    { id: "by-product", label: t("profits.tabByProduct"), icon: <TrendingUp className="w-4 h-4" /> },
+    { id: "by-category", label: t("profits.tabByCategory"), icon: <DollarSign className="w-4 h-4" /> },
+    { id: "periods", label: t("profits.tabPeriods"), icon: <Calendar className="w-4 h-4" /> },
   ];
 
   return (
     <Container className="space-y-6">
       <DashboardHeader
         pageType="reports"
-        title="Análisis de Ganancias"
-        subtitle="Monitoree sus ganancias por período, producto y categoría"
+        title={t("profits.title")}
+        subtitle={t("profits.subtitle")}
       />
 
       {message && (
@@ -258,9 +260,9 @@ export default function ProfitsPage() {
           {/* Period Type Selector */}
           <ButtonGroup
             options={[
-              { id: "week", label: "Semana", color: "blue" },
-              { id: "month", label: "Mes", color: "blue" },
-              { id: "year", label: "Año", color: "blue" },
+              { id: "week", label: t("profits.periodWeek"), color: "blue" },
+              { id: "month", label: t("profits.periodMonth"), color: "blue" },
+              { id: "year", label: t("profits.periodYear"), color: "blue" },
             ]}
             value={periodType}
             onChange={(value) => setPeriodType(value as PeriodType)}
@@ -286,10 +288,8 @@ export default function ProfitsPage() {
               <div className="text-center px-4 py-2 bg-slate-50 rounded-lg min-w-fit">
                 <span className="font-semibold text-slate-700">
                   {periodType === "week"
-                    ? `Semana de ${dateFrom} a ${dateTo}`
-                    : periodType === "month"
-                    ? `${dateFrom} a ${dateTo}`
-                    : `${dateFrom} a ${dateTo}`}
+                    ? `${t("profits.periodWeekOf")} ${dateFrom} - ${dateTo}`
+                    : `${dateFrom} - ${dateTo}`}
                 </span>
               </div>
 
@@ -308,7 +308,7 @@ export default function ProfitsPage() {
             </div>
 
             <Button onClick={fetchData} disabled={loading} className="whitespace-nowrap">
-              {loading ? "Cargando..." : "Actualizar"}
+              {loading ? t("profits.loading") : t("profits.refresh")}
             </Button>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function ProfitsPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-slate-500 font-medium">Cargando datos…</p>
+            <p className="text-sm text-slate-500 font-medium">{t("profits.loading")}</p>
           </div>
         ) : (
           <>
@@ -347,23 +347,23 @@ export default function ProfitsPage() {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="p-4">
-                <p className="text-xs text-slate-600 font-semibold">Transacciones</p>
+                <p className="text-xs text-slate-600 font-semibold">{t("profits.cardTransactions")}</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">{summaryData.totalTransactions}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-xs text-slate-600 font-semibold">Ingresos Totales</p>
+                <p className="text-xs text-slate-600 font-semibold">{t("profits.cardRevenue")}</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">{fmt(summaryData.totalRevenue)}</p>
               </Card>
               <Card className="p-4">
-                <p className="text-xs text-slate-600 font-semibold">Costo Total</p>
+                <p className="text-xs text-slate-600 font-semibold">{t("profits.cardCost")}</p>
                 <p className="text-2xl font-bold text-slate-900 mt-1">{fmt(summaryData.totalCOGS)}</p>
               </Card>
               <Card className="p-4 bg-green-50 border border-green-200">
-                <p className="text-xs text-green-700 font-semibold">Ganancia Total</p>
+                <p className="text-xs text-green-700 font-semibold">{t("profits.cardProfit")}</p>
                 <p className="text-2xl font-bold text-green-700 mt-1">{fmt(summaryData.totalProfit)}</p>
                 {summaryData.refundCount > 0 && (
                   <p className="text-xs text-red-600 mt-1">
-                    {summaryData.refundCount} remb. : -{fmt(summaryData.refundAmount)}
+                  {summaryData.refundCount} {t("profits.refundLabel")} : -{fmt(summaryData.refundAmount)}
                   </p>
                 )}
               </Card>
@@ -373,11 +373,11 @@ export default function ProfitsPage() {
             <Card className="p-6 bg-blue-50 border border-blue-200">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-blue-700 font-semibold">Ganancia Promedio por Venta</p>
+                  <p className="text-sm text-blue-700 font-semibold">{t("profits.avgProfit")}</p>
                   <p className="text-xl font-bold text-blue-900 mt-1">{fmt(summaryData.avgProfit)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-blue-700 font-semibold">Margen Promedio</p>
+                  <p className="text-sm text-blue-700 font-semibold">{t("profits.avgMargin")}</p>
                   <p className="text-xl font-bold text-blue-900 mt-1">{summaryData.avgMargin.toFixed(1)}%</p>
                 </div>
               </div>
@@ -386,17 +386,17 @@ export default function ProfitsPage() {
             {/* By Payment Method */}
             {Object.keys(summaryData.profitByPaymentMethod).length > 0 && (
               <Card className="p-6">
-                <h3 className="font-semibold text-slate-900 mb-4">Por Método de Pago</h3>
+                <h3 className="font-semibold text-slate-900 mb-4">{t("profits.byPaymentMethod")}</h3>
                 <div className="space-y-3">
                   {Object.entries(summaryData.profitByPaymentMethod).map(([method, data]) => (
                     <div key={method} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                       <div>
                         <p className="font-medium text-slate-900">{method}</p>
-                        <p className="text-xs text-slate-600">{data.count} transacciones</p>
+                        <p className="text-xs text-slate-600">{data.count} {t("profits.transactions")}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium text-slate-900">{fmt(data.profit)}</p>
-                        <p className="text-xs text-slate-600">Margen: {data.revenue > 0 ? ((data.profit / data.revenue) * 100).toFixed(1) : 0}%</p>
+                        <p className="text-xs text-slate-600">{t("profits.margin")}: {data.revenue > 0 ? ((data.profit / data.revenue) * 100).toFixed(1) : 0}%</p>
                       </div>
                     </div>
                   ))}
@@ -412,13 +412,13 @@ export default function ProfitsPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Fecha</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Producto</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Cantidad</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Ingresos</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Costo</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Ganancia</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Margen</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("profits.colDate")}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("profits.colProduct")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colQty")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colRevenue")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colCost")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colProfit")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colMargin")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -440,7 +440,7 @@ export default function ProfitsPage() {
                 ) : (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                      No hay datos disponibles
+                      {t("profits.noData")}
                     </td>
                   </tr>
                 )}
@@ -455,12 +455,12 @@ export default function ProfitsPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Categoría</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Cantidad</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Ingresos</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Costo</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Ganancia</th>
-                  <th className="px-4 py-3 text-right font-semibold text-slate-700">Margen</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("profits.colCategory")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colQty")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colRevenue")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colCost")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colProfit")}</th>
+                  <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colMargin")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -478,7 +478,7 @@ export default function ProfitsPage() {
                 ) : (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                      No hay datos disponibles
+                      {t("profits.noData")}
                     </td>
                   </tr>
                 )}
@@ -501,10 +501,10 @@ export default function ProfitsPage() {
                       : "bg-slate-200 text-slate-700 hover:bg-slate-300"
                   }`}
                 >
-                  {period === "day" && "Día"}
-                  {period === "week" && "Semana"}
-                  {period === "month" && "Mes"}
-                  {period === "year" && "Año"}
+                  {period === "day" && t("profits.groupDay")}
+                  {period === "week" && t("profits.groupWeek")}
+                  {period === "month" && t("profits.groupMonth")}
+                  {period === "year" && t("profits.groupYear")}
                 </button>
               ))}
             </div>
@@ -513,11 +513,11 @@ export default function ProfitsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Período</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Transacciones</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Ingresos</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Costo</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-700">Ganancia</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">{t("profits.colPeriod")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.cardTransactions")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colRevenue")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colCost")}</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-700">{t("profits.colProfit")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -534,7 +534,7 @@ export default function ProfitsPage() {
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                        No hay datos disponibles
+                        {t("profits.noData")}
                       </td>
                     </tr>
                   )}

@@ -10,6 +10,53 @@ import { TransactionService } from "@/features/transactions/services";
 jest.mock("@/lib/utils/tenant");
 jest.mock("@/lib/utils/useCurrency");
 
+jest.mock("@/context/LanguageContext", () => ({
+  useLanguage: () => ({
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        "profits.title": "Análisis de Ganancias",
+        "profits.subtitle": "Monitoree sus ganancias por período, producto y categoría",
+        "profits.loading": "Cargando...",
+        "profits.refresh": "Actualizar",
+        "profits.periodWeek": "Semana",
+        "profits.periodMonth": "Mes",
+        "profits.periodYear": "Año",
+        "profits.periodWeekOf": "Semana de",
+        "profits.tabSummary": "Resumen",
+        "profits.tabByProduct": "Por Producto",
+        "profits.tabByCategory": "Por Categoría",
+        "profits.tabPeriods": "Períodos",
+        "profits.cardTransactions": "Transacciones",
+        "profits.cardRevenue": "Ingresos Totales",
+        "profits.cardCost": "Costo Total",
+        "profits.cardProfit": "Ganancia Total",
+        "profits.refundLabel": "remb.",
+        "profits.avgProfit": "Ganancia Promedio por Venta",
+        "profits.avgMargin": "Margen Promedio",
+        "profits.byPaymentMethod": "Por Método de Pago",
+        "profits.transactions": "transacciones",
+        "profits.margin": "Margen",
+        "profits.colDate": "Fecha",
+        "profits.colProduct": "Producto",
+        "profits.colQty": "Cantidad",
+        "profits.colRevenue": "Ingresos",
+        "profits.colCost": "Costo",
+        "profits.colProfit": "Ganancia",
+        "profits.colMargin": "Margen",
+        "profits.colCategory": "Categoría",
+        "profits.colPeriod": "Período",
+        "profits.noData": "No hay datos disponibles",
+        "profits.groupDay": "Día",
+        "profits.groupWeek": "Semana",
+        "profits.groupMonth": "Mes",
+        "profits.groupYear": "Año",
+      };
+      return map[key] ?? key;
+    },
+    language: "es-ni",
+  }),
+}));
+
 jest.mock("@/lib/utils/formatters", () => ({
   toNicaraguaDateString: (date: any) => {
     const d = date instanceof Date ? date : new Date(String(date));
@@ -181,7 +228,7 @@ describe("ProfitsPage", () => {
       // Never-resolving promise keeps the loading state active
       mockFetchTransactions.mockReturnValue(new Promise(() => {}));
       render(<ProfitsPage />);
-      expect(screen.getByText("Cargando...")).toBeInTheDocument();
+      expect(screen.getAllByText("Cargando...").length).toBeGreaterThanOrEqual(1);
     });
 
     it("shows error alert when fetch rejects with an Error", async () => {

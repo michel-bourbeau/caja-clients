@@ -135,7 +135,7 @@ export default function ExpensesPage() {
       setExpenses(
         expensesData.map((e: any) => ({
           ...e,
-          expense_date: new Date(e.expense_date),
+          expense_date: new Date(typeof e.expense_date === 'string' && e.expense_date.length === 10 ? e.expense_date + 'T12:00:00' : e.expense_date),
           created_at: new Date(e.created_at),
           updated_at: new Date(e.updated_at),
         }))
@@ -192,6 +192,49 @@ export default function ExpensesPage() {
   useEffect(() => {
     loadSalaryPayments();
   }, [loadSalaryPayments]);
+
+  // Auto-apply active fixed expenses silently whenever the viewed month changes
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+  const activeFixedCount = fixedExpenses.filter((f) => f.is_active).length;
+
+  useEffect(() => {
+    if (!tenantId || viewMode !== "month" || activeFixedCount === 0) return;
+
+    const autoApply = async () => {
+      try {
+        const res = await fetch(`/api/tenants/${tenantId}/fixed-expenses/apply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-user-id": user?.id || "" },
+          body: JSON.stringify({ year: currentYear, month: currentMonth }),
+        });
+        if (!res.ok) return;
+        const result = await res.json();
+        if (result.created > 0) {
+          // New fixed expense entries were created — refresh the expense list silently
+          const expRes = await fetch(`/api/tenants/${tenantId}/expenses`, {
+            headers: { "x-user-id": user?.id || "" },
+          });
+          if (expRes.ok) {
+            const data = await expRes.json();
+            setExpenses(
+              data.map((e: any) => ({
+                ...e,
+                expense_date: new Date(typeof e.expense_date === 'string' && e.expense_date.length === 10 ? e.expense_date + 'T12:00:00' : e.expense_date),
+                created_at: new Date(e.created_at),
+                updated_at: new Date(e.updated_at),
+              }))
+            );
+          }
+        }
+      } catch {
+        // Silent failure — never disrupt the user
+      }
+    };
+
+    autoApply();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, viewMode, currentYear, currentMonth, activeFixedCount, user?.id]);
 
   // Handle create/edit expense
   const handleSaveExpense = async () => {
@@ -645,18 +688,11 @@ export default function ExpensesPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">{t("expenses.title")}</h1>
-          <p className="text-sm text-gray-700 mt-1">
-            {totals.count} {t("expenses.expenseWord")}{totals.count !== 1 ? "s" : ""} · {t("expenses.subtitleExpenses")} <span className="font-semibold">{fmt(totals.amount)}</span>
-            {totals.salaries > 0 && (
-              <> · {t("expenses.subtitleSalaries")} <span className="font-semibold text-purple-700">{fmt(totals.salaries)}</span>
-              {" "}· {t("expenses.subtitleTotal")} <span className="font-semibold text-red-700">{fmt(totals.grand)}</span></>
-            )}
-          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canManageSuppliers && (
             <>
               <button
@@ -697,75 +733,101 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div className="bg-white rounded-lg border border-slate-200 px-4 py-3">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{t("expenses.expenseWord")}s</p>
+          <p className="text-xl font-bold text-slate-900 mt-0.5">{totals.count}</p>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 px-4 py-3">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{t("expenses.subtitleExpenses")}</p>
+          <p className="text-xl font-bold text-slate-900 mt-0.5">{fmt(totals.amount)}</p>
+        </div>
+        {totals.salaries > 0 && (
+          <>
+            <div className="bg-white rounded-lg border border-purple-200 px-4 py-3">
+              <p className="text-xs text-purple-500 font-medium uppercase tracking-wide">{t("expenses.subtitleSalaries")}</p>
+              <p className="text-xl font-bold text-purple-700 mt-0.5">{fmt(totals.salaries)}</p>
+            </div>
+            <div className="bg-white rounded-lg border border-red-200 px-4 py-3">
+              <p className="text-xs text-red-500 font-medium uppercase tracking-wide">{t("expenses.subtitleTotal")}</p>
+              <p className="text-xl font-bold text-red-700 mt-0.5">{fmt(totals.grand)}</p>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Messages */}
       <FlashMessage flash={flash} onDismiss={clearFlash} />
 
       {/* View Mode Selector with Navigation */}
-      <div className="space-y-3">
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2 bg-white rounded-lg border border-slate-200 px-3 py-2">
+        {/* View mode group */}
+        <div className="flex gap-1 shrink-0">
           <button
             onClick={() => setViewMode("week")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
               viewMode === "week"
                 ? "bg-blue-600 text-white"
-                : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             {t("expenses.viewWeek")}
           </button>
           <button
             onClick={() => setViewMode("month")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
               viewMode === "month"
                 ? "bg-blue-600 text-white"
-                : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             {t("expenses.viewMonth")}
           </button>
           <button
             onClick={() => setViewMode("year")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
               viewMode === "year"
                 ? "bg-blue-600 text-white"
-                : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             {t("expenses.viewYear")}
           </button>
         </div>
 
-        {/* Period Navigation */}
-        <div className="flex items-center gap-3 bg-white rounded-lg border border-slate-200 p-3">
+        {/* Separator */}
+        <div className="hidden sm:block w-px h-6 bg-slate-200 shrink-0" />
+
+        {/* Period navigation group */}
+        <div className="flex items-center gap-2 ml-auto shrink-0">
           <button
             onClick={goToPreviousPeriod}
-            className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
+            className="px-3 py-1.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-semibold"
           >
             {t("expenses.navPrev")}
           </button>
-          
-          <div className="flex-1 text-center">
-            <span className="text-sm font-semibold text-gray-700">
-              {viewMode === "week"
-                ? `${t("expenses.periodWeekOf")} ${new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - currentDate.getDay()).toLocaleDateString("es-ES")}`
-                : viewMode === "month"
-                ? currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
-                : `${t("expenses.periodYear")} ${currentDate.getFullYear()}`}
-            </span>
-          </div>
 
-          <button
-            onClick={goToToday}
-            className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
-          >
-            {t("expenses.navToday")}
-          </button>
+          <span className="text-sm font-semibold text-gray-700 min-w-[120px] text-center">
+            {viewMode === "week"
+              ? `${t("expenses.periodWeekOf")} ${new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() - currentDate.getDay()).toLocaleDateString("es-ES")}`
+              : viewMode === "month"
+              ? currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })
+              : `${t("expenses.periodYear")} ${currentDate.getFullYear()}`}
+          </span>
 
           <button
             onClick={goToNextPeriod}
-            className="px-3 py-2 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 text-sm font-semibold"
+            className="px-3 py-1.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-semibold"
           >
             {t("expenses.navNext")}
+          </button>
+
+          <button
+            onClick={goToToday}
+            className="px-3 py-1.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 text-sm font-semibold"
+          >
+            {t("expenses.navToday")}
           </button>
         </div>
       </div>
@@ -1269,16 +1331,7 @@ export default function ExpensesPage() {
         maxWidth="lg"
         scrollable
         footer={
-          <div className="flex justify-between items-center w-full">
-            <button
-              onClick={handleApplyFixed}
-              disabled={applyingFixed || fixedExpenses.filter((f) => f.is_active).length === 0}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              {applyingFixed
-                ? t("expenses.fixedGenerating")
-                : t("expenses.fixedGenerateBtn", { period: currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" }) })}
-            </button>
+          <div className="flex justify-end items-center w-full">
             <button
               onClick={() => {
                 resetFixedForm();
