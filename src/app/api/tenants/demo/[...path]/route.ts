@@ -127,7 +127,7 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
         const to       = searchParams.get("to");
         let payments = DEMO_SALARY_PAYMENTS;
         if (paidFrom && paidTo) {
-          payments = payments.filter((p) => p.paid_at >= paidFrom && p.paid_at <= paidTo);
+          payments = payments.filter((p) => p.paid_at != null && p.paid_at >= paidFrom && p.paid_at <= paidTo);
         } else if (from && to) {
           payments = payments.filter((p) => p.period_start === from && p.period_end === to);
         }
