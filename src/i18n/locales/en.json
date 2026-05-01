@@ -139,6 +139,18 @@
       "taxes":          { "title": "Taxes",           "description": "Tax management" },
       "roles":          { "title": "Manage Roles",    "description": "User permissions and roles" },
       "settings":       { "title": "Settings",        "description": "System settings" }
+    },
+    "today": {
+      "title": "Today's Sales",
+      "total": "Day total",
+      "sales": "Transactions",
+      "avg": "Avg. basket",
+      "cash": "Cash",
+      "card": "Card",
+      "transfer": "Transfer",
+      "noSales": "No sales today",
+      "viewAll": "View all",
+      "updatedAt": "at"
     }
   },
 

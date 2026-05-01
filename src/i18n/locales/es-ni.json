@@ -139,6 +139,18 @@
       "taxes":          { "title": "Impuestos",       "description": "Gestión de impuestos" },
       "roles":          { "title": "Gestionar Roles", "description": "Permisos y roles de usuario" },
       "settings":       { "title": "Configuración",   "description": "Ajustes del sistema" }
+    },
+    "today": {
+      "title": "Ventas de Hoy",
+      "total": "Total del día",
+      "sales": "Ventas del día",
+      "avg": "Ticket promedio",
+      "cash": "Efectivo",
+      "card": "Tarjeta",
+      "transfer": "Transferencia",
+      "noSales": "Sin ventas hoy",
+      "viewAll": "Ver todas",
+      "updatedAt": "a las"
     }
   },
 

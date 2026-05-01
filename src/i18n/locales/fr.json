@@ -139,6 +139,18 @@
       "taxes":          { "title": "Taxes",           "description": "Gestion des taxes" },
       "roles":          { "title": "Gérer les Rôles", "description": "Permissions et rôles des utilisateurs" },
       "settings":       { "title": "Paramètres",      "description": "Paramètres du système" }
+    },
+    "today": {
+      "title": "Ventes Aujourd'hui",
+      "total": "Total du jour",
+      "sales": "Ventes du jour",
+      "avg": "Panier moyen",
+      "cash": "Espèces",
+      "card": "Carte",
+      "transfer": "Virement",
+      "noSales": "Aucune vente aujourd'hui",
+      "viewAll": "Voir toutes",
+      "updatedAt": "à"
     }
   },
 
