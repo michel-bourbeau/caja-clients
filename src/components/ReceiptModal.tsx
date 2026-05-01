@@ -3,6 +3,7 @@
 import { Transaction, ReceiptSettings } from "@/lib/types";
 import { Dialog } from "@/components/Dialog";
 import { Printer, X } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ReceiptModalProps {
   isOpen: boolean;
@@ -174,7 +175,9 @@ export function ReceiptModal({
 }: ReceiptModalProps) {
   if (!transaction) return null;
 
-  const date = new Intl.DateTimeFormat("es-NI", {
+  const { t, locale } = useLanguage();
+
+  const date = new Intl.DateTimeFormat(locale === "es-ni" ? "es-NI" : locale, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -184,16 +187,16 @@ export function ReceiptModal({
   }).format(transaction.timestamp);
 
   const paymentLabel: Record<string, string> = {
-    CASH: "Efectivo",
-    CARD: "Tarjeta",
-    TRANSFER: "Transferencia",
+    CASH: t("receipt.cash"),
+    CARD: t("receipt.card"),
+    TRANSFER: t("receipt.transfer"),
   };
 
   const handlePrint = () => {
     const html = buildPrintHtml(transaction, settings, fmt);
     const w = window.open("", "_blank", "width=380,height=650,toolbar=0,menubar=0");
     if (!w) {
-      alert("Por favor permite las ventanas emergentes para imprimir el recibo.");
+      alert(t("receipt.popupBlocked"));
       return;
     }
     w.document.write(html);
@@ -207,14 +210,14 @@ export function ReceiptModal({
         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
       >
         <Printer className="w-4 h-4" />
-        Imprimir
+        {t("receipt.print")}
       </button>
       <button
         onClick={onClose}
         className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
       >
         <X className="w-4 h-4" />
-        Cerrar
+        {t("common.close")}
       </button>
     </div>
   );
@@ -222,7 +225,7 @@ export function ReceiptModal({
   return (
     <Dialog
       isOpen={isOpen}
-      title="Comprobante de Venta"
+      title={t("receipt.title")}
       onClose={onClose}
       maxWidth="sm"
       footer={footer}
@@ -241,15 +244,15 @@ export function ReceiptModal({
             <p className="text-slate-500">RUC: {settings.companyRuc}</p>
           )}
           {!settings.companyName && (
-            <p className="font-bold text-sm">COMPROBANTE DE VENTA</p>
+            <p className="font-bold text-sm">{t("receipt.defaultCompanyName")}</p>
           )}
         </div>
 
         {/* Meta */}
         <div className="py-1 border-b border-dashed border-slate-300 space-y-0.5">
-          <p>Fecha: {date}</p>
-          <p>No. {transaction.id.slice(-8).toUpperCase()}</p>
-          {transaction.cashierName && <p>Cajero: {transaction.cashierName}</p>}
+          <p>{t("receipt.date")}: {date}</p>
+          <p>{t("receipt.number")} {transaction.id.slice(-8).toUpperCase()}</p>
+          {transaction.cashierName && <p>{t("receipt.cashier")}: {transaction.cashierName}</p>}
         </div>
 
         {/* Items */}
@@ -268,7 +271,7 @@ export function ReceiptModal({
         <div className="py-1 space-y-0.5">
           {transaction.discount != null && transaction.discount > 0 && (
             <div className="flex justify-between text-slate-500">
-              <span>Descuento</span>
+              <span>{t("receipt.discount")}</span>
               <span>-{fmt(transaction.discount)}</span>
             </div>
           )}
@@ -281,11 +284,11 @@ export function ReceiptModal({
             </div>
           ))}
           <div className="flex justify-between font-bold text-sm border-t border-dashed border-slate-300 pt-1">
-            <span>TOTAL</span>
+            <span>{t("receipt.total")}</span>
             <span>{fmt(transaction.total)}</span>
           </div>
           <div className="flex justify-between text-slate-500">
-            <span>Pago: {paymentLabel[transaction.paymentMethod] ?? transaction.paymentMethod}</span>
+            <span>{t("receipt.payment")}: {paymentLabel[transaction.paymentMethod] ?? transaction.paymentMethod}</span>
           </div>
           {transaction.currency_paid === "USD" && transaction.usd_exchange_rate && (
             <p className="text-slate-400 text-[10px]">
@@ -296,7 +299,7 @@ export function ReceiptModal({
             <>
               <div className="flex justify-between text-slate-500">
                 <span>
-                  Recibido{transaction.currency_paid === "USD" ? " (USD)" : ""}
+                  {t("receipt.received")}{transaction.currency_paid === "USD" ? " (USD)" : ""}
                 </span>
                 <span>
                   {transaction.currency_paid === "USD"
@@ -305,7 +308,7 @@ export function ReceiptModal({
                 </span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Vuelto</span>
+                <span>{t("receipt.change")}</span>
                 <span>{fmt(transaction.change ?? 0)}</span>
               </div>
             </>
@@ -314,7 +317,7 @@ export function ReceiptModal({
 
         {/* Footer */}
         <div className="text-center text-slate-400 pt-1 border-t border-dashed border-slate-300">
-          ¡Gracias por su compra!
+          {t("receipt.thanks")}
         </div>
       </div>
     </Dialog>

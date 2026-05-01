@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { X } from "lucide-react";
 import { FlashVariant, FlashState } from "@/lib/types";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ interface FlashMessageProps {
 }
 
 export function FlashMessage({ flash, onDismiss, duration = 4000, className = "" }: FlashMessageProps) {
+  const { t } = useLanguage();
   useEffect(() => {
     if (!flash || duration === 0) return;
     const t = setTimeout(() => onDismiss?.(), duration);
@@ -59,7 +61,7 @@ export function FlashMessage({ flash, onDismiss, duration = 4000, className = ""
         <button
           onClick={onDismiss}
           className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
-          aria-label="Cerrar"
+          aria-label={t("common.close")}
         >
           <X className="w-4 h-4" />
         </button>

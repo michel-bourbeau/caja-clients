@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   Card,
   CardHeader,
@@ -34,6 +35,7 @@ interface PaymentInfo {
 
 export default function AccountSuspendedPage() {
   const { user, isLoading } = useAuth();
+  const { t, locale } = useLanguage();
   const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") : null;
   const { paymentStatus, loading: paymentLoading } = usePaymentStatus(tenantId);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
@@ -85,21 +87,21 @@ export default function AccountSuspendedPage() {
           <div className="flex justify-center">
             <AlertCircle className="w-16 h-16 text-red-600" />
           </div>
-          <h1 className="text-4xl font-bold text-slate-900">Cuenta Suspendida</h1>
-          <p className="text-xl text-slate-600">Tu suscripción ha expirado y el acceso ha sido suspendido temporalmente</p>
+          <h1 className="text-4xl font-bold text-slate-900">{t("accountSuspended.title")}</h1>
+          <p className="text-xl text-slate-600">{t("accountSuspended.subtitle")}</p>
         </div>
 
         {/* Main Alert */}
-        <Alert variant="error" title="🚨 ESTADO ACTUAL: SUSPENDIDO">
+        <Alert variant="error" title={t("accountSuspended.alertTitle")}>
           <div className="space-y-3 mt-3">
             <p className="font-semibold text-red-900">
-              Tu suscripción expiró hace {Math.abs(paymentStatus.daysUntilExpiration)} días
+              {t("accountSuspended.expiredDays", { n: Math.abs(paymentStatus.daysUntilExpiration) })}
             </p>
             <div className="space-y-2 text-sm text-red-800">
-              <p>❌ Todos los módulos han sido desactivados</p>
-              <p>❌ Usuarios y empleados están inactivos</p>
-              <p>❌ No se pueden procesar transacciones</p>
-              <p>✅ Todo se reactivará automáticamente cuando se registre el pago</p>
+              <p>{t("accountSuspended.noModules")}</p>
+              <p>{t("accountSuspended.noUsers")}</p>
+              <p>{t("accountSuspended.noTransactions")}</p>
+              <p>{t("accountSuspended.willReactivate")}</p>
             </div>
           </div>
         </Alert>
@@ -109,17 +111,17 @@ export default function AccountSuspendedPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="w-5 h-5" />
-              Información de Pago
+              {t("accountSuspended.paymentInfoTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Current Status */}
             <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-sm text-slate-700 mb-2 font-semibold">Estado Actual:</p>
-              <p className="text-lg text-red-700 font-bold">❌ SUSPENDIDO</p>
+              <p className="text-sm text-slate-700 mb-2 font-semibold">{t("accountSuspended.currentStatus")}</p>
+              <p className="text-lg text-red-700 font-bold">{t("accountSuspended.suspended")}</p>
               {paymentInfo?.paid_until && (
                 <p className="text-sm text-slate-600 mt-2">
-                  Expirado desde: {new Date(paymentInfo.paid_until).toLocaleDateString("es-NI", {
+                  {t("accountSuspended.expiredSince")} {new Date(paymentInfo.paid_until).toLocaleDateString(locale === "es-ni" ? "es-NI" : locale, {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
@@ -127,7 +129,7 @@ export default function AccountSuspendedPage() {
                 </p>
               )}
               {paymentInfo?.plan && (
-                <p className="text-sm text-slate-600 mt-1">Plan: <span className="font-semibold capitalize">{paymentInfo.plan}</span></p>
+                <p className="text-sm text-slate-600 mt-1">{t("accountSuspended.plan")} <span className="font-semibold capitalize">{paymentInfo.plan}</span></p>
               )}
             </div>
 
@@ -136,29 +138,29 @@ export default function AccountSuspendedPage() {
               <div>
                 <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  Historial de Pagos
+                  {t("accountSuspended.paymentHistory")}
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50">
-                        <th className="text-left py-3 px-3 font-semibold text-slate-700">Fecha de Pago</th>
-                        <th className="text-left py-3 px-3 font-semibold text-slate-700">Plan</th>
-                        <th className="text-left py-3 px-3 font-semibold text-slate-700">Monto</th>
-                        <th className="text-left py-3 px-3 font-semibold text-slate-700">Válido Hasta</th>
-                        <th className="text-left py-3 px-3 font-semibold text-slate-700">Método</th>
+                        <th className="text-left py-3 px-3 font-semibold text-slate-700">{t("accountSuspended.colPayDate")}</th>
+                        <th className="text-left py-3 px-3 font-semibold text-slate-700">{t("accountSuspended.colPlan")}</th>
+                        <th className="text-left py-3 px-3 font-semibold text-slate-700">{t("accountSuspended.colAmount")}</th>
+                        <th className="text-left py-3 px-3 font-semibold text-slate-700">{t("accountSuspended.colValidUntil")}</th>
+                        <th className="text-left py-3 px-3 font-semibold text-slate-700">{t("accountSuspended.colMethod")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paymentInfo.history.map((payment) => (
                         <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="py-3 px-3 text-slate-900">
-                            {new Date(payment.payment_date).toLocaleDateString("es-NI")}
+                            {new Date(payment.payment_date).toLocaleDateString(locale === "es-ni" ? "es-NI" : locale)}
                           </td>
                           <td className="py-3 px-3 font-medium capitalize text-slate-900">{payment.plan}</td>
                           <td className="py-3 px-3 text-slate-900 font-semibold">C$ {payment.amount.toFixed(2)}</td>
                           <td className="py-3 px-3 text-slate-600">
-                            {new Date(payment.paid_until).toLocaleDateString("es-NI")}
+                            {new Date(payment.paid_until).toLocaleDateString(locale === "es-ni" ? "es-NI" : locale)}
                           </td>
                           <td className="py-3 px-3 text-slate-600">{payment.payment_method || "N/A"}</td>
                         </tr>
@@ -176,12 +178,12 @@ export default function AccountSuspendedPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Phone className="w-5 h-5" />
-              Contactar para Reactivar
+              {t("accountSuspended.contactTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-slate-600">
-              Por favor, contacta con nosotros para procesar tu pago y reactivar tu cuenta. Estamos aquí para ayudarte.
+              {t("accountSuspended.contactMsg")}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -212,25 +214,25 @@ export default function AccountSuspendedPage() {
 
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-900">
-                <strong>Información de contacto:</strong>
+                <strong>{t("accountSuspended.contactInfo")}</strong>
               </p>
               <ul className="mt-2 space-y-1 text-sm text-blue-800">
-                <li>📧 Email: <span className="font-mono">soporte@caja-app.com</span></li>
-                <li>📱 WhatsApp: <span className="font-mono">+505 5000 0000</span></li>
-                <li>🕐 Disponible: Lunes - Viernes, 8:00 AM - 6:00 PM</li>
+                <li>{t("accountSuspended.emailLabel")} <span className="font-mono">soporte@caja-app.com</span></li>
+                <li>{t("accountSuspended.whatsappLabel")} <span className="font-mono">+505 5000 0000</span></li>
+                <li>{t("accountSuspended.available")} {t("accountSuspended.availableHours")}</li>
               </ul>
             </div>
           </CardContent>
         </Card>
 
         {/* Information Alert */}
-        <Alert variant="info" title="ℹ️ ¿Qué sucede cuando reactivas?">
+        <Alert variant="info" title={t("accountSuspended.reactivateInfoTitle")}>
           <ul className="mt-3 space-y-2 text-sm list-disc list-inside">
-            <li>✅ Todos los módulos se habilitarán nuevamente</li>
-            <li>✅ Los usuarios y empleados recuperarán acceso</li>
-            <li>✅ Las transacciones se procesarán normalmente</li>
-            <li>✅ No se perderá ningún dato</li>
-            <li>✅ La reactivación es inmediata después del pago</li>
+            <li>{t("accountSuspended.modulesEnabled")}</li>
+            <li>{t("accountSuspended.usersEnabled")}</li>
+            <li>{t("accountSuspended.transactionsEnabled")}</li>
+            <li>{t("accountSuspended.noDataLost")}</li>
+            <li>{t("accountSuspended.immediateReactivation")}</li>
           </ul>
         </Alert>
       </div>

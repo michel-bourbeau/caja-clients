@@ -1796,5 +1796,76 @@
     "colPeriod": "Period",
     "colHours": "Hours",
     "noSalaries": "No salaries paid in this period"
+  },
+
+  "receipt": {
+    "title": "Sales Receipt",
+    "date": "Date",
+    "number": "No.",
+    "cashier": "Cashier",
+    "discount": "Discount",
+    "total": "TOTAL",
+    "payment": "Payment",
+    "received": "Received",
+    "change": "Change",
+    "thanks": "Thank you for your purchase!",
+    "print": "Print",
+    "defaultCompanyName": "SALES RECEIPT",
+    "popupBlocked": "Please allow pop-ups to print the receipt.",
+    "cash": "Cash",
+    "card": "Card",
+    "transfer": "Transfer"
+  },
+
+  "deleteDialog": {
+    "title": "Confirm deletion",
+    "message": "Are you sure you want to delete this item? This action cannot be undone.",
+    "messageWithName": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "confirm": "Delete",
+    "deleting": "Deleting..."
+  },
+
+  "emptyState": {
+    "loading": "Loading...",
+    "empty": "No results",
+    "error": "Error loading data"
+  },
+
+  "accountSuspended": {
+    "title": "Account Suspended",
+    "subtitle": "Your subscription has expired and access has been temporarily suspended",
+    "alertTitle": "🚨 CURRENT STATUS: SUSPENDED",
+    "expiredDays": "Your subscription expired {{n}} days ago",
+    "noModules": "❌ All modules have been deactivated",
+    "noUsers": "❌ Users and employees are inactive",
+    "noTransactions": "❌ Transactions cannot be processed",
+    "willReactivate": "✅ Everything will be automatically reactivated when payment is registered",
+    "paymentInfoTitle": "Payment Information",
+    "currentStatus": "Current Status:",
+    "suspended": "❌ SUSPENDED",
+    "expiredSince": "Expired since:",
+    "plan": "Plan:",
+    "paymentHistory": "Payment History",
+    "contactTitle": "Contact to Reactivate",
+    "contactMsg": "Please contact us to process your payment and reactivate your account. We are here to help you.",
+    "goToSettings": "Go to Payment Settings",
+    "sendEmail": "Send Email",
+    "whatsapp": "WhatsApp",
+    "contactInfo": "Contact information:",
+    "emailLabel": "📧 Email:",
+    "whatsappLabel": "📱 WhatsApp:",
+    "available": "🕐 Available:",
+    "availableHours": "Monday - Friday, 8:00 AM - 6:00 PM",
+    "reactivateInfoTitle": "ℹ️ What happens when you reactivate?",
+    "modulesEnabled": "✅ All modules will be enabled again",
+    "usersEnabled": "✅ Users and employees will regain access",
+    "transactionsEnabled": "✅ Transactions will be processed normally",
+    "noDataLost": "✅ No data will be lost",
+    "immediateReactivation": "✅ Reactivation is immediate after payment",
+    "colPayDate": "Payment Date",
+    "colPlan": "Plan",
+    "colAmount": "Amount",
+    "colValidUntil": "Valid Until",
+    "colMethod": "Method"
   }
 }

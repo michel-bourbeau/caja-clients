@@ -1792,5 +1792,76 @@
     "colPeriod": "Période",
     "colHours": "Heures",
     "noSalaries": "Aucun salaire payé dans cette période"
+  },
+
+  "receipt": {
+    "title": "Reçu de Vente",
+    "date": "Date",
+    "number": "N°",
+    "cashier": "Caissier",
+    "discount": "Remise",
+    "total": "TOTAL",
+    "payment": "Paiement",
+    "received": "Reçu",
+    "change": "Rendu",
+    "thanks": "Merci pour votre achat !",
+    "print": "Imprimer",
+    "defaultCompanyName": "REÇU DE VENTE",
+    "popupBlocked": "Veuillez autoriser les fenêtres contextuelles pour imprimer le reçu.",
+    "cash": "Espèces",
+    "card": "Carte",
+    "transfer": "Virement"
+  },
+
+  "deleteDialog": {
+    "title": "Confirmer la suppression",
+    "message": "Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.",
+    "messageWithName": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ? Cette action est irréversible.",
+    "confirm": "Supprimer",
+    "deleting": "Suppression..."
+  },
+
+  "emptyState": {
+    "loading": "Chargement...",
+    "empty": "Aucun résultat",
+    "error": "Erreur lors du chargement des données"
+  },
+
+  "accountSuspended": {
+    "title": "Compte Suspendu",
+    "subtitle": "Votre abonnement a expiré et l'accès a été temporairement suspendu",
+    "alertTitle": "🚨 ÉTAT ACTUEL : SUSPENDU",
+    "expiredDays": "Votre abonnement a expiré il y a {{n}} jours",
+    "noModules": "❌ Tous les modules ont été désactivés",
+    "noUsers": "❌ Les utilisateurs et employés sont inactifs",
+    "noTransactions": "❌ Les transactions ne peuvent pas être traitées",
+    "willReactivate": "✅ Tout sera automatiquement réactivé lors de l'enregistrement du paiement",
+    "paymentInfoTitle": "Informations de Paiement",
+    "currentStatus": "État actuel :",
+    "suspended": "❌ SUSPENDU",
+    "expiredSince": "Expiré depuis :",
+    "plan": "Plan :",
+    "paymentHistory": "Historique des Paiements",
+    "contactTitle": "Contacter pour Réactiver",
+    "contactMsg": "Veuillez nous contacter pour traiter votre paiement et réactiver votre compte. Nous sommes là pour vous aider.",
+    "goToSettings": "Aller aux Paramètres de Paiement",
+    "sendEmail": "Envoyer un Email",
+    "whatsapp": "WhatsApp",
+    "contactInfo": "Informations de contact :",
+    "emailLabel": "📧 Email :",
+    "whatsappLabel": "📱 WhatsApp :",
+    "available": "🕐 Disponible :",
+    "availableHours": "Lundi - Vendredi, 8h00 - 18h00",
+    "reactivateInfoTitle": "ℹ️ Que se passe-t-il lors de la réactivation ?",
+    "modulesEnabled": "✅ Tous les modules seront réactivés",
+    "usersEnabled": "✅ Les utilisateurs et employés récupéreront l'accès",
+    "transactionsEnabled": "✅ Les transactions seront traitées normalement",
+    "noDataLost": "✅ Aucune donnée ne sera perdue",
+    "immediateReactivation": "✅ La réactivation est immédiate après le paiement",
+    "colPayDate": "Date de Paiement",
+    "colPlan": "Plan",
+    "colAmount": "Montant",
+    "colValidUntil": "Valide Jusqu'au",
+    "colMethod": "Méthode"
   }
 }

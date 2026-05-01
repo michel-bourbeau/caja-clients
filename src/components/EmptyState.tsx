@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Loader2, Inbox } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,21 +26,6 @@ interface EmptyStateProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const DEFAULTS: Record<EmptyStateVariant, { message: string; icon: React.ReactNode }> = {
-  loading: {
-    message: "Cargando...",
-    icon: <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />,
-  },
-  empty: {
-    message: "Sin resultados",
-    icon: <Inbox className="w-8 h-8 text-slate-300" />,
-  },
-  error: {
-    message: "Error al cargar los datos",
-    icon: <span className="text-3xl">⚠️</span>,
-  },
-};
-
 /**
  * Composant standardisé pour les états vides, chargement et erreur
  * dans les listes et tableaux.
@@ -56,6 +42,23 @@ const DEFAULTS: Record<EmptyStateVariant, { message: string; icon: React.ReactNo
  * ```
  */
 export function EmptyState({ state, message, icon, action, className = "" }: EmptyStateProps) {
+  const { t } = useLanguage();
+
+  const DEFAULTS: Record<EmptyStateVariant, { message: string; icon: React.ReactNode }> = {
+    loading: {
+      message: t("emptyState.loading"),
+      icon: <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />,
+    },
+    empty: {
+      message: t("emptyState.empty"),
+      icon: <Inbox className="w-8 h-8 text-slate-300" />,
+    },
+    error: {
+      message: t("emptyState.error"),
+      icon: <span className="text-3xl">⚠️</span>,
+    },
+  };
+
   const defaults = DEFAULTS[state];
   const displayIcon = icon ?? defaults.icon;
   const displayMessage = message ?? defaults.message;

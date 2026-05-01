@@ -4,6 +4,7 @@ import React from "react";
 import { Dialog } from "./Dialog";
 import { Button } from "./ui";
 import { Trash2 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,30 +46,35 @@ interface DeleteConfirmDialogProps {
  */
 export function DeleteConfirmDialog({
   isOpen,
-  title = "Confirmar eliminación",
+  title,
   message,
   itemName,
-  confirmLabel = "Eliminar",
+  confirmLabel,
   onConfirm,
   onCancel,
   isLoading = false,
 }: DeleteConfirmDialogProps) {
+  const { t } = useLanguage();
+
+  const resolvedTitle = title ?? t("deleteDialog.title");
+  const resolvedConfirmLabel = confirmLabel ?? t("deleteDialog.confirm");
+
   const bodyMessage =
     message ??
     (itemName
-      ? `¿Estás seguro de que deseas eliminar "${itemName}"? Esta acción no se puede deshacer.`
-      : "¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.");
+      ? t("deleteDialog.messageWithName", { name: itemName })
+      : t("deleteDialog.message"));
 
   return (
     <Dialog
       isOpen={isOpen}
-      title={title}
+      title={resolvedTitle}
       onClose={onCancel}
       maxWidth="sm"
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onCancel} disabled={isLoading}>
-            Cancelar
+            {t("common.cancel")}
           </Button>
           <Button
             variant="danger"
@@ -79,12 +85,12 @@ export function DeleteConfirmDialog({
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Eliminando...
+                {t("deleteDialog.deleting")}
               </span>
             ) : (
               <span className="flex items-center gap-2">
                 <Trash2 className="w-4 h-4" />
-                {confirmLabel}
+                {resolvedConfirmLabel}
               </span>
             )}
           </Button>
