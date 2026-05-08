@@ -189,9 +189,16 @@ export default function LoyaltyPage() {
                       {customers.map((customer) => (
                         <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-3">
-                            <Link href={`/dashboard/loyalty/${customer.id}`} className="text-blue-600 hover:underline font-medium">
-                              {customer.name}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link href={`/dashboard/loyalty/${customer.id}`} className="text-blue-600 hover:underline font-medium">
+                                {customer.name}
+                              </Link>
+                              {(customer as any).current_counter >= (customer as any).reward_threshold && (
+                                <span className="text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-400 px-1.5 py-0.5 rounded" title={t("loyalty.list.rewardDueTitle")}>
+                                  {t("loyalty.list.rewardDue")}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-slate-700">{customer.card_number}</td>
                           <td className="px-4 py-3 text-slate-700 hidden md:table-cell">{customer.phone || "—"}</td>
@@ -221,6 +228,11 @@ export default function LoyaltyPage() {
                     >
                       <div className="flex-1">
                         <p className="font-semibold text-slate-900">{customer.name}</p>
+                        {(customer as any).current_counter >= (customer as any).reward_threshold && (
+                          <span className="inline-block mt-0.5 text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-400 px-1.5 py-0.5 rounded">
+                            {t("loyalty.list.rewardDue")}
+                          </span>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{t("loyalty.list.cardPrefix")}{customer.card_number}</span>
                         </div>

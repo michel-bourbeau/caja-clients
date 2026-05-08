@@ -40,6 +40,7 @@ export async function GET(
       loyalty_reward_threshold: result.loyalty_reward_threshold || 2000,
       loyalty_reward_type: result.loyalty_reward_type || 'DISCOUNT_PERCENT',
       loyalty_reward_value: result.loyalty_reward_value || 10,
+      loyalty_reward_product_id: result.loyalty_reward_product_id || null,
     });
   } catch (error: any) {
     console.error('Error fetching loyalty settings:', error);
@@ -48,6 +49,7 @@ export async function GET(
       loyalty_reward_threshold: 2000,
       loyalty_reward_type: 'DISCOUNT_PERCENT',
       loyalty_reward_value: 10,
+      loyalty_reward_product_id: null,
     });
   }
 }
@@ -68,6 +70,7 @@ export async function PUT(
         loyalty_reward_threshold: body.loyalty_reward_threshold,
         loyalty_reward_type: body.loyalty_reward_type,
         loyalty_reward_value: body.loyalty_reward_value,
+        loyalty_reward_product_id: body.loyalty_reward_product_id ?? null,
         updated_at: new Date().toISOString(),
       })
       .select()

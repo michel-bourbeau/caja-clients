@@ -55,6 +55,12 @@ export default function POSPage() {
   
   // Loyalty states
   const [loyaltyModuleEnabled, setLoyaltyModuleEnabled] = useState(false);
+  const [loyaltyRewardThreshold, setLoyaltyRewardThreshold] = useState(2000);
+  const [loyaltyRewardType, setLoyaltyRewardType] = useState("DISCOUNT_PERCENT");
+  const [loyaltyRewardValue, setLoyaltyRewardValue] = useState(10);
+  const [loyaltyRewardProductId, setLoyaltyRewardProductId] = useState<string | null>(null);
+  const [rewardApplied, setRewardApplied] = useState(false);
+  const [discountMode, setDiscountMode] = useState<"amount" | "percent">("amount");
   const [loyalCustomers, setLoyalCustomers] = useState<LoyalCustomer[]>([]);
   const [selectedLoyalCustomer, setSelectedLoyalCustomer] = useState<LoyalCustomerStats | null>(null);
   const [loyalCustomerSearch, setLoyalCustomerSearch] = useState("");
@@ -91,7 +97,13 @@ export default function POSPage() {
 
     // Load loyalty settings
     LoyaltyService.getLoyaltySettings(tenantId)
-      .then((settings) => setLoyaltyModuleEnabled(settings.loyalty_module_enabled))
+      .then((settings) => {
+        setLoyaltyModuleEnabled(settings.loyalty_module_enabled);
+        setLoyaltyRewardThreshold(settings.loyalty_reward_threshold || 2000);
+        setLoyaltyRewardType(settings.loyalty_reward_type || "DISCOUNT_PERCENT");
+        setLoyaltyRewardValue(settings.loyalty_reward_value || 10);
+        setLoyaltyRewardProductId((settings as any).loyalty_reward_product_id || null);
+      })
       .catch(console.error);
 
     // Load tenant settings (exchange rate + receipt info)
@@ -157,11 +169,17 @@ export default function POSPage() {
   const cartTotal = useMemo(
     () => {
       const baseTotal = POSService.calculateCartTotal(cart);
-      
-      // Convert discount from selected currency to NIO (base currency)
-      let discountInNio = discount;
-      if (selectedCurrency === "USD" && usdExchangeRate > 0) {
-        discountInNio = discount * usdExchangeRate; // Convert USD discount to NIO
+
+      // Compute discount in NIO depending on mode
+      let discountInNio: number;
+      if (discountMode === "percent") {
+        // discount holds a percentage (0-100)
+        discountInNio = baseTotal.subtotal * Math.min(discount, 100) / 100;
+      } else {
+        discountInNio = discount;
+        if (selectedCurrency === "USD" && usdExchangeRate > 0) {
+          discountInNio = discount * usdExchangeRate; // Convert USD discount to NIO
+        }
       }
       
       // Apply discount
@@ -204,7 +222,7 @@ export default function POSPage() {
         profit: Math.round(profit * 100) / 100,
       };
     },
-    [cart, taxes, discount, selectedCurrency, usdExchangeRate]
+    [cart, taxes, discount, discountMode, selectedCurrency, usdExchangeRate]
   );
 
   // Helper to convert amount based on selected currency
@@ -375,9 +393,61 @@ export default function POSPage() {
       const customer = await LoyaltyService.getCustomerDetails(tenantId, customerId);
       setSelectedLoyalCustomer(customer);
       setShowLoyalCustomerModal(false);
+      setRewardApplied(false); // reset when switching customer
     } catch (error) {
       console.error('Error selecting loyal customer:', error);
     }
+  };
+
+  const handleApplyReward = () => {
+    if (loyaltyRewardType === "DISCOUNT_PERCENT") {
+      // Switch to percent mode and set the reward value
+      setDiscountMode("percent");
+      setDiscount(loyaltyRewardValue);
+    } else if (loyaltyRewardType === "DISCOUNT_FIXED") {
+      // Switch to amount mode and apply fixed value (NIO → display currency)
+      setDiscountMode("amount");
+      setDiscount(convertAmount(loyaltyRewardValue));
+    } else if (loyaltyRewardType === "FREE_ITEM" && loyaltyRewardProductId) {
+      // Add product at normal price + apply discount equal to its price (net = 0, accounting is correct)
+      const rewardProduct = products.find((p) => p.id === loyaltyRewardProductId);
+      if (rewardProduct) {
+        const productPrice: number = (rewardProduct as any).price || 0;
+        setCart((current) => {
+          const alreadyAdded = current.some(
+            (i) => i.productId === rewardProduct.id && i.variantId === undefined
+          );
+          if (alreadyAdded) return current;
+          return [
+            ...current,
+            {
+              productId: rewardProduct.id,
+              variantId: undefined,
+              name: rewardProduct.name + " (\uD83C\uDF81 " + t("pos.rewardGift") + ")",
+              quantity: 1,
+              price: productPrice,
+              cost_price: (rewardProduct as any).cost_price || 0,
+              total: Number(productPrice.toFixed(2)),
+            },
+          ];
+        });
+        // Add product price to existing discount so it appears free
+        setDiscount((prev) => prev + convertAmount(productPrice));
+      }
+    }
+    // Optimistic update: deduct threshold from current_counter so UI reflects immediately
+    setSelectedLoyalCustomer((prev) =>
+      prev
+        ? {
+            ...prev,
+            current_counter: Math.max(
+              0,
+              (prev.current_counter ?? prev.total_accumulated) - loyaltyRewardThreshold
+            ),
+          }
+        : null
+    );
+    setRewardApplied(true);
   };
 
   // Generate unique card number for new loyal customer
@@ -511,13 +581,28 @@ export default function POSPage() {
         } catch (err) {
           console.error('Error recording loyal customer purchase:', err);
         }
+
+        // If cashier applied a reward, record it for accounting
+        if (rewardApplied) {
+          try {
+            await LoyaltyService.awardReward(tenantId, selectedLoyalCustomer.id, {
+              reward_type: loyaltyRewardType,
+              reward_value: loyaltyRewardType !== "FREE_ITEM" ? loyaltyRewardValue : undefined,
+              notes: t("pos.rewardAppliedNote", { sale: transaction.id }),
+            });
+          } catch (err) {
+            console.error('Error recording loyalty reward:', err);
+          }
+        }
       }
 
       setCart([]);
       setDiscount(0);
+      setDiscountMode("amount");
       setAmountReceived(0);
       setSelectedCurrency("NIO");
       setSelectedLoyalCustomer(null);
+      setRewardApplied(false);
       setIsCartOpen(false); // Close cart drawer on mobile after successful sale
       setMessage(t("pos.success.saleComplete"));
       setMessageType("success");
@@ -997,30 +1082,63 @@ export default function POSPage() {
 
               {/* Discount */}
               <div className="border-t pt-1 mt-1">
-                <label className="text-sm font-semibold text-slate-600 block mb-1">{t("pos.discount", { symbol: getCurrencySymbol() })}</label>
-                <input
-                  ref={discountInputRef}
-                  type="number"
-                  value={discount === 0 ? "" : discount}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "") {
-                      setDiscount(0);
-                    } else {
-                      const num = Number(val);
-                      if (!isNaN(num) && num >= 0) {
-                        setDiscount(num);
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-semibold text-slate-600">
+                    {discountMode === "percent" ? t("pos.discountPercent") : t("pos.discount", { symbol: getCurrencySymbol() })}
+                  </label>
+                  {/* Mode toggle */}
+                  <div className="flex rounded overflow-hidden border border-slate-300 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => { setDiscountMode("amount"); setDiscount(0); }}
+                      className={`px-2 py-0.5 transition-colors ${
+                        discountMode === "amount" ? "bg-slate-700 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {getCurrencySymbol()}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setDiscountMode("percent"); setDiscount(0); }}
+                      className={`px-2 py-0.5 transition-colors ${
+                        discountMode === "percent" ? "bg-slate-700 text-white" : "bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      %
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    ref={discountInputRef}
+                    type="number"
+                    value={discount === 0 ? "" : discount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setDiscount(0);
+                      } else {
+                        const num = Number(val);
+                        if (!isNaN(num) && num >= 0) {
+                          setDiscount(discountMode === "percent" ? Math.min(num, 100) : num);
+                        }
                       }
-                    }
-                  }}
-                  max={cartTotal.subtotal}
-                  step="0.01"
-                  className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900"
-                  placeholder="0.00"
-                />
+                    }}
+                    max={discountMode === "percent" ? 100 : cartTotal.subtotal}
+                    step={discountMode === "percent" ? "1" : "0.01"}
+                    className="w-full px-2 py-1 border border-slate-300 rounded text-sm text-slate-900 pr-8"
+                    placeholder={discountMode === "percent" ? "0" : "0.00"}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                    {discountMode === "percent" ? "%" : getCurrencySymbol()}
+                  </span>
+                </div>
                 {discount > 0 && (
                   <p className="text-sm text-blue-600 mt-0.5">
-                    -{fmtCurrency(cartTotal.discount)} ({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)
+                    -{fmtCurrency(cartTotal.discount)}
+                    {discountMode === "amount" && cartTotal.subtotal > 0 && (
+                      <span className="text-slate-400 ml-1">({(((cartTotal.discount as number) / cartTotal.subtotal) * 100).toFixed(1)}%)</span>
+                    )}
                   </p>
                 )}
               </div>
@@ -1094,6 +1212,50 @@ export default function POSPage() {
                       <p>{t("pos.totalSpentLabel")} <span className="font-semibold">{fmt(selectedLoyalCustomer.total_accumulated)}</span></p>
                       <p>{t("pos.visitsLabel")} <span className="font-semibold">{selectedLoyalCustomer.total_visits}</span></p>
                     </div>
+
+                    {/* Current cycle progress */}
+                    <div className="mt-2 pt-2 border-t border-purple-200">
+                      <div className="flex justify-between text-xs text-purple-700 mb-1">
+                        <span className="font-semibold">{t("pos.cycleProgress")}</span>
+                        <span className="font-bold">
+                          {fmt(Math.min(selectedLoyalCustomer.current_counter ?? selectedLoyalCustomer.total_accumulated, loyaltyRewardThreshold))}
+                          {" / "}{fmt(loyaltyRewardThreshold)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-purple-200 rounded-full h-1.5">
+                        <div
+                          className="bg-purple-600 h-1.5 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, ((selectedLoyalCustomer.current_counter ?? selectedLoyalCustomer.total_accumulated) / loyaltyRewardThreshold) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Reward available banner */}
+                    {(selectedLoyalCustomer.current_counter ?? 0) >= loyaltyRewardThreshold && (
+                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-400 rounded-lg">
+                        <p className="text-xs font-bold text-yellow-800">{t("pos.rewardEarned")}</p>
+                        <p className="text-xs text-yellow-700 mt-0.5">{t("pos.rewardEarnedDesc")}</p>
+                        <p className="text-xs font-semibold text-yellow-800 mt-1">
+                          {loyaltyRewardType === "DISCOUNT_PERCENT"
+                            ? t("pos.rewardValue", { value: loyaltyRewardValue })
+                            : loyaltyRewardType === "DISCOUNT_FIXED"
+                            ? t("pos.rewardValueFixed", { value: loyaltyRewardValue })
+                            : t("pos.rewardValueOther")}
+                        </p>
+                        {!rewardApplied ? (
+                          <button
+                            onClick={handleApplyReward}
+                            className="mt-2 w-full px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold rounded-lg transition-colors"
+                          >
+                            {t("pos.applyReward")}
+                          </button>
+                        ) : (
+                          <p className="mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-300 rounded px-2 py-1 text-center">
+                            {t("pos.rewardApplied")}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -1239,6 +1401,7 @@ export default function POSPage() {
             onClick={() => {
               setCart([]);
               setDiscount(0);
+              setDiscountMode("amount");
               setAmountReceived(0);
             }}
             disabled={cart.length === 0 || loading}

@@ -24,11 +24,31 @@ export async function GET(
       query = query.or(`name.ilike.%${search}%,card_number.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
     }
 
-    const { data, error } = await query;
-
+    const { data: customers, error } = await query;
     if (error) throw error;
 
-    return NextResponse.json(data || []);
+    // Fetch reward threshold and rewards count to compute current_counter
+    const [settingsRes, rewardsRes] = await Promise.all([
+      supabase.from('tenant_settings').select('loyalty_reward_threshold').eq('tenant_id', tenantId).maybeSingle(),
+      supabase.from('loyalty_rewards').select('loyal_customer_id').in(
+        'loyal_customer_id',
+        (customers || []).map((c: any) => c.id)
+      ),
+    ]);
+
+    const threshold = settingsRes.data?.loyalty_reward_threshold || 2000;
+    const rewardCounts: Record<string, number> = {};
+    for (const r of rewardsRes.data || []) {
+      rewardCounts[r.loyal_customer_id] = (rewardCounts[r.loyal_customer_id] || 0) + 1;
+    }
+
+    const enriched = (customers || []).map((c: any) => ({
+      ...c,
+      current_counter: Math.max(0, c.total_accumulated - (rewardCounts[c.id] || 0) * threshold),
+      reward_threshold: threshold,
+    }));
+
+    return NextResponse.json(enriched);
   } catch (error: any) {
     console.error('Error fetching loyal customers:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

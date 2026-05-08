@@ -14,6 +14,7 @@ interface LoyaltyConfig {
   rewardThreshold: number;
   rewardType: string;
   rewardValue: number;
+  rewardProductId: string | null;
 }
 
 export default function LoyaltySettingsPage() {
@@ -26,10 +27,12 @@ export default function LoyaltySettingsPage() {
     rewardThreshold: 2000,
     rewardType: "DISCOUNT_PERCENT",
     rewardValue: 10,
+    rewardProductId: null,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
 
   const tenantId = typeof window !== "undefined" ? localStorage.getItem("tenantId") : null;
 
@@ -42,15 +45,23 @@ export default function LoyaltySettingsPage() {
     if (!tenantId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/tenants/${tenantId}/loyalty/settings`);
-      if (res.ok) {
-        const l = await res.json();
+      const [loyalRes, productsRes] = await Promise.all([
+        fetch(`/api/tenants/${tenantId}/loyalty/settings`),
+        fetch(`/api/tenants/${tenantId}/products?limit=200`),
+      ]);
+      if (loyalRes.ok) {
+        const l = await loyalRes.json();
         setLoyaltyConfig({
           enabled: l.enabled ?? true,
-          rewardThreshold: l.reward_threshold ?? 2000,
-          rewardType: l.reward_type ?? "DISCOUNT_PERCENT",
-          rewardValue: l.reward_value ?? 10,
+          rewardThreshold: l.loyalty_reward_threshold ?? 2000,
+          rewardType: l.loyalty_reward_type ?? "DISCOUNT_PERCENT",
+          rewardValue: l.loyalty_reward_value ?? 10,
+          rewardProductId: l.loyalty_reward_product_id ?? null,
         });
+      }
+      if (productsRes.ok) {
+        const prods = await productsRes.json();
+        setProducts((prods || []).map((p: any) => ({ id: p.id, name: p.name })));
       }
     } catch (e) {
       console.error("Error loading loyalty config:", e);
@@ -77,10 +88,11 @@ export default function LoyaltySettingsPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          enabled: loyaltyConfig.enabled,
-          reward_threshold: loyaltyConfig.rewardThreshold,
-          reward_type: loyaltyConfig.rewardType,
-          reward_value: loyaltyConfig.rewardValue,
+          loyalty_module_enabled: loyaltyConfig.enabled,
+          loyalty_reward_threshold: loyaltyConfig.rewardThreshold,
+          loyalty_reward_type: loyaltyConfig.rewardType,
+          loyalty_reward_value: loyaltyConfig.rewardValue,
+          loyalty_reward_product_id: loyaltyConfig.rewardProductId,
         }),
       });
       if (res.ok) showMessage("success", t("settings.loyalty.msgSaved"));
@@ -180,7 +192,7 @@ export default function LoyaltySettingsPage() {
                     <select
                       value={loyaltyConfig.rewardType}
                       onChange={(e) =>
-                        setLoyaltyConfig((prev) => ({ ...prev, rewardType: e.target.value }))
+                        setLoyaltyConfig((prev) => ({ ...prev, rewardType: e.target.value, rewardProductId: null }))
                       }
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -190,27 +202,48 @@ export default function LoyaltySettingsPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-900 mb-1">
-                      {t("settings.loyalty.valueLabel")}
-                    </label>
-                    <p className="text-xs text-slate-500 mb-2">
-                      {loyaltyConfig.rewardType === "DISCOUNT_PERCENT"
-                        ? t("settings.loyalty.valueHintPercent")
-                        : t("settings.loyalty.valueHintFixed")}
-                    </p>
-                    <input
-                      type="number"
-                      value={loyaltyConfig.rewardValue}
-                      onChange={(e) =>
-                        setLoyaltyConfig((prev) => ({
-                          ...prev,
-                          rewardValue: parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {loyaltyConfig.rewardType === "FREE_ITEM" ? (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">
+                        {t("settings.loyalty.rewardProductLabel")}
+                      </label>
+                      <p className="text-xs text-slate-500 mb-2">{t("settings.loyalty.rewardProductHint")}</p>
+                      <select
+                        value={loyaltyConfig.rewardProductId || ""}
+                        onChange={(e) =>
+                          setLoyaltyConfig((prev) => ({ ...prev, rewardProductId: e.target.value || null }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">{t("settings.loyalty.rewardProductPlaceholder")}</option>
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-900 mb-1">
+                        {t("settings.loyalty.valueLabel")}
+                      </label>
+                      <p className="text-xs text-slate-500 mb-2">
+                        {loyaltyConfig.rewardType === "DISCOUNT_PERCENT"
+                          ? t("settings.loyalty.valueHintPercent")
+                          : t("settings.loyalty.valueHintFixed")}
+                      </p>
+                      <input
+                        type="number"
+                        value={loyaltyConfig.rewardValue}
+                        onChange={(e) =>
+                          setLoyaltyConfig((prev) => ({
+                            ...prev,
+                            rewardValue: parseFloat(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-900">
