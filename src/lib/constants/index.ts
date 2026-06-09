@@ -15,7 +15,15 @@ export const ROUTES = {
   POS: "/dashboard/pos",
   TRANSACTIONS: "/dashboard/transactions",
   CIERRE: "/dashboard/pos/cierre",
-  
+
+  // Cash Sessions (Sessions de caisse)
+  CASH_SESSIONS: "/dashboard/cash-sessions",
+  CASH_SESSION_NEW: "/dashboard/cash-sessions/new",
+  CASH_SESSION_DETAIL: "/dashboard/cash-sessions/:id",
+  CASH_SESSION_CLOSE: "/dashboard/cash-sessions/:id/close",
+  CASH_SESSION_INSIGHTS: "/dashboard/cash-sessions/insights",
+  COUNT_ITEMS_CONFIG: "/dashboard/settings/count-items",
+
   // Inventory
   INVENTORY: "/dashboard/inventory",
   PRODUCTS: "/dashboard/inventory",

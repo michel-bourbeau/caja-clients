@@ -34,7 +34,7 @@ export const Sidebar: React.FC = () => {
     refreshPermissions();
     console.log("[Sidebar] Navigation to", pathname, "- user permissions:", user?.permissions?.length ?? 0);
 
-    if (pathname.startsWith("/dashboard/pos") || pathname.startsWith("/dashboard/transactions")) {
+    if (pathname.startsWith("/dashboard/pos") || pathname.startsWith("/dashboard/transactions") || pathname.startsWith("/dashboard/cash-sessions")) {
       setExpandedSections((prev) => ({ ...prev, pos: true }));
     } else if (pathname.startsWith("/dashboard/inventory")) {
       setExpandedSections((prev) => ({ ...prev, inventario: true }));
@@ -104,6 +104,9 @@ export const Sidebar: React.FC = () => {
             )}
             {(hasPermission("pos.cierre") || hasPermission("pos.cierre_review")) && (
               <NavLink href={ROUTES.CIERRE} label={t("nav.cierreCaja")} iconType="cierre" isNested />
+            )}
+            {(hasPermission("pos.cierre") || hasPermission("pos.cierre_review")) && (
+              <NavLink href={ROUTES.CASH_SESSIONS} label="Sessions de caisse" iconType="cierre" isNested />
             )}
           </Accordion>
         )}
