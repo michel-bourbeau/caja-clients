@@ -805,6 +805,8 @@
     "subtitle_one": "transacción",
     "subtitle_other": "transacciones",
     "stats": {
+      "totalDay": "Total del día",
+      "salesCount": "Ventas",
       "totalNet": "Total neto {{period}}",
       "periodWeek": "de la semana",
       "periodMonth": "del mes",

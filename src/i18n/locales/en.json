@@ -809,6 +809,8 @@
     "subtitle_one": "transaction",
     "subtitle_other": "transactions",
     "stats": {
+      "totalDay": "Day total",
+      "salesCount": "Sales",
       "totalNet": "Net total {{period}}",
       "periodWeek": "for the week",
       "periodMonth": "for the month",

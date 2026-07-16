@@ -282,6 +282,16 @@ export default function TransactionsPage() {
     return sorted;
   }, [filteredTransactions]);
 
+  // Most-recent day shown in the list (used for the top summary bar)
+  const mostRecentDay = useMemo(() => {
+    const entries = Object.entries(groupedByDate);
+    if (entries.length === 0) return null;
+    const [dateKey, txs] = entries[0]; // Already sorted newest first
+    const total = txs.reduce((s, tx) => s + tx.total, 0);
+    const count = txs.filter((tx) => tx.status !== "REFUND").length;
+    return { dateKey, total, count };
+  }, [groupedByDate]);
+
   const formatDateHeader = (dateString: string): string => {
     const [y, m, d] = dateString.split("-").map(Number);
     const date = new Date(y, m - 1, d, 12, 0, 0);
@@ -675,30 +685,22 @@ export default function TransactionsPage() {
         <Card>
           {/* Toolbar */}
           <div className="flex flex-col gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
-            {/* Period Summary - Total for selected period */}
+            {/* Day Summary - Total for most recent day shown */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div>
                     <span className="text-sm text-blue-700 font-medium">
-                      {t("transactions.stats.totalNet", { period: periodType === "WEEK" ? t("transactions.stats.periodWeek") : periodType === "MONTH" ? t("transactions.stats.periodMonth") : t("transactions.stats.periodYear") })}:
+                      {t("transactions.stats.totalDay")}{mostRecentDay ? ` — ${formatDateHeader(mostRecentDay.dateKey)}` : ""}:
                     </span>
-                    <div className="text-lg font-bold text-blue-900">{isLoadingStats ? "..." : fmt(displayTotals.amount)}</div>
-                  </div>
-                  {displayTotals.refundCount > 0 && (
-                    <div>
-                      <span className="text-sm text-red-600 font-medium">
-                        {t("transactions.stats.refunds", { count: String(displayTotals.refundCount) })}
-                      </span>
-                      <div className="text-lg font-bold text-red-600">-{fmt(displayTotals.refundAmount)}</div>
+                    <div className="text-lg font-bold text-blue-900">
+                      {isLoading ? "..." : mostRecentDay ? fmt(mostRecentDay.total) : fmt(0)}
                     </div>
-                  )}
-                  {isTaxModuleEnabled && (
+                  </div>
+                  {mostRecentDay && mostRecentDay.count > 0 && (
                     <div>
-                      <span className="text-sm text-blue-700 font-medium">
-                        {t("transactions.stats.taxes")}
-                      </span>
-                      <div className="text-lg font-bold text-blue-900">{isLoadingStats ? "..." : fmt(displayTotals.taxes)}</div>
+                      <span className="text-sm text-blue-700 font-medium">{t("transactions.stats.salesCount")}:</span>
+                      <div className="text-lg font-bold text-blue-900">{mostRecentDay.count}</div>
                     </div>
                   )}
                 </div>
@@ -1003,6 +1005,31 @@ export default function TransactionsPage() {
                 </div>
               );
             })}
+            {/* Period Total footer — shown after all day groups */}
+            <div className="px-4 py-3 bg-blue-50 border-t-2 border-blue-300">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <span className="text-sm font-semibold text-blue-700">
+                    {t("transactions.stats.totalNet", { period: periodType === "WEEK" ? t("transactions.stats.periodWeek") : periodType === "MONTH" ? t("transactions.stats.periodMonth") : t("transactions.stats.periodYear") })}
+                  </span>
+                  <div className="text-2xl font-bold text-blue-900">{isLoadingStats ? "..." : fmt(displayTotals.amount)}</div>
+                </div>
+                {displayTotals.refundCount > 0 && (
+                  <div>
+                    <span className="text-sm font-semibold text-red-600">
+                      {t("transactions.stats.refunds", { count: String(displayTotals.refundCount) })}
+                    </span>
+                    <div className="text-xl font-bold text-red-600">-{fmt(displayTotals.refundAmount)}</div>
+                  </div>
+                )}
+                {isTaxModuleEnabled && displayTotals.taxes > 0 && (
+                  <div>
+                    <span className="text-sm font-semibold text-blue-700">{t("transactions.stats.taxes")}</span>
+                    <div className="text-xl font-bold text-blue-900">{fmt(displayTotals.taxes)}</div>
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="px-3 lg:px-4 py-2 border-t border-slate-100 text-sm text-slate-400 bg-slate-50">
               {displayTotals.count} {displayTotals.count !== 1 ? t("transactions.subtitle_other") : t("transactions.subtitle_one")}
               {(filters.search || filters.paymentMethod !== "ALL") &&
