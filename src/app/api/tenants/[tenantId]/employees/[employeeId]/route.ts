@@ -170,6 +170,12 @@ export async function DELETE(
 
     if (employee) {
       console.log(`[DELETE] Found employee in employees table: ${employee.email}`);
+
+      // Nullify FK references that lack ON DELETE SET NULL before deleting
+      await supabase.from("cash_sessions").update({ opened_by_id: null }).eq("opened_by_id", employeeId);
+      await supabase.from("cash_sessions").update({ closed_by_id: null }).eq("closed_by_id", employeeId);
+      await supabase.from("cash_session_recounts").update({ recounted_by_id: null }).eq("recounted_by_id", employeeId);
+
       // This is an employee record
       const { error: deleteError } = await supabase
         .from("employees")
@@ -276,6 +282,11 @@ export async function DELETE(
       } else {
         console.warn(`[DELETE] No other user found to transfer references to`);
       }
+
+      // Nullify FK references in cash tables (safety net — system users can also open sessions)
+      await supabase.from("cash_sessions").update({ opened_by_id: null }).eq("opened_by_id", employeeId);
+      await supabase.from("cash_sessions").update({ closed_by_id: null }).eq("closed_by_id", employeeId);
+      await supabase.from("cash_session_recounts").update({ recounted_by_id: null }).eq("recounted_by_id", employeeId);
 
       // 1. Delete from users table
       console.log(`[DELETE] Attempting to delete user ${employeeId} from users table...`);
