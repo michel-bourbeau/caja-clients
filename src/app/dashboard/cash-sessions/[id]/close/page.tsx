@@ -1,40 +1,64 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Check, Lock, AlertTriangle, RotateCw,
   CheckCircle2, EyeOff, User, Sparkles,
 } from "lucide-react";
-import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
+import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { DashboardHeader } from "@/components";
+import { useTenantId } from "@/lib/utils/tenant";
 import {
-  getSessionById,
-  getEmployeeById,
-  MOCK_EMPLOYEES,
+  type ApiCashSession, type ApiEmployee,
+  empName, empInitials,
   fmtNio,
-} from "../../_mockData";
+} from "../../_apiTypes";
 
 export default function CloseSessionPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const session = getSessionById(params.id);
+  const tenantId = useTenantId();
+  const [session, setSession] = useState<ApiCashSession | null>(null);
+  const [allEmployees, setAllEmployees] = useState<ApiEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
-
-  // Step 1: who is doing the count
   const [counterId, setCounterId] = useState<string>("");
-
-  // Step 2: blind item count
   const [closingCounts, setClosingCounts] = useState<Record<string, number | "">>({});
   const [recountAttempts, setRecountAttempts] = useState<Record<string, number>>({});
-
-  // Step 3: cash count + reveal results
   const [closingCash, setClosingCash] = useState<number>(0);
   const [cashRecount, setCashRecount] = useState(0);
   const [notes, setNotes] = useState("");
   const [revealed, setRevealed] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!tenantId || !params.id) return;
+    setLoading(true);
+    try {
+      const [sessRes, empRes] = await Promise.all([
+        fetch(`/api/tenants/${tenantId}/cash-sessions/${params.id}`),
+        fetch(`/api/tenants/${tenantId}/employees?status=ACTIVE`),
+      ]);
+      if (sessRes.ok) {
+        const d = await sessRes.json();
+        setSession(d.session);
+      }
+      if (empRes.ok) {
+        const d = await empRes.json();
+        setAllEmployees(d ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId, params.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <Container><Section><p className="text-slate-500">Chargement…</p></Section></Container>;
 
   if (!session || session.status !== "OPEN") {
     return (
@@ -48,28 +72,64 @@ export default function CloseSessionPage() {
     );
   }
 
+  const counts = session.cash_session_counts ?? [];
+  const sessionEmployees = session.cash_session_employees ?? [];
+
   const handleRecount = (countId: string) => {
     setRecountAttempts((prev) => ({ ...prev, [countId]: (prev[countId] || 0) + 1 }));
     setClosingCounts((prev) => ({ ...prev, [countId]: "" }));
   };
 
-  const allCounted = session.counts.every((c) => closingCounts[c.id] !== undefined && closingCounts[c.id] !== "");
-  const counter = getEmployeeById(counterId);
+  const allCounted = counts.every((c) => closingCounts[c.id] !== undefined && closingCounts[c.id] !== "");
 
-  // Compute results once cash is entered (revealed in step 3)
-  const itemVariances = session.counts.map((c) => {
+  const itemVariances = counts.map((c) => {
     const counted = Number(closingCounts[c.id] || 0);
-    const expected = c.openingQty - c.soldQty;
+    const expected = (c.opening_qty ?? 0) - c.sold_qty;
     return { count: c, counted, expected, variance: counted - expected };
   });
 
   const itemsWithVariance = itemVariances.filter((v) => v.variance !== 0);
   const missingItemsValue = itemVariances
     .filter((v) => v.variance < 0)
-    .reduce((sum, v) => sum + Math.abs(v.variance) * v.count.unitPrice, 0);
+    .reduce((sum, v) => sum + Math.abs(v.variance) * v.count.unit_price, 0);
 
-  const expectedCash = session.openingCash + session.cashSales;
+  const expectedCash = session.opening_cash + session.cash_sales;
   const cashVariance = closingCash - expectedCash;
+
+  const handleFinalClose = async () => {
+    if (!tenantId || !counterId) return;
+    setSaving(true);
+    setApiError(null);
+    try {
+      const countRows = counts.map((c) => ({
+        count_id: c.id,
+        closing_qty: Number(closingCounts[c.id] ?? 0),
+      }));
+      const res = await fetch(`/api/tenants/${tenantId}/cash-sessions/${session.id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          closed_by_id: counterId,
+          closing_cash: closingCash,
+          counts: countRows,
+          notes,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error ?? "Erreur lors de la fermeture");
+      }
+      router.push(`/dashboard/cash-sessions/${session.id}`);
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Employees not in the session (for "add employee" option)
+  const sessionEmpIds = sessionEmployees.map((se) => se.employee_id);
+  const extraEmployees = allEmployees.filter((e) => !sessionEmpIds.includes(e.id));
 
   return (
     <Container>
@@ -114,78 +174,55 @@ export default function CloseSessionPage() {
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 flex items-start gap-3">
                 <User className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-blue-900">
-                    Qui effectue le comptage de fermeture ?
-                  </p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    Cette information est tracée. Vous serez identifié comme la personne ayant clôturé la session.
-                  </p>
+                  <p className="text-sm font-semibold text-blue-900">Qui effectue le comptage de fermeture ?</p>
+                  <p className="text-xs text-blue-700 mt-1">Cette information est tracée. Vous serez identifié comme la personne ayant clôturé la session.</p>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
-                  Employés du quart
-                </h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">Employés du quart</h3>
                 <div className="space-y-2">
-                  {session.employees.map((emp) => (
-                    <label
-                      key={emp.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        counterId === emp.id
-                          ? "border-amber-500 bg-amber-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
+                  {sessionEmployees.map((se) => (
+                    <label key={se.employee_id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${counterId === se.employee_id ? "border-amber-500 bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"}`}>
                       <input
                         type="radio"
                         name="counter"
-                        checked={counterId === emp.id}
-                        onChange={() => setCounterId(emp.id)}
+                        checked={counterId === se.employee_id}
+                        onChange={() => setCounterId(se.employee_id)}
                         className="w-5 h-5 accent-amber-600"
                       />
                       <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm">
-                        {emp.initials}
+                        {empInitials(se.employees)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-900 text-sm">{emp.name}</p>
-                        <p className="text-xs text-slate-500">{emp.role}</p>
+                        <p className="font-semibold text-slate-900 text-sm">{empName(se.employees)}</p>
                       </div>
                     </label>
                   ))}
                 </div>
               </div>
 
-              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <summary className="text-sm font-semibold text-slate-700 cursor-pointer">
-                  L'employé qui compte n'est pas dans la liste ?
-                </summary>
-                <div className="mt-3 space-y-2">
-                  {MOCK_EMPLOYEES.filter((e) => !session.employees.some((se) => se.id === e.id)).map((emp) => (
-                    <label
-                      key={emp.id}
-                      className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
-                        counterId === emp.id
-                          ? "border-amber-500 bg-amber-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="counter"
-                        checked={counterId === emp.id}
-                        onChange={() => setCounterId(emp.id)}
-                        className="w-4 h-4 accent-amber-600"
-                      />
-                      <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">
-                        {emp.initials}
-                      </div>
-                      <p className="font-medium text-slate-900 text-sm">{emp.name}</p>
-                      <span className="text-xs text-slate-400 ml-auto">+ ajouté à la session</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
+              {extraEmployees.length > 0 && (
+                <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <summary className="text-sm font-semibold text-slate-700 cursor-pointer">
+                    L'employé qui compte n'est pas dans la liste ?
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {extraEmployees.map((emp) => (
+                      <label key={emp.id}
+                        className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${
+                          counterId === emp.id ? "border-amber-500 bg-amber-50" : "border-slate-200 bg-white hover:bg-slate-50"
+                        }`}>
+                        <input type="radio" name="counter" checked={counterId === emp.id} onChange={() => setCounterId(emp.id)} className="w-4 h-4 accent-amber-600" />
+                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">{empInitials(emp)}</div>
+                        <p className="font-medium text-slate-900 text-sm">{empName(emp)}</p>
+                        <span className="text-xs text-slate-400 ml-auto">+ ajouté à la session</span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 
@@ -207,9 +244,9 @@ export default function CloseSessionPage() {
 
               <div className="space-y-4">
                 {Object.entries(
-                  session.counts.reduce<Record<string, typeof session.counts>>((acc, c) => {
-                    acc[c.category] = acc[c.category] || [];
-                    acc[c.category].push(c);
+                  counts.reduce<Record<string, typeof counts>>((acc, c) => {
+                    acc["Items"] = acc["Items"] || [];
+                    acc["Items"].push(c);
                     return acc;
                   }, {})
                 ).map(([cat, items]) => (
@@ -224,8 +261,8 @@ export default function CloseSessionPage() {
                         return (
                           <div key={c.id} className="flex items-center gap-3 p-3">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">{c.productName}</p>
-                              <p className="text-xs text-slate-500">{fmtNio(c.unitPrice)} / unité</p>
+                              <p className="text-sm font-medium text-slate-900 truncate">{c.product_name}</p>
+                              <p className="text-xs text-slate-500">{fmtNio(c.unit_price)} / unité</p>
                             </div>
                             <input
                               type="number"
@@ -272,7 +309,7 @@ export default function CloseSessionPage() {
               </div>
 
               <p className="text-xs text-center text-slate-500">
-                {Object.values(closingCounts).filter((v) => v !== "" && v !== undefined).length}/{session.counts.length} items comptés
+                {Object.values(closingCounts).filter((v) => v !== "" && v !== undefined).length}/{(session.cash_session_counts ?? []).length} items comptés
               </p>
             </div>
           )}
@@ -375,11 +412,11 @@ export default function CloseSessionPage() {
               <Button
                 variant="primary"
                 size="md"
-                disabled={!revealed}
-                onClick={() => router.push(`/dashboard/cash-sessions/s-002`)}
+                disabled={!revealed || saving}
+                onClick={handleFinalClose}
               >
                 <Lock className="w-4 h-4 mr-2" />
-                Fermer définitivement
+                {saving ? "Fermeture…" : "Fermer définitivement"}
               </Button>
             )}
           </div>
@@ -393,7 +430,16 @@ export default function CloseSessionPage() {
 function RevealedResults({
   session, itemVariances, itemsWithVariance, missingItemsValue,
   cashVariance, expectedCash, notes, setNotes,
-}: any) {
+}: {
+  session: ApiCashSession;
+  itemVariances: { count: ApiCashSession["cash_session_counts"][0]; counted: number; expected: number; variance: number }[];
+  itemsWithVariance: typeof itemVariances;
+  missingItemsValue: number;
+  cashVariance: number;
+  expectedCash: number;
+  notes: string;
+  setNotes: (v: string) => void;
+}) {
   const cashOk = Math.abs(cashVariance) < 10;
   const stockOk = itemsWithVariance.length === 0;
   const allOk = cashOk && stockOk;
@@ -401,15 +447,9 @@ function RevealedResults({
 
   return (
     <div className="space-y-4">
-      <div className={`rounded-lg p-4 border-2 ${
-        allOk ? "bg-emerald-50 border-emerald-300" : "bg-amber-50 border-amber-300"
-      }`}>
+      <div className={`rounded-lg p-4 border-2 ${allOk ? "bg-emerald-50 border-emerald-300" : "bg-amber-50 border-amber-300"}`}>
         <div className="flex items-center gap-3">
-          {allOk ? (
-            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-          ) : (
-            <AlertTriangle className="w-8 h-8 text-amber-600" />
-          )}
+          {allOk ? <CheckCircle2 className="w-8 h-8 text-emerald-600" /> : <AlertTriangle className="w-8 h-8 text-amber-600" />}
           <div>
             <p className={`font-bold text-lg ${allOk ? "text-emerald-900" : "text-amber-900"}`}>
               {allOk ? "Session équilibrée ✓" : "Écarts détectés"}
@@ -423,37 +463,29 @@ function RevealedResults({
         </div>
       </div>
 
-      {/* Cash detail */}
       <Card>
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Caisse</p>
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between"><span className="text-slate-600">Fond initial</span><span className="tabular-nums">{fmtNio(session.openingCash)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-600">+ Ventes CASH</span><span className="tabular-nums">{fmtNio(session.cashSales)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-600">Fond initial</span><span className="tabular-nums">{fmtNio(session.opening_cash)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-600">+ Ventes CASH</span><span className="tabular-nums">{fmtNio(session.cash_sales)}</span></div>
           <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold"><span>= Attendu</span><span className="tabular-nums">{fmtNio(expectedCash)}</span></div>
-          <div className="flex justify-between font-semibold"><span>Compté</span><span className="tabular-nums">{fmtNio(session.openingCash + session.cashSales + cashVariance)}</span></div>
+          <div className="flex justify-between font-semibold"><span>Compté</span><span className="tabular-nums">{fmtNio(expectedCash + cashVariance)}</span></div>
           <div className={`flex justify-between border-t border-slate-200 pt-1 font-bold ${cashOk ? "text-emerald-700" : cashVariance > 0 ? "text-amber-700" : "text-red-700"}`}>
             <span>Écart</span>
-            <span className="tabular-nums">
-              {cashVariance === 0 ? "0 C$" : cashVariance > 0 ? `+${fmtNio(cashVariance)}` : `−${fmtNio(Math.abs(cashVariance))}`}
-            </span>
+            <span className="tabular-nums">{cashVariance === 0 ? "0 C$" : cashVariance > 0 ? `+${fmtNio(cashVariance)}` : `−${fmtNio(Math.abs(cashVariance))}`}</span>
           </div>
         </div>
       </Card>
 
-      {/* Items with variance */}
       {itemsWithVariance.length > 0 && (
         <Card>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-            Items en écart ({itemsWithVariance.length})
-          </p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Items en écart ({itemsWithVariance.length})</p>
           <div className="space-y-2 text-sm">
-            {itemsWithVariance.map((v: any) => (
+            {itemsWithVariance.map((v) => (
               <div key={v.count.id} className="flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-slate-900">{v.count.productName}</p>
-                  <p className="text-xs text-slate-500">
-                    Compté: {v.counted} · Attendu: {v.expected}
-                  </p>
+                  <p className="font-medium text-slate-900">{v.count.product_name}</p>
+                  <p className="text-xs text-slate-500">Compté: {v.counted} · Attendu: {v.expected}</p>
                 </div>
                 <span className={`font-bold tabular-nums ${v.variance < 0 ? "text-red-700" : "text-amber-700"}`}>
                   {v.variance > 0 ? "+" : ""}{v.variance}
@@ -468,22 +500,15 @@ function RevealedResults({
         </Card>
       )}
 
-      {/* Note (required if discrepancies) */}
       <div>
         <label className="text-sm font-bold text-slate-700 block mb-2">
           Note explicative {noteRequired && <span className="text-red-600">*</span>}
         </label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          placeholder={noteRequired ? "Obligatoire — expliquez l'écart (ex: vente non enregistrée pendant panne, erreur de change…)" : "Notes optionnelles"}
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 resize-none"
-        />
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
+          placeholder={noteRequired ? "Obligatoire — expliquez l'écart" : "Notes optionnelles"}
+          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 resize-none" />
         {noteRequired && !notes.trim() && (
-          <p className="mt-1 text-xs text-red-600">
-            Une explication est requise pour les écarts supérieurs au seuil toléré.
-          </p>
+          <p className="mt-1 text-xs text-red-600">Une explication est requise pour les écarts supérieurs au seuil toléré.</p>
         )}
       </div>
     </div>

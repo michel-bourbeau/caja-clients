@@ -11,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const { tenantId, productId } = await params;
-    const { name, sku, price, cost_price, quantity, category_id, description, min_stock, image } = await request.json();
+    const { name, sku, price, cost_price, quantity, category_id, description, min_stock, image, track_in_count } = await request.json();
 
     const supabaseAdmin = getSupabaseAdmin();
 
@@ -25,6 +25,7 @@ export async function PUT(
     if (description !== undefined) updates.description = description?.trim() || null;
     if (min_stock !== undefined) updates.min_stock = parseInt(min_stock);
     if (image !== undefined) updates.image = image;
+    if (track_in_count !== undefined) updates.track_in_count = Boolean(track_in_count);
 
     const { data, error } = await supabaseAdmin
       .from("products")

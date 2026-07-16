@@ -1,20 +1,49 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Shield, Package, Users } from "lucide-react";
-import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
+import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { DashboardHeader } from "@/components";
-import {
-  MOCK_RISK_SCORES,
-  MOCK_TOP_VARIANCE_PRODUCTS,
-  fmtNio,
-} from "../_mockData";
+import { useTenantId } from "@/lib/utils/tenant";
+import { fmtNio } from "../_apiTypes";
+
+interface RiskScore {
+  employeeId: string; employeeName: string; riskScore: number;
+  trend: "UP" | "STABLE" | "DOWN"; totalSessions: number; totalRecounts: number;
+  totalNegativeVariance: number; totalPositiveVariance: number; varianceRatio: number;
+  voidsCount: number; noSalesCount: number; precision: number;
+}
+
+interface VarianceProduct { productId: string; name: string; missingQty: number; totalValue: number }
 
 export default function CashSessionInsightsPage() {
-  const sortedRisk = [...MOCK_RISK_SCORES].sort((a, b) => b.riskScore - a.riskScore);
-  const totalNegative = MOCK_RISK_SCORES.reduce((sum, e) => sum + e.totalNegativeVariance, 0);
-  const totalSessions = MOCK_RISK_SCORES.reduce((sum, e) => sum + e.totalSessions, 0);
-  const totalRecounts = MOCK_RISK_SCORES.reduce((sum, e) => sum + e.totalRecounts, 0);
+  const tenantId = useTenantId();
+  const [riskScores, setRiskScores] = useState<RiskScore[]>([]);
+  const [topProducts, setTopProducts] = useState<VarianceProduct[]>([]);
+  const [totalSessions, setTotalSessions] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/cash-sessions/insights`);
+      if (res.ok) {
+        const data = await res.json();
+        setRiskScores(data.riskScores ?? []);
+        setTopProducts(data.topVarianceProducts ?? []);
+        setTotalSessions(data.totalSessions ?? 0);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const totalNegative = riskScores.reduce((sum, e) => sum + e.totalNegativeVariance, 0);
+  const totalRecounts = riskScores.reduce((sum, e) => sum + e.totalRecounts, 0);
 
   return (
     <Container>
@@ -32,45 +61,29 @@ export default function CashSessionInsightsPage() {
           subtitle="30 derniers jours · détection des comportements à risque"
         />
 
+        {loading ? (
+          <p className="text-slate-500">Chargement des insights…</p>
+        ) : riskScores.length === 0 ? (
+          <Alert variant="info" title="Pas encore de données">
+            Les insights seront disponibles après la clôture des premières sessions.
+          </Alert>
+        ) : (
+          <>
         {/* Top KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <KpiTile
-            icon={<Users className="w-5 h-5" />}
-            label="Sessions"
-            value={totalSessions.toString()}
-            sub="ce mois"
-            color="slate"
-          />
-          <KpiTile
-            icon={<TrendingDown className="w-5 h-5" />}
-            label="Écart cumulé"
-            value={`−${fmtNio(totalNegative)}`}
-            sub="déficit total"
-            color="red"
-          />
-          <KpiTile
-            icon={<AlertTriangle className="w-5 h-5" />}
-            label="Recomptages"
-            value={totalRecounts.toString()}
-            sub="événements"
-            color="amber"
-          />
-          <KpiTile
-            icon={<Shield className="w-5 h-5" />}
-            label="Sessions saines"
-            value={`${Math.round((1 - sortedRisk[0].varianceRatio) * 100)}%`}
-            sub="moyenne équipe"
-            color="emerald"
-          />
+          <KpiTile icon={<Users className="w-5 h-5" />} label="Sessions" value={totalSessions.toString()} sub="ce mois" color="slate" />
+          <KpiTile icon={<TrendingDown className="w-5 h-5" />} label="Écart cumulé" value={`−${fmtNio(totalNegative)}`} sub="déficit total" color="red" />
+          <KpiTile icon={<AlertTriangle className="w-5 h-5" />} label="Recomptages" value={totalRecounts.toString()} sub="événements" color="amber" />
+          <KpiTile icon={<Shield className="w-5 h-5" />} label="Sessions saines"
+            value={`${Math.round((1 - (riskScores[0]?.varianceRatio ?? 0)) * 100)}%`} sub="meilleur score" color="emerald" />
         </div>
 
-        {/* Employees to watch */}
         <h3 className="text-sm font-bold uppercase tracking-wider text-amber-700 mb-3 flex items-center gap-2">
           <AlertTriangle className="w-4 h-4" />
           Employés à surveiller
         </h3>
         <div className="space-y-3 mb-8">
-          {sortedRisk.map((emp) => (
+          {riskScores.map((emp) => (
             <EmployeeRiskRow key={emp.employeeId} emp={emp} />
           ))}
         </div>
@@ -92,8 +105,8 @@ export default function CashSessionInsightsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {MOCK_TOP_VARIANCE_PRODUCTS.map((p, i) => {
-                  const max = MOCK_TOP_VARIANCE_PRODUCTS[0].totalValue;
+                {topProducts.map((p, i) => {
+                  const max = topProducts[0]?.totalValue || 1;
                   const pct = (p.totalValue / max) * 100;
                   return (
                     <tr key={p.productId} className="hover:bg-slate-50">
@@ -134,13 +147,14 @@ export default function CashSessionInsightsPage() {
           Le <strong>score de risque</strong> combine fréquence de recomptage, ratio écart négatif/positif, voids POS et taille des écarts.
           Au-delà de 70, une investigation est recommandée. Tendance ↑ = aggravation sur les 30 derniers jours.
         </Alert>
+        </>)}
       </Section>
     </Container>
   );
 }
 
 // ─── Employee risk row ────────────────────────────────────────────────────
-function EmployeeRiskRow({ emp }: { emp: typeof MOCK_RISK_SCORES[0] }) {
+function EmployeeRiskRow({ emp }: { emp: RiskScore }) {
   const initials = emp.employeeName.split(" ").map((n) => n[0]).slice(0, 2).join("");
   const riskColor = emp.riskScore >= 70 ? "red" : emp.riskScore >= 40 ? "amber" : emp.riskScore >= 20 ? "blue" : "emerald";
   const colors = {

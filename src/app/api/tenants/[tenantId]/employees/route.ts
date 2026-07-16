@@ -12,15 +12,26 @@ export async function GET(
   try {
     const { tenantId } = await params;
     const supabase = getSupabaseAdmin();
+    const { searchParams } = new URL(_request.url);
+    const employeesOnly = searchParams.get("employees_only") === "true";
+    const statusFilter = searchParams.get("status");
 
     // Get employees from the employees table
-    const { data: employees, error: empError } = await supabase
+    let empQuery = supabase
       .from("employees")
       .select("*")
       .eq("tenant_id", tenantId)
       .order("first_name", { ascending: true });
 
+    if (statusFilter) empQuery = empQuery.eq("status", statusFilter);
+
+    const { data: employees, error: empError } = await empQuery;
     if (empError) throw empError;
+
+    // If employees_only, skip users merge entirely
+    if (employeesOnly) {
+      return NextResponse.json(employees ?? []);
+    }
 
     // Get users (admins) from the users table
     const { data: users, error: usersError } = await supabase

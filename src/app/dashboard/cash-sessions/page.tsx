@@ -1,49 +1,66 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Eye, RefreshCw, AlertTriangle, CheckCircle2, Clock, BarChart3 } from "lucide-react";
-import { Button, Card, Container, Section, Badge, Alert } from "@/components/StripeUIComponents";
+import { Button, Card, Container, Section, Badge } from "@/components/StripeUIComponents";
 import { SearchInput, DashboardHeader, EmptyState } from "@/components";
+import { useTenantId } from "@/lib/utils/tenant";
 import {
-  MOCK_SESSIONS,
-  getEmployeeById,
+  type ApiCashSession,
+  empName,
+  empInitials,
   calcCashVariance,
   calcMissingItemsValue,
   fmtNio,
-  fmtTime,
   fmtDate,
   fmtDuration,
-  type MockCashSession,
-} from "./_mockData";
+} from "./_apiTypes";
 
 export default function CashSessionsListPage() {
   const router = useRouter();
+  const tenantId = useTenantId();
+  const [sessions, setSessions] = useState<ApiCashSession[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "CLOSED">("ALL");
 
-  const sessions = useMemo(() => {
-    return MOCK_SESSIONS.filter((s) => {
+  const load = useCallback(async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tenants/${tenantId}/cash-sessions?limit=100`);
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data.sessions ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    return sessions.filter((s) => {
       if (statusFilter !== "ALL" && s.status !== statusFilter) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
-      const opener = getEmployeeById(s.openedById)?.name.toLowerCase() ?? "";
-      const closer = getEmployeeById(s.closedById)?.name.toLowerCase() ?? "";
+      const opener = empName(s.opened_by).toLowerCase();
+      const closer = empName(s.closed_by).toLowerCase();
       return s.name.toLowerCase().includes(q) || opener.includes(q) || closer.includes(q);
     });
-  }, [search, statusFilter]);
+  }, [sessions, search, statusFilter]);
 
-  const openSessions = sessions.filter((s) => s.status === "OPEN");
-  const closedToday = sessions.filter((s) => {
-    if (s.status !== "CLOSED" || !s.closedAt) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return s.closedAt.slice(0, 10) === today;
+  const openSessions = filtered.filter((s) => s.status === "OPEN");
+  const closedToday = filtered.filter((s) => {
+    if (s.status !== "CLOSED" || !s.closed_at) return false;
+    return s.closed_at.slice(0, 10) === new Date().toISOString().slice(0, 10);
   });
-  const closedRest = sessions.filter((s) => {
-    if (s.status !== "CLOSED" || !s.closedAt) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return s.closedAt.slice(0, 10) !== today;
+  const closedRest = filtered.filter((s) => {
+    if (s.status !== "CLOSED" || !s.closed_at) return false;
+    return s.closed_at.slice(0, 10) !== new Date().toISOString().slice(0, 10);
   });
 
   return (
@@ -54,6 +71,10 @@ export default function CashSessionsListPage() {
           title="Sessions de caisse"
           subtitle="Ouvertures et fermetures de magasin avec réconciliation stock + cash"
         >
+          <Button variant="secondary" size="md" onClick={load} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Actualiser
+          </Button>
           <Link href="/dashboard/cash-sessions/insights">
             <Button variant="secondary" size="md">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -90,14 +111,12 @@ export default function CashSessionsListPage() {
           </div>
         </div>
 
-        {sessions.length === 0 ? (
-          <EmptyState
-            state="empty"
-            message="Aucune session pour ce filtre."
-          />
+        {loading ? (
+          <EmptyState state="loading" message="Chargement des sessions…" />
+        ) : filtered.length === 0 ? (
+          <EmptyState state="empty" message="Aucune session pour ce filtre." />
         ) : (
           <div className="space-y-6">
-            {/* OPEN sessions */}
             {openSessions.length > 0 && (
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2 flex items-center gap-2">
@@ -105,37 +124,23 @@ export default function CashSessionsListPage() {
                   En cours
                 </h3>
                 <div className="space-y-3">
-                  {openSessions.map((s) => (
-                    <SessionCard key={s.id} session={s} />
-                  ))}
+                  {openSessions.map((s) => <SessionCard key={s.id} session={s} />)}
                 </div>
               </div>
             )}
-
-            {/* Closed today */}
             {closedToday.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Aujourd'hui
-                </h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Aujourd'hui</h3>
                 <div className="space-y-3">
-                  {closedToday.map((s) => (
-                    <SessionCard key={s.id} session={s} />
-                  ))}
+                  {closedToday.map((s) => <SessionCard key={s.id} session={s} />)}
                 </div>
               </div>
             )}
-
-            {/* Closed earlier */}
             {closedRest.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Précédentes
-                </h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Précédentes</h3>
                 <div className="space-y-3">
-                  {closedRest.map((s) => (
-                    <SessionCard key={s.id} session={s} />
-                  ))}
+                  {closedRest.map((s) => <SessionCard key={s.id} session={s} />)}
                 </div>
               </div>
             )}
@@ -147,14 +152,16 @@ export default function CashSessionsListPage() {
 }
 
 // ─── Session card ─────────────────────────────────────────────────────────
-function SessionCard({ session }: { session: MockCashSession }) {
-  const opener = getEmployeeById(session.openedById);
-  const closer = getEmployeeById(session.closedById);
+function SessionCard({ session }: { session: ApiCashSession }) {
   const isOpen = session.status === "OPEN";
   const cashVar = calcCashVariance(session);
-  const missingValue = calcMissingItemsValue(session);
+  const missingValue = calcMissingItemsValue(session.cash_session_counts ?? []);
   const hasAnomalies = !isOpen && (Math.abs(cashVar) > 10 || missingValue > 10);
-  const itemsToCount = session.counts.length;
+  const itemsToCount = (session.cash_session_counts ?? []).length;
+  const openerInitials = empInitials(session.opened_by);
+  const openerFullName = empName(session.opened_by);
+  const closerInitials = empInitials(session.closed_by);
+  const closerFullName = empName(session.closed_by);
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -176,7 +183,7 @@ function SessionCard({ session }: { session: MockCashSession }) {
           )}
           <div className="lg:hidden">
             <p className="font-bold text-slate-900">{session.name}</p>
-            <p className="text-xs text-slate-500">{fmtDate(session.openedAt)}</p>
+            <p className="text-xs text-slate-500">{fmtDate(session.opened_at)}</p>
           </div>
         </div>
 
@@ -185,49 +192,42 @@ function SessionCard({ session }: { session: MockCashSession }) {
           <div className="hidden lg:flex items-center gap-3 mb-1">
             <p className="font-bold text-slate-900">{session.name}</p>
             <span className="text-xs text-slate-400">·</span>
-            <p className="text-sm text-slate-600">{fmtDate(session.openedAt)}</p>
-            {isOpen && (
-              <Badge variant="success">EN COURS</Badge>
-            )}
-            {!isOpen && session.resolved && (
-              <Badge variant="default">Résolue</Badge>
-            )}
-            {!isOpen && hasAnomalies && !session.resolved && (
-              <Badge variant="warning">À examiner</Badge>
-            )}
+            <p className="text-sm text-slate-600">{fmtDate(session.opened_at)}</p>
+            {isOpen && <Badge variant="success">EN COURS</Badge>}
+            {!isOpen && session.resolved && <Badge variant="default">Résolue</Badge>}
+            {!isOpen && hasAnomalies && !session.resolved && <Badge variant="warning">À examiner</Badge>}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
             <span className="flex items-center gap-1.5">
               <span className="text-xs text-slate-400">Ouvert par</span>
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
-                {opener?.initials}
+                {openerInitials}
               </span>
-              <span className="font-medium text-slate-700">{opener?.name}</span>
+              <span className="font-medium text-slate-700">{openerFullName}</span>
             </span>
-            {!isOpen && closer && closer.id !== opener?.id && (
+            {!isOpen && session.closed_by && session.closed_by_id !== session.opened_by_id && (
               <span className="flex items-center gap-1.5">
                 <span className="text-xs text-slate-400">→ fermé par</span>
                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">
-                  {closer.initials}
+                  {closerInitials}
                 </span>
-                <span className="font-medium text-slate-700">{closer.name}</span>
+                <span className="font-medium text-slate-700">{closerFullName}</span>
               </span>
             )}
           </div>
 
-          {/* Stats row */}
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs">
             {isOpen ? (
               <>
-                <Stat label="Fond" value={fmtNio(session.openingCash)} />
-                <Stat label="Ventes" value={fmtNio(session.totalSales)} sub={`${session.txCount} tx`} />
+                <Stat label="Fond" value={fmtNio(session.opening_cash)} />
+                <Stat label="Ventes" value={fmtNio(session.total_sales)} sub={`${session.tx_count} tx`} />
                 <Stat label="À recompter" value={`${itemsToCount} items`} />
               </>
             ) : (
               <>
-                <Stat label="Durée" value={fmtDuration(session.openedAt, session.closedAt!)} />
-                <Stat label="Ventes" value={fmtNio(session.totalSales)} sub={`${session.txCount} tx`} />
+                <Stat label="Durée" value={fmtDuration(session.opened_at, session.closed_at!)} />
+                <Stat label="Ventes" value={fmtNio(session.total_sales)} sub={`${session.tx_count} tx`} />
                 <Stat
                   label="Caisse"
                   value={Math.abs(cashVar) < 1 ? "✓ équilibrée" : (cashVar > 0 ? `+${fmtNio(cashVar)}` : `−${fmtNio(Math.abs(cashVar))}`)}
@@ -247,15 +247,12 @@ function SessionCard({ session }: { session: MockCashSession }) {
         <div className="flex-shrink-0">
           {isOpen ? (
             <Link href={`/dashboard/cash-sessions/${session.id}`}>
-              <Button variant="primary" size="md" className="w-full lg:w-auto">
-                Continuer / Fermer
-              </Button>
+              <Button variant="primary" size="md" className="w-full lg:w-auto">Continuer / Fermer</Button>
             </Link>
           ) : (
             <Link href={`/dashboard/cash-sessions/${session.id}`}>
               <Button variant="secondary" size="md" className="w-full lg:w-auto">
-                <Eye className="w-4 h-4 mr-2" />
-                Voir détails
+                <Eye className="w-4 h-4 mr-2" />Voir détails
               </Button>
             </Link>
           )}

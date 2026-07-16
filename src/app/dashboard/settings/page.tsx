@@ -360,6 +360,7 @@ export default function SettingsPage() {
                 { href: "/dashboard/settings/exchange-rate", icon: "💱", label: t("settings.subExchangeRate") },
                 { href: "/dashboard/settings/theme",         icon: "🎨", label: t("settings.subTheme") },
                 { href: "/dashboard/settings/loyalty",       icon: "💳", label: t("settings.subLoyalty") },
+                { href: "/dashboard/settings/count-items",   icon: "📦", label: "Items à compter" },
               ].map((item) => (
                 <Link key={item.href} href={item.href}>
                   <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
