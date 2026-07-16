@@ -355,13 +355,13 @@ export default function SettingsPage() {
             <p className="text-sm text-slate-600 mb-4">{t("settings.modulesCardDesc")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
-                { href: "/dashboard/settings/modules",       icon: "🧩", label: t("settings.subModules") },
-                { href: "/dashboard/settings/taxes",         icon: "📋", label: t("settings.subTaxes") },
-                { href: "/dashboard/settings/exchange-rate", icon: "💱", label: t("settings.subExchangeRate") },
-                { href: "/dashboard/settings/theme",         icon: "🎨", label: t("settings.subTheme") },
-                { href: "/dashboard/settings/loyalty",       icon: "💳", label: t("settings.subLoyalty") },
-                { href: "/dashboard/settings/count-items",   icon: "📦", label: "Items à compter" },
-              ].map((item) => (
+                { href: "/dashboard/settings/modules",       icon: "🧩", label: t("settings.subModules"),      show: true },
+                { href: "/dashboard/settings/taxes",         icon: "📋", label: t("settings.subTaxes"),        show: !!features?.taxes },
+                { href: "/dashboard/settings/exchange-rate", icon: "💱", label: t("settings.subExchangeRate"), show: true },
+                { href: "/dashboard/settings/theme",         icon: "🎨", label: t("settings.subTheme"),        show: true },
+                { href: "/dashboard/settings/loyalty",       icon: "💳", label: t("settings.subLoyalty"),      show: !!features?.loyalty },
+                { href: "/dashboard/settings/count-items",   icon: "📦", label: "Items à compter",             show: !!features?.pos },
+              ].filter((item) => item.show).map((item) => (
                 <Link key={item.href} href={item.href}>
                   <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
                     <span className="text-lg">{item.icon}</span>
