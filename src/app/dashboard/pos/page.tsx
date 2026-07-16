@@ -1171,22 +1171,7 @@ export default function POSPage() {
                 <span>{fmtCurrency(cartTotal.total)}</span>
               </div>
 
-              {/* Profit Summary */}
-              {(cartTotal as any).costOfGoodsSold !== undefined && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mt-2">
-                  <div className="text-xs text-slate-600 mb-1 font-semibold">{t("pos.profitAnalysis")}</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="text-slate-600">{t("pos.totalCost")}</p>
-                      <p className="font-bold text-slate-900">{fmtCurrency((cartTotal as any).costOfGoodsSold)}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-600">{t("pos.profit")}</p>
-                      <p className="font-bold text-green-700">{fmtCurrency((cartTotal as any).profit)}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+
             </div>
 
             {/* Loyal Customer Selection — only if module is enabled */}
