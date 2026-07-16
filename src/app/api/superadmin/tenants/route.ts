@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 import { DEFAULT_PERMISSIONS } from "@/lib/types/roles";
+import { getFeaturesForPlan } from "@/lib/config/planFeatures";
 
 const ALL_PERMISSIONS = DEFAULT_PERMISSIONS.map((p) => p.id);
 
@@ -73,13 +74,17 @@ export async function POST(request: Request) {
     }
 
     // Créer le tenant
+    const tenantPlan = plan || "basic";
+    // Use plan defaults as the base; allow explicit overrides passed in the request body
+    const tenantFeatures = { ...getFeaturesForPlan(tenantPlan), ...(features ?? {}) };
+
     const { data: tenant, error: tenantError } = await supabase
       .from("tenants")
       .insert({
         name,
         slug,
-        plan: plan || "basic",
-        features: features || {},
+        plan: tenantPlan,
+        features: tenantFeatures,
         trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // +14 jours
         is_paid: false,
       })

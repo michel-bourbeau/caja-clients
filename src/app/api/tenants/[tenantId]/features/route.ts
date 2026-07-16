@@ -1,9 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { NextResponse, NextRequest } from "next/server";
+import { getFeaturesForPlan } from "@/lib/config/planFeatures";
 
 /**
  * GET /api/tenants/[tenantId]/features
- * Récupère les modules activés pour un tenant
+ * Récupère les modules activés pour un tenant.
+ * Plan defaults are applied first; explicit DB overrides take precedence.
  */
 export async function GET(
   request: Request,
@@ -15,7 +17,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from("tenants")
-      .select("features")
+      .select("features, plan")
       .eq("id", tenantId)
       .single();
 
@@ -26,8 +28,14 @@ export async function GET(
       );
     }
 
+    // Apply plan-based defaults first, then merge explicit DB overrides on top.
+    // This ensures a "basic" tenant never gets loyalty/employees/etc. unless
+    // explicitly enabled via a superadmin override.
+    const planDefaults = getFeaturesForPlan(data.plan ?? "basic");
+    const mergedFeatures = { ...planDefaults, ...(data.features ?? {}) };
+
     return NextResponse.json({
-      features: data.features || {},
+      features: mergedFeatures,
     });
   } catch (error) {
     console.error("Error fetching features:", error);

@@ -89,7 +89,7 @@ export const Sidebar: React.FC = () => {
         <div className="sidebar-divider"></div>
 
         {/* POS — Accordion, open by default */}
-        {(hasPermission("pos.view") || hasPermission("pos.create")) && (
+        {features.pos && (hasPermission("pos.view") || hasPermission("pos.create")) && (
           <Accordion
             label={t("nav.pos")}
             iconType="pos"
@@ -112,7 +112,7 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Inventario — Accordion */}
-        {hasPermission("inventory.view") && (
+        {features.inventory && hasPermission("inventory.view") && (
           <Accordion
             label={t("nav.inventario")}
             iconType="inventory"
@@ -124,24 +124,22 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Personal — Accordion */}
-        {(hasPermission("employees.view") ||
-          hasPermission("schedules.view") ||
-          hasPermission("schedules.checkin") ||
-          hasPermission("payroll.view") ||
-          hasPermission("payroll.create")) && (
+        {((features.employees && hasPermission("employees.view")) ||
+          (features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin"))) ||
+          (features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")))) && (
           <Accordion
             label={t("nav.personal")}
             iconType="employees"
             isOpen={expandedSections.personal}
             onToggle={() => toggleSection("personal")}
           >
-            {hasPermission("employees.view") && (
+            {features.employees && hasPermission("employees.view") && (
               <NavLink href={ROUTES.EMPLOYEES} label={t("nav.empleados")} iconType="employees" isNested />
             )}
-            {(hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
+            {features.schedules && (hasPermission("schedules.view") || hasPermission("schedules.checkin")) && (
               <NavLink href={ROUTES.SCHEDULES} label={t("nav.asistencia")} iconType="schedules" isNested />
             )}
-            {(hasPermission("payroll.view") || hasPermission("payroll.create")) && (
+            {features.payroll && (hasPermission("payroll.view") || hasPermission("payroll.create")) && (
               <>
                 <NavLink href={ROUTES.PAYROLL_PERIODS} label={t("nav.periodosPago")} iconType="periods" isNested />
                 <NavLink href={ROUTES.PAYROLL} label={t("nav.reciboNomina")} iconType="payroll" isNested />
@@ -151,26 +149,22 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Finanzas — Accordion */}
-        {(hasPermission("reports.view") ||
-          hasPermission("expenses.create") ||
-          hasPermission("expenses.view_all") ||
-          hasPermission("expenses.view_own")) && (
+        {((features.reports && hasPermission("reports.view")) ||
+          (features.expenses && (hasPermission("expenses.create") || hasPermission("expenses.view_all") || hasPermission("expenses.view_own")))) && (
           <Accordion
             label={t("nav.finanzas")}
             iconType="reports"
             isOpen={expandedSections.finanzas}
             onToggle={() => toggleSection("finanzas")}
           >
-            {hasPermission("reports.view") && (
+            {features.reports && hasPermission("reports.view") && (
               <>
                 <NavLink href={ROUTES.REPORTS} label={t("nav.reportesVentas")} iconType="reports" isNested />
                 <NavLink href="/dashboard/profits" label={t("nav.analisisGanancias")} iconType="reports" isNested />
-                {features?.reports && (
-                  <NavLink href="/dashboard/bilan" label={t("nav.bilanFinanciero")} iconType="bilan" isNested />
-                )}
+                <NavLink href="/dashboard/bilan" label={t("nav.bilanFinanciero")} iconType="bilan" isNested />
               </>
             )}
-            {(hasPermission("expenses.create") ||
+            {features.expenses && (hasPermission("expenses.create") ||
               hasPermission("expenses.view_all") ||
               hasPermission("expenses.view_own")) && (
               <NavLink href="/dashboard/expenses" label={t("nav.gastos")} iconType="expenses" isNested />
@@ -179,17 +173,17 @@ export const Sidebar: React.FC = () => {
         )}
 
         {/* Clientes — Accordion */}
-        {(hasPermission("loyalty.view") || hasPermission("contacts.view")) && (
+        {((features.loyalty && hasPermission("loyalty.view")) || (features.contacts && hasPermission("contacts.view"))) && (
           <Accordion
             label={t("nav.clientes")}
             iconType="loyalty"
             isOpen={expandedSections.clientes}
             onToggle={() => toggleSection("clientes")}
           >
-            {hasPermission("loyalty.view") && (
+            {features.loyalty && hasPermission("loyalty.view") && (
               <NavLink href="/dashboard/loyalty" label={t("nav.clientesFieles")} iconType="loyalty" isNested />
             )}
-            {hasPermission("contacts.view") && (
+            {features.contacts && hasPermission("contacts.view") && (
               <NavLink href="/dashboard/contacts" label={t("nav.contactos")} iconType="contacts" isNested />
             )}
           </Accordion>

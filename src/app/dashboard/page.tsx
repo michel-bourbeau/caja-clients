@@ -297,7 +297,7 @@ export default function DashboardPage() {
       color: "bg-rose-50 border-rose-200 text-rose-800",
       iconBg: "bg-rose-100",
       group: "ventas",
-      show: hasPermission("loyalty.view"),
+      show: features.loyalty === true && hasPermission("loyalty.view"),
     },
     {
       id: "profits",
