@@ -7,32 +7,11 @@ import { Button, Card, Container, Section, Badge, Alert } from "@/components/Str
 import { SearchInput, DashboardHeader } from "@/components";
 import { useTenantId } from "@/lib/utils/tenant";
 import { fmtNio } from "../../cash-sessions/_apiTypes";
-
-interface ProductVariant {
-  id: string;
-  label: string;
-  sku: string;
-  price: number;
-  stock_quantity: number;
-  sort_order: number;
-}
-
-interface TrackedProduct {
-  id: string;
-  name: string;
-  sku: string;
-  price: number;
-  stock_quantity: number;
-  sort_order: number;
-  track_in_count: boolean;
-  has_variants: boolean;
-  product_categories: { id: string; name: string } | null;
-  product_variants: ProductVariant[];
-}
+import type { ApiProductVariant, ApiTrackedProduct } from "../../cash-sessions/_apiTypes";
 
 export default function CountItemsConfigPage() {
   const tenantId = useTenantId();
-  const [products, setProducts] = useState<TrackedProduct[]>([]);
+  const [products, setProducts] = useState<ApiTrackedProduct[]>([]);
   const [tracked, setTracked] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -55,7 +34,7 @@ export default function CountItemsConfigPage() {
         setApiError(data?.error ?? `Erreur ${res.status}`);
         return;
       }
-      const prods: TrackedProduct[] = data.products ?? [];
+      const prods: ApiTrackedProduct[] = data.products ?? [];
       setProducts(prods);
       setTracked(Object.fromEntries(prods.map((p) => [p.id, p.track_in_count ?? false])));
     } catch (e) {
@@ -81,7 +60,7 @@ export default function CountItemsConfigPage() {
   }, [products, tracked, filter, search]);
 
   const grouped = useMemo(() => {
-    const map: Record<string, TrackedProduct[]> = {};
+    const map: Record<string, ApiTrackedProduct[]> = {};
     filtered.forEach((p) => {
       const cat = p.product_categories?.name ?? "Sans catégorie";
       map[cat] = map[cat] || [];

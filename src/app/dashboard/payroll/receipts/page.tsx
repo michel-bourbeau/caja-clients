@@ -10,19 +10,8 @@ import { DashboardHeader } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface PayrollConfig {
-  frequency: "weekly" | "biweekly" | "monthly";
-  weekStartDay: number;
-  monthStartDay: number;
-}
-
-interface PeriodInfo {
-  id: string;
-  startDate: string;
-  endDate: string;
-  label: string;
-  isCurrent: boolean;
-}
+import { PayrollConfig, PeriodInfo } from "@/lib/types";
+import { fmtHours } from "../_helpers";
 
 interface EmployeeSummary {
   employeeId: string;
@@ -45,23 +34,6 @@ interface PeriodPayment {
   amount: number;
   notes: string | null;
   paid_at: string;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const FREQ_LABEL: Record<string, string> = {
-  weekly:   "Semanal",
-  biweekly: "Bisemanal",
-  monthly:  "Mensual",
-};
-
-const WEEK_DAYS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
-
-function fmtHours(h: number): string {
-  const hrs = Math.floor(h);
-  const min = Math.round((h - hrs) * 60);
-  if (min === 0) return `${hrs}h`;
-  return `${hrs}h ${String(min).padStart(2, "0")}m`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

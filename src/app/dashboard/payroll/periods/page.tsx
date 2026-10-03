@@ -5,32 +5,7 @@ import { useTenantId } from "@/lib/utils/tenant";
 import { useLanguage } from "@/context/LanguageContext";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { DashboardHeader, PageIcon } from "@/components";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface PayrollConfig {
-  frequency: "weekly" | "biweekly" | "monthly";
-  weekStartDay: number;
-  monthStartDay: number;
-}
-
-interface PeriodInfo {
-  id: string;
-  startDate: string;
-  endDate: string;
-  label: string;
-  isCurrent: boolean;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const FREQ_LABEL: Record<string, string> = {
-  weekly:   "Semanal",
-  biweekly: "Bisemanal",
-  monthly:  "Mensual",
-};
-
-const WEEK_DAYS = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
+import { PayrollConfig, PeriodInfo } from "@/lib/types";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

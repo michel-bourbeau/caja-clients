@@ -7,21 +7,7 @@ import {
   setLocalStorageWithTTL,
   getFeaturesStorageKey,
 } from "@/lib/cache/localStorageCache";
-
-interface TenantFeatures {
-  pos?: boolean;
-  inventory?: boolean;
-  employees?: boolean;
-  schedules?: boolean;
-  payroll?: boolean;
-  reports?: boolean;
-  loyalty?: boolean;
-  expenses?: boolean;
-  taxes?: boolean;
-  settings?: boolean;
-  contacts?: boolean;
-  [key: string]: boolean | undefined;
-}
+import { TenantFeatures } from "@/lib/types";
 
 interface TenantFeaturesContextValue {
   features: TenantFeatures | null;

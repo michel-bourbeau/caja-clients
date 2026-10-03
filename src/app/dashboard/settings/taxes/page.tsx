@@ -9,14 +9,7 @@ import { useRouter } from "next/navigation";
 import { Button, Input, Card } from "@/components/ui";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
-import { Transaction } from "@/lib/types";
-
-interface Tax {
-  id: string;
-  name: string;
-  rate: number;
-  is_active: boolean;
-}
+import { Transaction, Tax } from "@/lib/types";
 
 type PeriodType = "WEEK" | "MONTH" | "YEAR";
 

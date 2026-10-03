@@ -9,20 +9,7 @@ import {
   getInFlightRequest,
   setInFlightRequest 
 } from "../cache/apiCache";
-
-interface TenantFeatures {
-  pos?: boolean;
-  inventory?: boolean;
-  employees?: boolean;
-  schedules?: boolean;
-  payroll?: boolean;
-  reports?: boolean;
-  loyalty?: boolean;
-  expenses?: boolean;
-  taxes?: boolean;
-  settings?: boolean;
-  [key: string]: boolean | undefined;
-}
+import { TenantFeatures } from "@/lib/types";
 
 const ALL_FEATURES_ON: TenantFeatures = {
   pos: true, inventory: true, employees: true,

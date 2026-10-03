@@ -11,6 +11,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useLanguage } from "@/context/LanguageContext";
 import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale } from "@/i18n/config";
 import { useAuth } from "@/context/AuthContext";
+import { PayrollConfig } from "@/lib/types";
 
 interface PlanDetails {
   label: string;
@@ -26,12 +27,6 @@ const PLAN_COLORS: Record<string, string> = {
 };
 
 type ModuleKey = "pos" | "inventory" | "employees" | "schedules" | "payroll" | "reports" | "loyalty" | "expenses" | "taxes" | "contacts" | "settings";
-
-interface PayrollConfig {
-  frequency: "weekly" | "biweekly" | "monthly";
-  weekStartDay: number;
-  monthStartDay: number;
-}
 
 interface Settings {
   companyName: string;

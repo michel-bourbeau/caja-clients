@@ -25,6 +25,29 @@ export interface ApiCashSessionCount {
   notes: string;
 }
 
+export interface ApiProductVariant {
+  id: string;
+  label: string;
+  sku: string;
+  price: number;
+  stock_quantity: number;
+  sort_order: number;
+}
+
+/** Product shape used by the count-items config page and the new-session wizard. */
+export interface ApiTrackedProduct {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  stock_quantity: number;
+  sort_order: number;
+  track_in_count: boolean;
+  has_variants: boolean;
+  product_categories: { id: string; name: string } | null;
+  product_variants: ApiProductVariant[];
+}
+
 export interface ApiCashSession {
   id: string;
   tenant_id: string;

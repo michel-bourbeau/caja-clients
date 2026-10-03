@@ -7,6 +7,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 import { Button, Container, Section, Card } from "@/components/StripeUIComponents";
 import { PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, FlashMessage, useFlash } from "@/components";
+import { PeriodInfo } from "@/lib/types";
 
 interface Employee {
   id: string;
@@ -32,14 +33,6 @@ interface SalaryPayment {
   amount: number;
   notes: string | null;
   paid_at: string;
-}
-
-interface PeriodInfo {
-  id: string;
-  startDate: string;
-  endDate: string;
-  label: string;
-  isCurrent: boolean;
 }
 
 const EMPTY_FORM = {

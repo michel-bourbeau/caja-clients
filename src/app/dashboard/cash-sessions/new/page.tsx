@@ -7,29 +7,7 @@ import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
 import { Button, Card, Container, Section, Alert } from "@/components/StripeUIComponents";
 import { DashboardHeader } from "@/components";
 import { useTenantId } from "@/lib/utils/tenant";
-import { type ApiCashSession, type ApiEmployee, fmtNio, empInitials, empName } from "../_apiTypes";
-
-interface ProductVariant {
-  id: string;
-  label: string;
-  sku: string;
-  price: number;
-  stock_quantity: number;
-  sort_order: number;
-}
-
-interface TrackedProduct {
-  id: string;
-  name: string;
-  sku: string;
-  price: number;
-  stock_quantity: number;
-  sort_order: number;
-  track_in_count: boolean;
-  has_variants: boolean;
-  product_categories: { id: string; name: string } | null;
-  product_variants: ProductVariant[];
-}
+import { type ApiCashSession, type ApiEmployee, type ApiProductVariant, type ApiTrackedProduct, fmtNio, empInitials, empName } from "../_apiTypes";
 
 export default function NewCashSessionPage() {
   const router = useRouter();
@@ -37,7 +15,7 @@ export default function NewCashSessionPage() {
 
   // Remote data
   const [employees, setEmployees] = useState<ApiEmployee[]>([]);
-  const [products, setProducts] = useState<TrackedProduct[]>([]);
+  const [products, setProducts] = useState<ApiTrackedProduct[]>([]);
   const [prevSession, setPrevSession] = useState<ApiCashSession | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,12 +52,12 @@ export default function NewCashSessionPage() {
       // employees_only=true guarantees real employees table IDs (valid FK for opened_by_id)
       const emps: ApiEmployee[] = Array.isArray(empData) ? empData : [];
       setEmployees(emps);
-      const tracked = (prodData.products ?? []).filter((p: TrackedProduct) => p.track_in_count);
+      const tracked = (prodData.products ?? []).filter((p: ApiTrackedProduct) => p.track_in_count);
       setProducts(tracked);
       setPrevSession(sessData.sessions?.[0] ?? null);
       // Init counts keyed by "productId" or "productId:variantId" for variants
       const initCounts: Record<string, number> = {};
-      tracked.forEach((p: TrackedProduct) => {
+      tracked.forEach((p: ApiTrackedProduct) => {
         if (p.has_variants && p.product_variants?.length > 0) {
           p.product_variants.forEach((v) => { initCounts[`${p.id}:${v.id}`] = 0; });
         } else {
@@ -100,7 +78,7 @@ export default function NewCashSessionPage() {
   const displayName = sessionName.trim() || "Session";
 
   const productsByCategory = useMemo(() => {
-    const grouped: Record<string, TrackedProduct[]> = {};
+    const grouped: Record<string, ApiTrackedProduct[]> = {};
     tracked.forEach((p) => {
       const cat = p.product_categories?.name ?? "Sans catégorie";
       grouped[cat] = grouped[cat] || [];
@@ -376,7 +354,7 @@ function Step2({ openingCash, setOpeningCash, notes, setNotes }: { openingCash: 
 // ─── Step 3 ───────────────────────────────────────────────────────────────
 function Step3({ counts, setCounts, productsByCategory, canCarryOver, carriedOver, onCarryOver, prevCloserName, prevCloseTime }: {
   counts: Record<string, number>; setCounts: (v: Record<string, number>) => void;
-  productsByCategory: Record<string, TrackedProduct[]>;
+  productsByCategory: Record<string, ApiTrackedProduct[]>;
   canCarryOver: boolean; carriedOver: boolean; onCarryOver: () => void;
   prevCloserName?: string; prevCloseTime?: string | null;
 }) {

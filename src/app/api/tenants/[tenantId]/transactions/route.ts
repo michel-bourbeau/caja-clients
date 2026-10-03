@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkPlanStatus, respondWithExpiredPlan } from "@/lib/utils/planStatusCheck";
-import { CartItem, Transaction } from "@/lib/types";
-
-interface Tax {
-  name: string;
-  rate: number;
-  is_active: boolean;
-}
+import { CartItem, Transaction, Tax } from "@/lib/types";
 
 interface TaxBreakdown {
   name: string;

@@ -95,5 +95,5 @@ export {
 // ────────────────────────────────────────────────────────────────────────────
 
 export type { Role, Permission, RoleWithCount } from "./roles";
-export type { Tenant } from "./tenant";
+export type { Tenant, TenantFeatures } from "./tenant";
 export type { Contact } from "./contacts";

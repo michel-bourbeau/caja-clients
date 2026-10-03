@@ -41,6 +41,25 @@ export interface Tenant {
   deletedAt?: Date;
 }
 
+/**
+ * Feature flags map returned by GET /api/tenants/[tenantId]/features.
+ * All keys are optional/boolean so unknown modules don't break consumers.
+ */
+export interface TenantFeatures {
+  pos?: boolean;
+  inventory?: boolean;
+  employees?: boolean;
+  schedules?: boolean;
+  payroll?: boolean;
+  reports?: boolean;
+  loyalty?: boolean;
+  expenses?: boolean;
+  taxes?: boolean;
+  settings?: boolean;
+  contacts?: boolean;
+  [key: string]: boolean | undefined;
+}
+
 export interface TenantSettings {
   tenantId: string;
   taxRate: number; // IVA
