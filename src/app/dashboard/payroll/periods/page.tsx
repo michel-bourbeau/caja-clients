@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useLanguage } from "@/context/LanguageContext";
 import { FeatureGuard } from "@/components/FeatureGuard";
-import { DashboardHeader, PageIcon } from "@/components";
+import { DashboardHeader, PageIcon, EmptyState } from "@/components";
 import { PayrollConfig, PeriodInfo } from "@/lib/types";
+import { StatusPill } from "../_components";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -158,13 +159,9 @@ function PayrollPeriodsContent() {
         </div>
 
         {loading ? (
-          <div className="py-10 text-center text-slate-400 text-sm">{t("payroll.periods.loading")}</div>
+          <EmptyState state="loading" message={t("payroll.periods.loading")} />
         ) : periods.length === 0 ? (
-          <div className="py-10 text-center text-slate-400">
-            <p className="text-lg mb-2">📅</p>
-            <p>{t("payroll.periods.empty")}</p>
-            <p className="text-xs mt-2">{t("payroll.periods.emptySub")}</p>
-          </div>
+          <EmptyState state="empty" message={`${t("payroll.periods.empty")} — ${t("payroll.periods.emptySub")}`} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -195,9 +192,7 @@ function PayrollPeriodsContent() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       {period.isCurrent ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full">
-                          ● {t("payroll.periods.current")}
-                        </span>
+                        <StatusPill tone="blue">● {t("payroll.periods.current")}</StatusPill>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}

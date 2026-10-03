@@ -6,12 +6,13 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { useLanguage } from "@/context/LanguageContext";
 import { FeatureGuard } from "@/components/FeatureGuard";
 import { Button, Container, Section } from "@/components/StripeUIComponents";
-import { DashboardHeader } from "@/components";
+import { DashboardHeader, EmptyState } from "@/components";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 import { PayrollConfig, PeriodInfo } from "@/lib/types";
 import { fmtHours } from "../_helpers";
+import { PeriodNavigator, InlineStat, StatusPill, UndoConfirmButton } from "../_components";
 
 interface EmployeeSummary {
   employeeId: string;
@@ -215,49 +216,14 @@ function PayrollContent() {
         </DashboardHeader>
 
         {/* ── Period navigator ──────────────────────────────────────────────── */}
-        {!loadingPeriods && periods.length > 0 && (() => {
-          const idx = selectedPeriod ? periods.findIndex((p) => p.id === selectedPeriod.id) : 0;
-          const canPrev = idx < periods.length - 1;
-          const canNext = idx > 0;
-          return (
-            <div className="flex items-center gap-2 mb-6 w-full">
-              <button
-                onClick={() => canPrev && setSelectedPeriod(periods[idx + 1])}
-                disabled={!canPrev}
-                className="flex-shrink-0 p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-
-              <select
-                value={selectedPeriod?.id ?? ""}
-                onChange={(e) => {
-                  const p = periods.find((p) => p.id === e.target.value);
-                  if (p) setSelectedPeriod(p);
-                }}
-                className="flex-1 min-w-0 px-3 py-2 border border-slate-200 bg-white rounded-lg text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}{p.isCurrent ? ` ${t("payroll.receipts.currentLabel")}` : ""}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => canNext && setSelectedPeriod(periods[idx - 1])}
-                disabled={!canNext}
-                className="flex-shrink-0 p-2 rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          );
-        })()}
+        {!loadingPeriods && (
+          <PeriodNavigator
+            periods={periods}
+            selected={selectedPeriod}
+            onChange={setSelectedPeriod}
+            currentLabel={t("payroll.receipts.currentLabel")}
+          />
+        )}
 
         {selectedPeriod && (
           <div className="flex flex-col gap-4">
@@ -266,22 +232,10 @@ function PayrollContent() {
               <div className="flex items-center justify-between gap-4">
                 {!loadingSummary && summary.length > 0 && (
                   <div className="flex flex-wrap gap-6">
-                    <div>
-                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsHours")}</p>
-                      <p className="text-xl font-bold text-slate-900">{fmtHours(totalHours)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsDue")}</p>
-                      <p className="text-xl font-bold text-slate-900">{fmt(totalSalaryDue)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsPaid")}</p>
-                      <p className="text-xl font-bold text-emerald-600">{fmt(totalPaid)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-600">{t("payroll.receipts.statsPending")}</p>
-                      <p className="text-xl font-bold text-amber-600">{fmt(totalUnpaid)}</p>
-                    </div>
+                    <InlineStat label={t("payroll.receipts.statsHours")} value={fmtHours(totalHours)} />
+                    <InlineStat label={t("payroll.receipts.statsDue")} value={fmt(totalSalaryDue)} />
+                    <InlineStat label={t("payroll.receipts.statsPaid")} value={fmt(totalPaid)} tone="emerald" />
+                    <InlineStat label={t("payroll.receipts.statsPending")} value={fmt(totalUnpaid)} tone="amber" />
                   </div>
                 )}
                 {!loadingSummary && unpaidCount > 0 && (
@@ -294,12 +248,9 @@ function PayrollContent() {
 
             {/* Employee table */}
             {loadingSummary ? (
-              <div className="py-10 text-center text-slate-400 text-sm">{t("payroll.receipts.loadingHours")}</div>
+              <EmptyState state="loading" message={t("payroll.receipts.loadingHours")} />
             ) : summary.length === 0 ? (
-              <div className="py-10 text-center text-slate-400">
-                <p className="text-3xl mb-2">👥</p>
-                <p>{t("payroll.receipts.noEmployees")}</p>
-              </div>
+              <EmptyState state="empty" message={t("payroll.receipts.noEmployees")} />
             ) : (
               <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
                 <table className="w-full text-sm">
@@ -356,34 +307,30 @@ function PayrollContent() {
                           <td className="px-5 py-3 text-center">
                             {isPaid ? (
                               <span className="inline-flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full">
-                                  {t("payroll.receipts.paid")}
-                                </span>
-                                {deleteConfirm === payment.id ? (
-                                  <span className="inline-flex gap-1">
-                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">{t("payroll.receipts.annul")}</button>
-                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">{t("payroll.receipts.no")}</button>
-                                  </span>
-                                ) : (
-                                  <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
-                                )}
+                                <StatusPill tone="emerald">{t("payroll.receipts.paid")}</StatusPill>
+                                <UndoConfirmButton
+                                  confirming={deleteConfirm === payment.id}
+                                  onAskConfirm={() => setDeleteConfirm(payment.id)}
+                                  onConfirm={() => deletePayment(payment)}
+                                  onCancel={() => setDeleteConfirm(null)}
+                                  confirmLabel={t("payroll.receipts.annul")}
+                                  cancelLabel={t("payroll.receipts.no")}
+                                />
                               </span>
                             ) : isPartiallyPaid && payment ? (
                               <span className="inline-flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
-                                  {t("payroll.receipts.partialPay")}
-                                </span>
+                                <StatusPill tone="amber">{t("payroll.receipts.partialPay")}</StatusPill>
                                 <Button variant="secondary" size="sm" onClick={() => payEmployee(emp)} disabled={isPayingThis || payingAll}>
                                   {isPayingThis ? t("payroll.receipts.loading2") : t("payroll.receipts.payAmount", { amount: fmt(unpaidInfo.unpaidAmount) })}
                                 </Button>
-                                {deleteConfirm === payment.id ? (
-                                  <span className="inline-flex gap-1">
-                                    <button onClick={() => deletePayment(payment)} className="text-xs text-red-600 font-semibold hover:underline">{t("payroll.receipts.annul")}</button>
-                                    <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-400 hover:underline">{t("payroll.receipts.no")}</button>
-                                  </span>
-                                ) : (
-                                  <button onClick={() => setDeleteConfirm(payment.id)} className="text-xs text-slate-300 hover:text-red-400 transition-colors" title="Anular pago">↩</button>
-                                )}
+                                <UndoConfirmButton
+                                  confirming={deleteConfirm === payment.id}
+                                  onAskConfirm={() => setDeleteConfirm(payment.id)}
+                                  onConfirm={() => deletePayment(payment)}
+                                  onCancel={() => setDeleteConfirm(null)}
+                                  confirmLabel={t("payroll.receipts.annul")}
+                                  cancelLabel={t("payroll.receipts.no")}
+                                />
                               </span>
                             ) : emp.salaryDue > 0 ? (
                               <Button variant="primary" size="sm" onClick={() => payEmployee(emp)} disabled={isPayingThis || payingAll}>
