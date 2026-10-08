@@ -957,6 +957,7 @@
       "delete": "Delete",
       "nameLabel": "Role name *",
       "namePlaceholder": "E.g.: Supervisor",
+      "nameRequired": "Role name is required",
       "descLabel": "Description",
       "descPlaceholder": "Brief description (optional)",
       "afterCreate": "Rights will be configured after creation.",
@@ -965,7 +966,7 @@
       "confirmDeleteWarning": "This action is irreversible. Employees with this role will need to be reassigned.",
       "createdFlash": "Role \"{{name}}\" created",
       "deletedFlash": "Role \"{{name}}\" deleted",
-      "savedFlash": "Rights saved",
+      "savedFlash": "Role updated",
       "loadError": "Unable to load roles",
       "createError": "Error creating role",
       "deleteError": "Error deleting role"

@@ -29,6 +29,18 @@ export const LOCALE_FLAGS: Record<Locale, string> = {
   'fr': 'fr',
 };
 
+/** Maps the app's active locale to an `Intl`/`toLocaleDateString` locale code. */
+export const INTL_LOCALES: Record<Locale, string> = {
+  'es-ni': 'es-NI',
+  'en': 'en-US',
+  'fr': 'fr-FR',
+};
+
+/** Returns the `Intl` locale code (e.g. "es-NI", "en-US", "fr-FR") for the active app locale — use with `toLocaleDateString`/`Intl.DateTimeFormat` so dates follow the active language. */
+export function getIntlLocale(locale: Locale): string {
+  return INTL_LOCALES[locale] ?? INTL_LOCALES[DEFAULT_LOCALE];
+}
+
 /** Returns the FlagCDN URL for a given country code */
 export function getFlagUrl(code: string, width: 20 | 40 | 80 = 20): string {
   return `https://flagcdn.com/w${width}/${code}.png`;

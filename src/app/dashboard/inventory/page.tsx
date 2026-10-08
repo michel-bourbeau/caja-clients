@@ -85,7 +85,7 @@ export default function InventoryPage() {
   const { tenantId } = useTenant();
   const router = useRouter();
   const { fmt } = useCurrency();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -211,7 +211,8 @@ export default function InventoryPage() {
       return;
     }
     fetchData();
-  }, [tenantId]);
+    // Re-fetch when the language changes so product/category names (Demo Mode) refresh live.
+  }, [tenantId, locale]);
 
   // Auto-clear messages after 3 seconds
   useEffect(() => {
@@ -1598,7 +1599,7 @@ ${statsHtml}
       {/* Category Manager Panel */}
       {showCategoryManager && (
         <Card>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 -m-6 mb-0 rounded-t-lg">
+          <div className="flex items-center justify-between -m-6 mb-0 rounded-t-lg">
             <p className="text-base font-bold text-slate-800">{t("inventory.categoryManager", { count: String(categories.length) })}</p>
             <Button variant="secondary" onClick={() => { setShowCategoryManager(false); setShowAddCategory(true); }}>
               {t("inventory.newCategory")}

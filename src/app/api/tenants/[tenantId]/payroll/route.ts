@@ -11,12 +11,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { PayrollConfig, PeriodInfo } from "@/lib/types";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 
 // ─── Date helpers (Nicaragua = UTC-6, no DST) ─────────────────────────────────
-
-function toNicaraguaDateString(d: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Managua" }).format(d);
-}
 
 /** Add `days` days to a YYYY-MM-DD string */
 function addDays(dateStr: string, days: number): string {

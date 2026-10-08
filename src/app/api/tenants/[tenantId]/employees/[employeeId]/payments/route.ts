@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 
 export async function GET(
   _req: NextRequest,
@@ -60,7 +61,7 @@ export async function POST(
         hourly_rate:  hourlyRate  ?? 0,
         amount:       amount,
         notes:        notes ?? null,
-        paid_at:      paidAt ?? new Date().toISOString().split("T")[0],
+        paid_at:      paidAt ?? toNicaraguaDateString(new Date()),
       }])
       .select()
       .single();

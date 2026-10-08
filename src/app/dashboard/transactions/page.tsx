@@ -8,6 +8,7 @@ import { buildPrintDocument, openPrintWindow, exportCsv } from "@/lib/export";
 import { formatDateTime, toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useLanguage } from "@/context/LanguageContext";
+import { getIntlLocale } from "@/i18n/config";
 import { useTenantFeatures } from "@/context/TenantFeaturesContext";
 import { Transaction, Product } from "@/lib/types";
 import { useTenantId } from "@/lib/utils/tenant";
@@ -20,7 +21,8 @@ type PeriodType = "WEEK" | "MONTH" | "YEAR";
 export default function TransactionsPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const intlLocale = getIntlLocale(locale);
 
   const PAYMENT_LABEL: Record<string, string> = {
     CASH: t("transactions.payment.cash"),
@@ -117,9 +119,9 @@ export default function TransactionsPage() {
       const [y2, m2, d2] = range.to.split("-").map(Number);
       const startDate = new Date(y1, m1 - 1, d1);
       const endDate = new Date(y2, m2 - 1, d2);
-      return `${startDate.toLocaleDateString("es-NI", { day: "numeric", month: "short" })} - ${endDate.toLocaleDateString("es-NI", { day: "numeric", month: "short", year: "numeric" })}`;
+      return `${startDate.toLocaleDateString(intlLocale, { day: "numeric", month: "short" })} - ${endDate.toLocaleDateString(intlLocale, { day: "numeric", month: "short", year: "numeric" })}`;
     } else if (periodType === "MONTH") {
-      return currentDate.toLocaleDateString("es-NI", { month: "long", year: "numeric" });
+      return currentDate.toLocaleDateString(intlLocale, { month: "long", year: "numeric" });
     } else {
       return year.toString();
     }
@@ -295,7 +297,7 @@ export default function TransactionsPage() {
   const formatDateHeader = (dateString: string): string => {
     const [y, m, d] = dateString.split("-").map(Number);
     const date = new Date(y, m - 1, d, 12, 0, 0);
-    return date.toLocaleDateString("es-NI", {
+    return date.toLocaleDateString(intlLocale, {
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -398,7 +400,7 @@ export default function TransactionsPage() {
         const dayKey   = toNicaraguaDateString(d);
 
         if (!monthMap.has(monthKey)) {
-          const label = new Intl.DateTimeFormat("es-NI", { year: "numeric", month: "long" }).format(d);
+          const label = new Intl.DateTimeFormat(intlLocale, { year: "numeric", month: "long" }).format(d);
           const mg: MonthGroup = { monthKey, monthLabel: label, days: [] };
           monthMap.set(monthKey, mg);
           months.push(mg);
@@ -420,7 +422,7 @@ export default function TransactionsPage() {
       const colCount      = isTaxModuleEnabled ? 7 : 6;
 
       const fmtTime = (ts: Date) =>
-        new Intl.DateTimeFormat("es-NI", { hour: "2-digit", minute: "2-digit", hour12: true }).format(ts);
+        new Intl.DateTimeFormat(intlLocale, { hour: "2-digit", minute: "2-digit", hour12: true }).format(ts);
 
       // ── Build table rows ────────────────────────────────────────────────
       const rows: string[] = [];
@@ -515,7 +517,7 @@ export default function TransactionsPage() {
       </tr>`);
 
       // ── Stats header ────────────────────────────────────────────────────
-      const printedAt = new Intl.DateTimeFormat("es-NI", {
+      const printedAt = new Intl.DateTimeFormat(intlLocale, {
         year: "numeric", month: "long", day: "numeric",
         hour: "2-digit", minute: "2-digit",
       }).format(new Date());
@@ -844,8 +846,8 @@ export default function TransactionsPage() {
                         {dayTxs.map((tx) => (
                           <tr key={tx.id} className="hover:bg-blue-50 transition-colors group">
                             <td className="px-2 lg:px-3 py-2.5 text-slate-500 text-sm whitespace-nowrap">
-                              <div>{new Date(tx.timestamp).toLocaleDateString("es-NI", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
-                              <div className="text-xs text-slate-400">{new Date(tx.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
+                              <div>{new Date(tx.timestamp).toLocaleDateString(intlLocale, { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                              <div className="text-xs text-slate-400">{new Date(tx.timestamp).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })}</div>
                             </td>
                             <td className="px-2 lg:px-3 py-2.5 max-w-[180px] lg:max-w-[240px]">
                               {tx.items && tx.items.length > 0 ? (
@@ -935,10 +937,10 @@ export default function TransactionsPage() {
                           <div className="flex items-center gap-2">
                             <div>
                               <div className="text-xs font-semibold text-slate-700">
-                                {new Date(tx.timestamp).toLocaleDateString("es-NI", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                {new Date(tx.timestamp).toLocaleDateString(intlLocale, { day: "2-digit", month: "2-digit", year: "numeric" })}
                               </div>
                               <div className="text-xs text-slate-400">
-                                {new Date(tx.timestamp).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                                {new Date(tx.timestamp).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })}
                               </div>
                             </div>
                             {tx.status === "REFUND" && (

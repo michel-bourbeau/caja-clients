@@ -25,6 +25,19 @@ function resolve(obj: unknown, key: string, vars?: Record<string, string | numbe
   return Object.entries(vars).reduce((s, [k, v]) => s.replace(`{{${k}}}`, String(v)), cur);
 }
 
+/**
+ * Mirrors the active locale into a cookie (same key as the localStorage preference) so
+ * server-side route handlers — e.g. the Demo Mode API — can localize mock data they return
+ * (localStorage isn't accessible from the server).
+ */
+function syncLocaleCookie(locale: Locale) {
+  try {
+    document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; path=/; max-age=31536000; samesite=lax`;
+  } catch {
+    // document not available (SSR)
+  }
+}
+
 interface LanguageContextType {
   locale: Locale;
   /** User explicitly chooses a language — saved to localStorage, overrides tenant default */
@@ -57,6 +70,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       if (saved && saved in translations) {
         setLocaleState(saved);
         hasPersonalPref.current = true;
+        syncLocaleCookie(saved);
       }
     } catch {
       // localStorage not available (SSR or private browsing)
@@ -67,6 +81,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
     hasPersonalPref.current = true;
+    syncLocaleCookie(l);
     try {
       localStorage.setItem(LOCALE_STORAGE_KEY, l);
     } catch { /* ignore */ }
@@ -76,6 +91,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const setTenantDefault = useCallback((l: Locale) => {
     if (!hasPersonalPref.current && l in translations) {
       setLocaleState(l);
+      syncLocaleCookie(l);
     }
   }, []);
 

@@ -9,7 +9,7 @@ import { usePaymentStatus } from "@/lib/hooks/usePaymentStatus";
 import { broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useLanguage } from "@/context/LanguageContext";
-import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale } from "@/i18n/config";
+import { LOCALES, LOCALE_LABELS, LOCALE_FLAGS, Locale, getIntlLocale } from "@/i18n/config";
 import { useAuth } from "@/context/AuthContext";
 import { PayrollConfig } from "@/lib/types";
 
@@ -72,7 +72,8 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { features, loading: featuresLoading, error: featuresError } = useTenantFeatures();
-  const { setTenantDefault, t } = useLanguage();
+  const { setTenantDefault, t, locale } = useLanguage();
+  const intlLocale = getIntlLocale(locale);
   const [tenantPlan, setTenantPlan] = useState<string | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loadingPayment, setLoadingPayment] = useState(true);
@@ -432,7 +433,7 @@ export default function SettingsPage() {
                     <p className="text-lg text-red-700 font-bold">{t("settings.suspendedStatus")}</p>
                     {paymentInfo.paid_until && (
                       <p className="text-sm text-slate-600 mt-2">
-                        {t("settings.expiredSince")} {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
+                        {t("settings.expiredSince")} {new Date(paymentInfo.paid_until).toLocaleDateString(intlLocale, {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric',
@@ -460,12 +461,12 @@ export default function SettingsPage() {
                             {paymentInfo.history.map((payment) => (
                               <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
                                 <td className="py-3 px-2">
-                                  {new Date(payment.payment_date).toLocaleDateString('es-NI')}
+                                  {new Date(payment.payment_date).toLocaleDateString(intlLocale)}
                                 </td>
                                 <td className="py-3 px-2 font-medium capitalize text-slate-900">{payment.plan}</td>
                                 <td className="py-3 px-2 text-slate-900">C$ {payment.amount.toFixed(2)}</td>
                                 <td className="py-3 px-2 text-slate-600">
-                                  {new Date(payment.paid_until).toLocaleDateString('es-NI')}
+                                  {new Date(payment.paid_until).toLocaleDateString(intlLocale)}
                                 </td>
                                 <td className="py-3 px-2 text-slate-600">{payment.payment_method || 'N/A'}</td>
                               </tr>
@@ -756,7 +757,7 @@ export default function SettingsPage() {
                         <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
                           <p className="text-sm text-slate-600 mb-1">{t("settings.validUntil")}</p>
                           <p className="text-lg font-semibold text-slate-900">
-                            {new Date(paymentInfo.paid_until).toLocaleDateString('es-NI', {
+                            {new Date(paymentInfo.paid_until).toLocaleDateString(intlLocale, {
                               year: 'numeric',
                               month: 'long',
                               day: 'numeric',
@@ -829,12 +830,12 @@ export default function SettingsPage() {
                             {paymentInfo.history.map((payment) => (
                               <tr key={payment.id} className="border-b border-slate-100 hover:bg-slate-50">
                                 <td className="py-3 px-2 text-slate-900">
-                                  {new Date(payment.payment_date).toLocaleDateString('es-NI')}
+                                  {new Date(payment.payment_date).toLocaleDateString(intlLocale)}
                                 </td>
                                 <td className="py-3 px-2 font-medium capitalize text-slate-900">{payment.plan}</td>
                                 <td className="py-3 px-2 text-slate-900 font-semibold">C$ {payment.amount.toFixed(2)}</td>
                                 <td className="py-3 px-2 text-slate-600">
-                                  {new Date(payment.paid_until).toLocaleDateString('es-NI')}
+                                  {new Date(payment.paid_until).toLocaleDateString(intlLocale)}
                                 </td>
                                 <td className="py-3 px-2 text-slate-600">{payment.payment_method || 'N/A'}</td>
                               </tr>

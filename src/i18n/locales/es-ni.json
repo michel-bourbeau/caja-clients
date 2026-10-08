@@ -953,6 +953,7 @@
       "delete": "Eliminar",
       "nameLabel": "Nombre del rol *",
       "namePlaceholder": "Ej: Supervisor",
+      "nameRequired": "El nombre del rol es obligatorio",
       "descLabel": "Descripción",
       "descPlaceholder": "Descripción breve (opcional)",
       "afterCreate": "Los derechos se configurarán después de la creación.",
@@ -961,7 +962,7 @@
       "confirmDeleteWarning": "Esta acción es irreversible. Los empleados con este rol deberán ser reasignados.",
       "createdFlash": "Rol \"{{name}}\" creado",
       "deletedFlash": "Rol \"{{name}}\" eliminado",
-      "savedFlash": "Derechos guardados",
+      "savedFlash": "Rol actualizado",
       "loadError": "Imposible cargar los roles",
       "createError": "Error al crear",
       "deleteError": "Error al eliminar"

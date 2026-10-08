@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useLanguage } from "@/context/LanguageContext";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { DEFAULT_ROLES } from "@/lib/types/roles";
 import { Button, Container, Section, Card } from "@/components/StripeUIComponents";
 import { PageIcon, SearchInput, DashboardHeader, Dialog, DialogFooter, FlashMessage, useFlash } from "@/components";
@@ -43,7 +44,7 @@ const EMPTY_FORM = {
   roleId: "cashier",
   salary: "",
   salaryType: "hourly",
-  hireDate: new Date().toISOString().split("T")[0],
+  hireDate: toNicaraguaDateString(new Date()),
   password: "",
   confirmPassword: "",
 };
@@ -154,7 +155,7 @@ export default function EmployeesPage() {
       roleId: matchedRole ? matchedRole.id : emp.role_id,
       salary: emp.salary != null ? String(emp.salary) : "",
       salaryType: emp.salary_type || "hourly",
-      hireDate: emp.hire_date ?? new Date().toISOString().split("T")[0],
+      hireDate: emp.hire_date ?? toNicaraguaDateString(new Date()),
       password: "",
       confirmPassword: "",
     });
@@ -781,7 +782,7 @@ export default function EmployeesPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">{t("employees.modal.hireDate")}</label>
-                    <input type="date" value={form.hireDate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="date" value={form.hireDate} max={toNicaraguaDateString(new Date())} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} required className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </>
               )}
@@ -1010,7 +1011,7 @@ export default function EmployeesPage() {
                         <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center gap-2">
                           <span className="text-lg">⏰</span>
                           <p className="text-sm text-red-700">
-                            <span className="font-semibold">{t("employees.aguinaldo.deadlineAlert", { date: fmtDate(new Date(new Date(fichaAguinaldoData.cycleEnd).getFullYear(), 11, 15).toISOString().split("T")[0]) })}</span>
+                            <span className="font-semibold">{t("employees.aguinaldo.deadlineAlert", { date: fmtDate(`${new Date(fichaAguinaldoData.cycleEnd).getFullYear()}-12-15`) })}</span>
                             {" · "}{t("employees.aguinaldo.accumulatedAlert", { amount: fmt(fichaAguinaldoData.calculatedBonus) })}
                           </p>
                         </div>

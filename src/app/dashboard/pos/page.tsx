@@ -6,7 +6,7 @@ import { POSService } from "@/features/pos/services";
 import { TaxService } from "@/features/taxes/services";
 import { LoyaltyService } from "@/features/loyalty/services";
 import { CartItem, Category, Product, ProductVariant, LoyalCustomer, LoyalCustomerStats, Transaction, Tax } from "@/lib/types";
-import { useCurrency } from "@/lib/utils/useCurrency";
+import { useCurrency, broadcastCurrencyChange } from "@/lib/utils/useCurrency";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -18,9 +18,9 @@ type Currency = "NIO" | "USD";
 
 export default function POSPage() {
   const tenantId = useTenantId();
-  const { fmt, symbol } = useCurrency();
+  const { fmt, symbol, currency } = useCurrency();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -49,9 +49,13 @@ export default function POSPage() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptSettings, setReceiptSettings] = useState<ReceiptSettings>({});
 
-  // Currency states
-  const [selectedCurrency, setSelectedCurrency] = useState<Currency>("NIO");
+  // Currency states — default the cash-payment currency to the tenant's base currency
+  // so a USD-only store doesn't default to showing/accepting NIO ("C$").
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency>(currency === "USD" ? "USD" : "NIO");
   const [usdExchangeRate, setUsdExchangeRate] = useState<number>(37.00);
+  // Only NIO-based tenants can optionally accept USD cash (with conversion). A tenant whose
+  // base currency is already USD has nothing to convert — everything stays in USD.
+  const hasUsdCashOption = currency !== "USD";
   
   // Loyalty states
   const [loyaltyModuleEnabled, setLoyaltyModuleEnabled] = useState(false);
@@ -84,15 +88,19 @@ export default function POSPage() {
       .catch((err) => setMessage(err instanceof Error ? err.message : t("pos.errors.loadingProducts")))
       .finally(() => setProductsLoading(false));
 
-    // Load categories + taxes in background (non-blocking)
-    Promise.all([
-      fetch(`/api/tenants/${tenantId}/categories`).then((res) => res.json()),
-      TaxService.fetchTaxes(tenantId),
-    ])
-      .then(([categoriesData, taxesData]) => {
-        setCategories(categoriesData);
-        setTaxes(taxesData);
-      })
+    // Load categories in background (non-blocking)
+    fetch(`/api/tenants/${tenantId}/categories`).then((res) => res.json())
+      .then((categoriesData) => setCategories(categoriesData))
+      .catch(console.error);
+    // Re-fetch when the language changes so product/category names (Demo Mode) refresh live.
+  }, [tenantId, locale]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
+    // Load taxes
+    TaxService.fetchTaxes(tenantId)
+      .then((taxesData) => setTaxes(taxesData))
       .catch(console.error);
 
     // Load loyalty settings
@@ -112,6 +120,12 @@ export default function POSPage() {
       .then((data) => {
         if (data.usdExchangeRate) {
           setUsdExchangeRate(data.usdExchangeRate);
+        }
+        if (data.currency) {
+          // Keep useCurrency() (and this page's cash-payment currency default) in sync with
+          // the tenant's real setting, even if this browser never visited the Settings page.
+          broadcastCurrencyChange(data.currency);
+          setSelectedCurrency(data.currency === "USD" ? "USD" : "NIO");
         }
         setReceiptSettings({
           companyName: data.companyName || undefined,
@@ -177,7 +191,7 @@ export default function POSPage() {
         discountInNio = baseTotal.subtotal * Math.min(discount, 100) / 100;
       } else {
         discountInNio = discount;
-        if (selectedCurrency === "USD" && usdExchangeRate > 0) {
+        if (hasUsdCashOption && selectedCurrency === "USD" && usdExchangeRate > 0) {
           discountInNio = discount * usdExchangeRate; // Convert USD discount to NIO
         }
       }
@@ -222,12 +236,12 @@ export default function POSPage() {
         profit: Math.round(profit * 100) / 100,
       };
     },
-    [cart, taxes, discount, discountMode, selectedCurrency, usdExchangeRate]
+    [cart, taxes, discount, discountMode, selectedCurrency, usdExchangeRate, hasUsdCashOption]
   );
 
   // Helper to convert amount based on selected currency
   const convertAmount = (amount: number): number => {
-    if (selectedCurrency === "USD" && usdExchangeRate > 0) {
+    if (hasUsdCashOption && selectedCurrency === "USD" && usdExchangeRate > 0) {
       return amount / usdExchangeRate;
     }
     return amount;
@@ -258,23 +272,24 @@ export default function POSPage() {
 
   // Calculate change (vuelto) for cash payments
   const changeCalculation = useMemo(() => {
-    // cartTotal.total is always in NIO (base currency)
-    const totalInNio = cartTotal.total;
+    // cartTotal.total is in the tenant's base currency (NIO, unless the tenant operates in USD)
+    const totalInBaseCurrency = cartTotal.total;
     
-    // Convert amountReceived to NIO based on selected currency
-    let amountReceivedInNio = amountReceived;
-    if (selectedCurrency === "USD" && usdExchangeRate > 0) {
-      amountReceivedInNio = amountReceived * usdExchangeRate; // USD to NIO
+    // Convert amountReceived to the base currency when the customer pays in USD cash
+    // on a NIO-based tenant. A USD-based tenant has nothing to convert.
+    let amountReceivedInBaseCurrency = amountReceived;
+    if (hasUsdCashOption && selectedCurrency === "USD" && usdExchangeRate > 0) {
+      amountReceivedInBaseCurrency = amountReceived * usdExchangeRate; // USD to NIO
     }
     
-    const change = amountReceivedInNio - totalInNio;
+    const change = amountReceivedInBaseCurrency - totalInBaseCurrency;
     return {
       amountReceived,
       change: change < 0 ? 0 : change,
       isInsufficientAmount: amountReceived > 0 && change < 0,
       isExactAmount: amountReceived > 0 && change === 0,
     };
-  }, [amountReceived, cartTotal.total, selectedCurrency, usdExchangeRate]);
+  }, [amountReceived, cartTotal.total, selectedCurrency, usdExchangeRate, hasUsdCashOption]);
 
   const productsByCategory = useMemo(() => {
     const grouped: Record<string, Product[]> = {};
@@ -600,7 +615,7 @@ export default function POSPage() {
       setDiscount(0);
       setDiscountMode("amount");
       setAmountReceived(0);
-      setSelectedCurrency("NIO");
+      setSelectedCurrency(currency === "USD" ? "USD" : "NIO");
       setSelectedLoyalCustomer(null);
       setRewardApplied(false);
       setIsCartOpen(false); // Close cart drawer on mobile after successful sale
@@ -1263,8 +1278,8 @@ export default function POSPage() {
               <option value="TRANSFER">{t("pos.paymentTransfer")}</option>
             </select>
 
-            {/* Currency selector — only show for CASH payments */}
-            {paymentMethod === "CASH" && (
+            {/* Currency selector — only for CASH payments on a NIO-based tenant that can also accept USD cash */}
+            {paymentMethod === "CASH" && hasUsdCashOption && (
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700 block">{t("pos.paymentCurrency")}</label>
                 <div className="flex gap-2">
@@ -1298,7 +1313,7 @@ export default function POSPage() {
                       1 USD = <span className="font-bold">{fmt(usdExchangeRate)}</span>
                     </p>
                     <p className="text-xs text-green-700 mt-2">
-                      {t("pos.totalInUsd")} <span className="font-semibold">${fmt(convertAmount(cartTotal.total))}</span>
+                      {t("pos.totalInUsd")} <span className="font-semibold">{fmtCurrency(cartTotal.total)}</span>
                     </p>
                     <p className="text-xs text-green-700 mt-1">
                       {t("pos.totalInNio")} <span className="font-semibold">{fmt(cartTotal.total)}</span>
@@ -1312,7 +1327,7 @@ export default function POSPage() {
             {paymentMethod === "CASH" && (
               <div className="space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <label htmlFor="amountReceived" className="text-sm font-semibold text-slate-700 block">
-                  {t("pos.amountReceived", { symbol: selectedCurrency === "USD" ? "$" : "C$" })}
+                  {t("pos.amountReceived", { symbol: getCurrencySymbol() })}
                 </label>
                 <input
                   ref={amountReceivedInputRef}

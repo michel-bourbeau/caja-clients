@@ -4,6 +4,8 @@
  * Write operations (POST/PUT/DELETE) echo back the submitted payload — changes are NOT persisted.
  */
 
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
+
 export const DEMO_TENANT_ID = "demo";
 
 // ─── Tenant ──────────────────────────────────────────────────────────────────
@@ -22,6 +24,10 @@ export const DEMO_TENANT = {
     customRoles: true,
     api: true,
     loyalty: true,
+    expenses: true,
+    taxes: true,
+    contacts: true,
+    settings: true,
   },
   paid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
   created_at: "2024-01-01T00:00:00Z",
@@ -30,14 +36,14 @@ export const DEMO_TENANT = {
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 export const DEMO_SETTINGS = {
-  companyName: "Tienda Demo S.A.",
+  companyName: "ABC Web",
   companyPhone: "+505 2222-3333",
-  companyEmail: "demo@tiendademo.com",
-  companyWebsite: "www.tiendademo.com",
+  companyEmail: "demo@abcweb.com",
+  companyWebsite: "www.abcweb.com",
   companyRuc: "J0310000123456",
-  currency: "NIO",
+  currency: "USD",
   timezone: "America/Managua",
-  language: "es",
+  language: "en",
   usdExchangeRate: 36.80,
   logoUrl: null,
   posConfig: { roundTotal: false, printReceipt: true },
@@ -45,31 +51,40 @@ export const DEMO_SETTINGS = {
 };
 
 // ─── Categories ───────────────────────────────────────────────────────────────
+// `name`/`description` stay in Spanish as the default (non-localized) value for
+// backward compatibility; `name_i18n`/`description_i18n` provide the 3 demo
+// locales (es-ni, en, fr) and are resolved server-side based on the active
+// language — see `localizeCategories()` in the demo API route.
 export const DEMO_CATEGORIES = [
-  { id: "cat-1", tenant_id: "demo", name: "Bebidas", description: "Refrescos, jugos, agua", sort_order: 1, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "cat-2", tenant_id: "demo", name: "Alimentos", description: "Snacks, galletas, comida rápida", sort_order: 2, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "cat-3", tenant_id: "demo", name: "Electrónica", description: "Accesorios y gadgets", sort_order: 3, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "cat-4", tenant_id: "demo", name: "Higiene Personal", description: "Jabones, shampoo, desodorante", sort_order: 4, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "cat-1", tenant_id: "demo", name: "Bebidas", name_i18n: { "es-ni": "Bebidas", en: "Beverages", fr: "Boissons" }, description: "Refrescos, jugos, agua", description_i18n: { "es-ni": "Refrescos, jugos, agua", en: "Sodas, juices, water", fr: "Boissons gazeuses, jus, eau" }, sort_order: 1, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "cat-2", tenant_id: "demo", name: "Alimentos", name_i18n: { "es-ni": "Alimentos", en: "Food", fr: "Alimentation" }, description: "Snacks, galletas, comida rápida", description_i18n: { "es-ni": "Snacks, galletas, comida rápida", en: "Snacks, cookies, fast food", fr: "Collations, biscuits, restauration rapide" }, sort_order: 2, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "cat-3", tenant_id: "demo", name: "Electrónica", name_i18n: { "es-ni": "Electrónica", en: "Electronics", fr: "Électronique" }, description: "Accesorios y gadgets", description_i18n: { "es-ni": "Accesorios y gadgets", en: "Accessories and gadgets", fr: "Accessoires et gadgets" }, sort_order: 3, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "cat-4", tenant_id: "demo", name: "Higiene Personal", name_i18n: { "es-ni": "Higiene Personal", en: "Personal Care", fr: "Hygiène Personnelle" }, description: "Jabones, shampoo, desodorante", description_i18n: { "es-ni": "Jabones, shampoo, desodorante", en: "Soaps, shampoo, deodorant", fr: "Savons, shampooing, déodorant" }, sort_order: 4, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
 ];
 
 // ─── Products ─────────────────────────────────────────────────────────────────
+// `name`/`description` stay in Spanish as the default (non-localized) value;
+// `name_i18n`/`description_i18n` provide the 3 demo locales (es-ni, en, fr)
+// and are resolved server-side — see `localizeProducts()` in the demo API route.
 export const DEMO_PRODUCTS = [
   {
     id: "prod-1",
     tenant_id: "demo",
     name: "Coca-Cola",
+    name_i18n: { "es-ni": "Coca-Cola", en: "Coca-Cola", fr: "Coca-Cola" },
     sku: "BEB-001",
-    price: 35,
+    price: 3,
     quantity: 48,
     stock_quantity: 48,
     category_id: "cat-1",
     description: "Refresco 355ml",
+    description_i18n: { "es-ni": "Refresco 355ml", en: "355ml soda", fr: "Boisson gazeuse 355ml" },
     min_stock: 10,
     sort_order: 1,
     has_variants: false,
     variants: [],
-    cost_price: 20,
-    image: null,
+    cost_price: 2.27,
+    image: "/images/products/coca-cola.jpg",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -77,18 +92,20 @@ export const DEMO_PRODUCTS = [
     id: "prod-2",
     tenant_id: "demo",
     name: "Pepsi",
+    name_i18n: { "es-ni": "Pepsi", en: "Pepsi", fr: "Pepsi" },
     sku: "BEB-002",
-    price: 30,
+    price: 2.27,
     quantity: 36,
     stock_quantity: 36,
     category_id: "cat-1",
     description: "Refresco 355ml",
+    description_i18n: { "es-ni": "Refresco 355ml", en: "355ml soda", fr: "Boisson gazeuse 355ml" },
     min_stock: 10,
     sort_order: 2,
     has_variants: false,
     variants: [],
-    cost_price: 17,
-    image: null,
+    cost_price: 2.27,
+    image: "/images/products/pepsi.jpg",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -96,18 +113,20 @@ export const DEMO_PRODUCTS = [
     id: "prod-3",
     tenant_id: "demo",
     name: "Agua Purificada",
+    name_i18n: { "es-ni": "Agua Purificada", en: "Purified Water", fr: "Eau Purifiée" },
     sku: "BEB-003",
-    price: 15,
+    price: 1.29,
     quantity: 120,
     stock_quantity: 120,
     category_id: "cat-1",
     description: "Botella 500ml",
+    description_i18n: { "es-ni": "Botella 500ml", en: "500ml bottle", fr: "Bouteille 500ml" },
     min_stock: 20,
     sort_order: 3,
     has_variants: false,
     variants: [],
-    cost_price: 7,
-    image: null,
+    cost_price: 1.5,
+    image: "/images/products/water.jpg",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -115,18 +134,20 @@ export const DEMO_PRODUCTS = [
     id: "prod-4",
     tenant_id: "demo",
     name: "Café Presto",
+    name_i18n: { "es-ni": "Café Presto", en: "Presto Instant Coffee", fr: "Café Instantané Presto" },
     sku: "BEB-004",
-    price: 50,
+    price: 8.99,
     quantity: 3,
     stock_quantity: 3,
     category_id: "cat-1",
     description: "Café instantáneo 150g (stock bajo)",
+    description_i18n: { "es-ni": "Café instantáneo 150g (stock bajo)", en: "Instant coffee 150g (low stock)", fr: "Café instantané 150g (stock bas)" },
     min_stock: 5,
     sort_order: 4,
     has_variants: false,
     variants: [],
-    cost_price: 28,
-    image: null,
+    cost_price: 8.99,
+    image: "/images/products/cafe-presto.jpg",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -134,18 +155,20 @@ export const DEMO_PRODUCTS = [
     id: "prod-5",
     tenant_id: "demo",
     name: "Chips Sabritas",
+    name_i18n: { "es-ni": "Chips Sabritas", en: "Sabritas Chips", fr: "Croustilles Sabritas" },
     sku: "ALI-001",
     price: 25,
     quantity: 60,
     stock_quantity: 60,
     category_id: "cat-2",
     description: "Papas fritas 150g",
+    description_i18n: { "es-ni": "Papas fritas 150g", en: "Potato chips 150g", fr: "Croustilles 150g" },
     min_stock: 10,
     sort_order: 5,
     has_variants: false,
     variants: [],
-    cost_price: 14,
-    image: null,
+    cost_price: 1,
+    image: "/images/products/sabritas-chips.jpg",
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -153,17 +176,19 @@ export const DEMO_PRODUCTS = [
     id: "prod-6",
     tenant_id: "demo",
     name: "Galletas Oreo",
+    name_i18n: { "es-ni": "Galletas Oreo", en: "Oreo Cookies", fr: "Biscuits Oreo" },
     sku: "ALI-002",
     price: 45,
     quantity: 40,
     stock_quantity: 40,
     category_id: "cat-2",
     description: "Galletas de chocolate 154g",
+    description_i18n: { "es-ni": "Galletas de chocolate 154g", en: "Chocolate cookies 154g", fr: "Biscuits au chocolat 154g" },
     min_stock: 8,
     sort_order: 6,
     has_variants: false,
     variants: [],
-    cost_price: 25,
+    cost_price: 6.99,
     image: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -172,39 +197,43 @@ export const DEMO_PRODUCTS = [
     id: "prod-7",
     tenant_id: "demo",
     name: "Cable USB-C",
+    name_i18n: { "es-ni": "Cable USB-C", en: "USB-C Cable", fr: "Câble USB-C" },
     sku: "ELE-001",
     price: 180,
     quantity: 15,
     stock_quantity: 15,
     category_id: "cat-3",
     description: "Cable de carga USB-C 1m",
+    description_i18n: { "es-ni": "Cable de carga USB-C 1m", en: "USB-C charging cable 1m", fr: "Câble de charge USB-C 1m" },
     min_stock: 3,
     sort_order: 7,
     has_variants: true,
-    cost_price: 90,
+    cost_price: 13.49,
     image: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
     variants: [
-      { id: "var-7-1", product_id: "prod-7", tenant_id: "demo", label: "1 metro", sku: "ELE-001-1M", price: 180, stock_quantity: 10, sort_order: 1, cost_price: 90 },
-      { id: "var-7-2", product_id: "prod-7", tenant_id: "demo", label: "2 metros", sku: "ELE-001-2M", price: 250, stock_quantity: 5, sort_order: 2, cost_price: 130 },
+      { id: "var-7-1", product_id: "prod-7", tenant_id: "demo", label: "1 metro", label_i18n: { "es-ni": "1 metro", en: "1 meter", fr: "1 mètre" }, sku: "ELE-001-1M", price: 180, stock_quantity: 10, sort_order: 1, cost_price: 90 },
+      { id: "var-7-2", product_id: "prod-7", tenant_id: "demo", label: "2 metros", label_i18n: { "es-ni": "2 metros", en: "2 meters", fr: "2 mètres" }, sku: "ELE-001-2M", price: 250, stock_quantity: 5, sort_order: 2, cost_price: 130 },
     ],
   },
   {
     id: "prod-8",
     tenant_id: "demo",
     name: "Jabón Dove",
+    name_i18n: { "es-ni": "Jabón Dove", en: "Dove Soap", fr: "Savon Dove" },
     sku: "HIG-001",
     price: 55,
     quantity: 25,
     stock_quantity: 25,
     category_id: "cat-4",
     description: "Jabón en barra 135g",
+    description_i18n: { "es-ni": "Jabón en barra 135g", en: "Bar soap 135g", fr: "Savon en barre 135g" },
     min_stock: 5,
     sort_order: 8,
     has_variants: false,
     variants: [],
-    cost_price: 30,
+    cost_price: 6.99,
     image: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -213,17 +242,19 @@ export const DEMO_PRODUCTS = [
     id: "prod-9",
     tenant_id: "demo",
     name: "Shampoo Head & Shoulders",
+    name_i18n: { "es-ni": "Shampoo Head & Shoulders", en: "Head & Shoulders Shampoo", fr: "Shampooing Head & Shoulders" },
     sku: "HIG-002",
     price: 220,
     quantity: 0,
     stock_quantity: 0,
     category_id: "cat-4",
     description: "Shampoo anticaspa 400ml (agotado)",
+    description_i18n: { "es-ni": "Shampoo anticaspa 400ml (agotado)", en: "Anti-dandruff shampoo 400ml (out of stock)", fr: "Shampooing antipelliculaire 400ml (rupture de stock)" },
     min_stock: 3,
     sort_order: 9,
     has_variants: false,
     variants: [],
-    cost_price: 130,
+    cost_price: 8.99,
     image: null,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -231,11 +262,14 @@ export const DEMO_PRODUCTS = [
 ];
 
 // ─── Taxes ────────────────────────────────────────────────────────────────────
+// `name` stays as the default (non-localized) value; `name_i18n` provides the
+// 3 demo locales (es-ni, en, fr) — see `localizeTaxes()` in the demo API route.
 export const DEMO_TAXES = [
   {
     id: "tax-1",
     tenant_id: "demo",
-    name: "IVA",
+    name: "TAXE",
+    name_i18n: { "es-ni": "TAXE", en: "Tax", fr: "Taxe" },
     rate: 15,
     is_active: true,
     created_at: "2024-01-01T00:00:00Z",
@@ -244,12 +278,23 @@ export const DEMO_TAXES = [
 ];
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
+// Nicaragua is UTC-6 year-round (no DST). Demo "today" is anchored to Nicaragua's calendar
+// day — not the server process's local/UTC day — so seeded dates always agree with
+// `toNicaraguaDateString()`, used across the app to bucket records by day. Otherwise, during
+// the 00:00–06:00 UTC window (18:00–00:00 Nicaragua time), seeded "today" records would be
+// dated one day ahead of what the rest of the app considers "today".
 const now = new Date();
+const todayNi = toNicaraguaDateString(now);
+/** Adds (or subtracts) days from a "YYYY-MM-DD" string, returning a new "YYYY-MM-DD" string. */
+const addDaysStr = (dateStr: string, days: number): string => {
+  const [y, m, dd] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, dd + days)).toISOString().slice(0, 10);
+};
 const d = (offsetDays: number, h = 10, m = 0) => {
-  const d = new Date(now);
-  d.setDate(d.getDate() - offsetDays);
-  d.setHours(h, m, 0, 0);
-  return d.toISOString();
+  const dateStr = addDaysStr(todayNi, -offsetDays);
+  const hh = String(h).padStart(2, "0");
+  const mm = String(m).padStart(2, "0");
+  return new Date(`${dateStr}T${hh}:${mm}:00-06:00`).toISOString();
 };
 
 export const DEMO_TRANSACTIONS = [
@@ -414,7 +459,7 @@ export const DEMO_ATTENDANCE = [
     employee_last_name: "García",
     check_in: d(0, 8, 0),
     check_out: d(0, 17, 0),
-    date: now.toISOString().split("T")[0],
+    date: todayNi,
     notes: "",
     created_at: d(0, 8, 0),
   },
@@ -426,7 +471,7 @@ export const DEMO_ATTENDANCE = [
     employee_last_name: "López",
     check_in: d(0, 8, 30),
     check_out: d(0, 17, 30),
-    date: now.toISOString().split("T")[0],
+    date: todayNi,
     notes: "",
     created_at: d(0, 8, 30),
   },
@@ -438,7 +483,7 @@ export const DEMO_ATTENDANCE = [
     employee_last_name: "García",
     check_in: d(1, 8, 0),
     check_out: d(1, 17, 0),
-    date: new Date(now.getTime() - 86400000).toISOString().split("T")[0],
+    date: addDaysStr(todayNi, -1),
     notes: "Turno normal",
     created_at: d(1, 8, 0),
   },
@@ -450,7 +495,7 @@ export const DEMO_ATTENDANCE = [
     employee_last_name: "Martínez",
     check_in: d(1, 7, 0),
     check_out: d(1, 16, 0),
-    date: new Date(now.getTime() - 86400000).toISOString().split("T")[0],
+    date: addDaysStr(todayNi, -1),
     notes: "Turno mañana",
     created_at: d(1, 7, 0),
   },
@@ -596,13 +641,18 @@ export const DEMO_SALARY_PAYMENTS = [
 ];
 
 // ─── Roles ────────────────────────────────────────────────────────────────────
+// `name`/`description` stay in Spanish as the default (non-localized) value;
+// `name_i18n`/`description_i18n` provide the 3 demo locales (es-ni, en, fr)
+// and are resolved server-side — see `localizeRoles()` in the demo API route.
 export const DEMO_ROLES = [
   {
     id: "admin",
     tenant_id: "demo",
     slug: "admin",
-    name: "Administrador",
+    name: "Admin",
+    name_i18n: { "es-ni": "Admin", en: "Admin", fr: "Admin" },
     description: "Acceso completo al sistema",
+    description_i18n: { "es-ni": "Acceso completo al sistema", en: "Full access to the system", fr: "Accès complet au système" },
     permissions: [
       "pos.view", "pos.create", "pos.void", "pos.configure",
       "inventory.view", "inventory.create", "inventory.edit", "inventory.delete", "inventory.adjust",
@@ -620,8 +670,10 @@ export const DEMO_ROLES = [
     id: "manager",
     tenant_id: "demo",
     slug: "manager",
-    name: "Gerente",
+    name: "Manager",
+    name_i18n: { "es-ni": "Gerente", en: "Manager", fr: "Gestionnaire" },
     description: "Gestión de empleados, inventario y reportes",
+    description_i18n: { "es-ni": "Gestión de empleados, inventario y reportes", en: "Management of employees, inventory, and reports", fr: "Gestion des employés, de l'inventaire et des rapports" },
     permissions: [
       "pos.view", "pos.create",
       "inventory.view", "inventory.create", "inventory.edit",
@@ -638,8 +690,10 @@ export const DEMO_ROLES = [
     id: "cashier",
     tenant_id: "demo",
     slug: "cashier",
-    name: "Cajero",
+    name: "Staff",
+    name_i18n: { "es-ni": "Personal", en: "Staff", fr: "Personnel" },
     description: "Operaciones de caja",
+    description_i18n: { "es-ni": "Operaciones de caja", en: "Cash register operations", fr: "Opérations de caisse" },
     permissions: ["pos.view", "pos.create", "schedules.checkin"],
     is_system: true,
     created_at: "2024-01-01T00:00:00Z",
@@ -688,6 +742,9 @@ export const DEMO_PAYMENT_STATUS = {
 };
 
 // ─── Contacts ─────────────────────────────────────────────────────────────────
+// `position`/`notes` stay in Spanish as the default (non-localized) value;
+// `position_i18n`/`notes_i18n` provide the 3 demo locales (es-ni, en, fr) —
+// see `localizeContacts()` in the demo API route.
 export const DEMO_CONTACTS_INITIAL = [
   {
     id: "demo-contact-1",
@@ -702,7 +759,9 @@ export const DEMO_CONTACTS_INITIAL = [
     country: "Nicaragua",
     postal_code: "",
     position: "Gerente General",
+    position_i18n: { "es-ni": "Gerente General", en: "General Manager", fr: "Directrice Générale" },
     notes: "Cliente frecuente, prefiere pago en efectivo.",
+    notes_i18n: { "es-ni": "Cliente frecuente, prefiere pago en efectivo.", en: "Frequent customer, prefers cash payment.", fr: "Cliente fréquente, préfère le paiement en espèces." },
     google_maps_link: "",
     photo_url: null,
     created_at: "2024-03-15T10:00:00Z",
@@ -721,7 +780,9 @@ export const DEMO_CONTACTS_INITIAL = [
     country: "Nicaragua",
     postal_code: "",
     position: "Representante de Ventas",
+    position_i18n: { "es-ni": "Representante de Ventas", en: "Sales Representative", fr: "Représentant Commercial" },
     notes: "Proveedor principal de electrónicos.",
+    notes_i18n: { "es-ni": "Proveedor principal de electrónicos.", en: "Main electronics supplier.", fr: "Principal fournisseur d'électronique." },
     google_maps_link: "",
     photo_url: null,
     created_at: "2024-04-01T09:30:00Z",
@@ -730,12 +791,16 @@ export const DEMO_CONTACTS_INITIAL = [
 ];
 
 // ─── Suppliers ────────────────────────────────────────────────────────────────
+// `name` (a company name) is not localized; `description` stays in Spanish as
+// the default (non-localized) value, `description_i18n` provides the 3 demo
+// locales (es-ni, en, fr) — see `localizeSuppliers()` in the demo API route.
 export const DEMO_SUPPLIERS_INITIAL = [
   {
     id: "sup-1",
     tenant_id: "demo",
     name: "Distribuidora Nacional",
     description: "Proveedor de bebidas y alimentos",
+    description_i18n: { "es-ni": "Proveedor de bebidas y alimentos", en: "Beverage and food supplier", fr: "Fournisseur de boissons et d'aliments" },
     contact: "+505 2200-1000",
     created_at: "2024-01-05T00:00:00Z",
     updated_at: "2024-01-05T00:00:00Z",
@@ -745,6 +810,7 @@ export const DEMO_SUPPLIERS_INITIAL = [
     tenant_id: "demo",
     name: "TecnoElect SA",
     description: "Accesorios electrónicos y cables",
+    description_i18n: { "es-ni": "Accesorios electrónicos y cables", en: "Electronic accessories and cables", fr: "Accessoires électroniques et câbles" },
     contact: "+505 2200-2000",
     created_at: "2024-01-10T00:00:00Z",
     updated_at: "2024-01-10T00:00:00Z",
@@ -754,6 +820,7 @@ export const DEMO_SUPPLIERS_INITIAL = [
     tenant_id: "demo",
     name: "Higiene y Más",
     description: "Productos de higiene y limpieza",
+    description_i18n: { "es-ni": "Productos de higiene y limpieza", en: "Hygiene and cleaning products", fr: "Produits d'hygiène et de nettoyage" },
     contact: "+505 2200-3000",
     created_at: "2024-02-01T00:00:00Z",
     updated_at: "2024-02-01T00:00:00Z",
@@ -761,25 +828,34 @@ export const DEMO_SUPPLIERS_INITIAL = [
 ];
 
 // ─── Expense categories ───────────────────────────────────────────────────────
+// `name`/`description` stay in Spanish as the default (non-localized) value;
+// `name_i18n`/`description_i18n` provide the 3 demo locales (es-ni, en, fr) —
+// see `localizeExpenseCategories()` in the demo API route.
 export const DEMO_EXPENSE_CATEGORIES = [
-  { id: "ecat-1", tenant_id: "demo", name: "Instalaciones", description: "Alquiler y mantenimiento del local", created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "ecat-2", tenant_id: "demo", name: "Servicios",     description: "Electricidad, agua, internet",          created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "ecat-3", tenant_id: "demo", name: "Inventario",    description: "Reposición de mercancía",               created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "ecat-4", tenant_id: "demo", name: "Suministros",   description: "Material de oficina y limpieza",        created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-  { id: "ecat-5", tenant_id: "demo", name: "Transporte",    description: "Fletes y gasolina",                     created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "ecat-1", tenant_id: "demo", name: "Instalaciones", name_i18n: { "es-ni": "Instalaciones", en: "Facilities", fr: "Installations" }, description: "Alquiler y mantenimiento del local", description_i18n: { "es-ni": "Alquiler y mantenimiento del local", en: "Rent and premises maintenance", fr: "Loyer et entretien du local" }, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "ecat-2", tenant_id: "demo", name: "Servicios",     name_i18n: { "es-ni": "Servicios", en: "Utilities", fr: "Services" },             description: "Electricidad, agua, internet",          description_i18n: { "es-ni": "Electricidad, agua, internet", en: "Electricity, water, internet", fr: "Électricité, eau, internet" },          created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "ecat-3", tenant_id: "demo", name: "Inventario",    name_i18n: { "es-ni": "Inventario", en: "Inventory", fr: "Inventaire" },           description: "Reposición de mercancía",               description_i18n: { "es-ni": "Reposición de mercancía", en: "Merchandise restocking", fr: "Réapprovisionnement de marchandises" },               created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "ecat-4", tenant_id: "demo", name: "Suministros",   name_i18n: { "es-ni": "Suministros", en: "Supplies", fr: "Fournitures" },          description: "Material de oficina y limpieza",        description_i18n: { "es-ni": "Material de oficina y limpieza", en: "Office and cleaning supplies", fr: "Fournitures de bureau et de nettoyage" },        created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+  { id: "ecat-5", tenant_id: "demo", name: "Transporte",    name_i18n: { "es-ni": "Transporte", en: "Transportation", fr: "Transport" },       description: "Fletes y gasolina",                     description_i18n: { "es-ni": "Fletes y gasolina", en: "Freight and gasoline", fr: "Fret et essence" },                     created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
 ];
 
 // ─── Fixed expenses ───────────────────────────────────────────────────────────
+// `name`/`notes` stay in Spanish as the default (non-localized) value;
+// `name_i18n`/`notes_i18n` provide the 3 demo locales (es-ni, en, fr). The
+// `category` field is re-mapped at serve-time from `DEMO_EXPENSE_CATEGORIES`
+// — see `localizeFixedExpenses()` in the demo API route.
 export const DEMO_FIXED_EXPENSES = [
   {
     id: "fix-1",
     tenant_id: "demo",
     name: "Alquiler del local",
+    name_i18n: { "es-ni": "Alquiler del local", en: "Premises rent", fr: "Loyer du local" },
     amount: 5000,
     category: "Instalaciones",
     supplier_id: null,
     day_of_month: 1,
     notes: "Pago mensual por adelantado",
+    notes_i18n: { "es-ni": "Pago mensual por adelantado", en: "Monthly payment in advance", fr: "Paiement mensuel d'avance" },
     is_active: true,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -788,11 +864,13 @@ export const DEMO_FIXED_EXPENSES = [
     id: "fix-2",
     tenant_id: "demo",
     name: "Servicio de Internet",
+    name_i18n: { "es-ni": "Servicio de Internet", en: "Internet service", fr: "Service Internet" },
     amount: 1500,
     category: "Servicios",
     supplier_id: null,
     day_of_month: 5,
     notes: "Fibra óptica 100 Mbps",
+    notes_i18n: { "es-ni": "Fibra óptica 100 Mbps", en: "100 Mbps fiber optic", fr: "Fibre optique 100 Mbps" },
     is_active: true,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -801,6 +879,10 @@ export const DEMO_FIXED_EXPENSES = [
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
 // Dates in current month (May 2026) so they appear in the Bilan's default filter
+// `description`/`notes` stay in Spanish as the default (non-localized) value;
+// `description_i18n`/`notes_i18n` provide the 3 demo locales (es-ni, en, fr).
+// The `category` field is re-mapped at serve-time from `DEMO_EXPENSE_CATEGORIES`
+// — see `localizeExpenses()` in the demo API route.
 export const DEMO_EXPENSES_INITIAL = [
   {
     id: "exp-1",
@@ -808,12 +890,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: null,
     amount: 5000,
     description: "Alquiler del local — mayo 2026",
+    description_i18n: { "es-ni": "Alquiler del local — mayo 2026", en: "Premises rent — May 2026", fr: "Loyer du local — mai 2026" },
     category: "Instalaciones",
     expense_date: "2026-05-01",
     is_recurring: true,
     recurring_frequency: "monthly",
     recurring_day_of_month: 1,
     notes: "",
+    notes_i18n: { "es-ni": "", en: "", fr: "" },
     created_at: "2026-05-01T08:00:00Z",
     updated_at: "2026-05-01T08:00:00Z",
   },
@@ -823,12 +907,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: null,
     amount: 1500,
     description: "Servicio de Internet — mayo 2026",
+    description_i18n: { "es-ni": "Servicio de Internet — mayo 2026", en: "Internet service — May 2026", fr: "Service Internet — mai 2026" },
     category: "Servicios",
     expense_date: "2026-05-05",
     is_recurring: true,
     recurring_frequency: "monthly",
     recurring_day_of_month: 5,
     notes: "Fibra óptica",
+    notes_i18n: { "es-ni": "Fibra óptica", en: "Fiber optic", fr: "Fibre optique" },
     created_at: "2026-05-05T08:00:00Z",
     updated_at: "2026-05-05T08:00:00Z",
   },
@@ -838,12 +924,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: "sup-1",
     amount: 3200,
     description: "Reposición de bebidas y snacks",
+    description_i18n: { "es-ni": "Reposición de bebidas y snacks", en: "Beverage and snack restocking", fr: "Réapprovisionnement de boissons et collations" },
     category: "Inventario",
     expense_date: "2026-05-08",
     is_recurring: false,
     recurring_frequency: "",
     recurring_day_of_month: null,
     notes: "Pedido semanal",
+    notes_i18n: { "es-ni": "Pedido semanal", en: "Weekly order", fr: "Commande hebdomadaire" },
     created_at: "2026-05-08T10:30:00Z",
     updated_at: "2026-05-08T10:30:00Z",
   },
@@ -853,12 +941,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: null,
     amount: 2500,
     description: "Factura eléctrica — mayo 2026",
+    description_i18n: { "es-ni": "Factura eléctrica — mayo 2026", en: "Electricity bill — May 2026", fr: "Facture d'électricité — mai 2026" },
     category: "Servicios",
     expense_date: "2026-05-15",
     is_recurring: false,
     recurring_frequency: "",
     recurring_day_of_month: null,
     notes: "",
+    notes_i18n: { "es-ni": "", en: "", fr: "" },
     created_at: "2026-05-15T09:00:00Z",
     updated_at: "2026-05-15T09:00:00Z",
   },
@@ -868,12 +958,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: "sup-3",
     amount: 750,
     description: "Material de limpieza",
+    description_i18n: { "es-ni": "Material de limpieza", en: "Cleaning supplies", fr: "Matériel de nettoyage" },
     category: "Suministros",
     expense_date: "2026-05-20",
     is_recurring: false,
     recurring_frequency: "",
     recurring_day_of_month: null,
     notes: "Detergente, escobas, trapeadores",
+    notes_i18n: { "es-ni": "Detergente, escobas, trapeadores", en: "Detergent, brooms, mops", fr: "Détergent, balais, serpillières" },
     created_at: "2026-05-20T11:00:00Z",
     updated_at: "2026-05-20T11:00:00Z",
   },
@@ -884,12 +976,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: null,
     amount: 5000,
     description: "Alquiler del local — abril 2026",
+    description_i18n: { "es-ni": "Alquiler del local — abril 2026", en: "Premises rent — April 2026", fr: "Loyer du local — avril 2026" },
     category: "Instalaciones",
     expense_date: "2026-04-01",
     is_recurring: true,
     recurring_frequency: "monthly",
     recurring_day_of_month: 1,
     notes: "",
+    notes_i18n: { "es-ni": "", en: "", fr: "" },
     created_at: "2026-04-01T08:00:00Z",
     updated_at: "2026-04-01T08:00:00Z",
   },
@@ -899,12 +993,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: null,
     amount: 1500,
     description: "Servicio de Internet — abril 2026",
+    description_i18n: { "es-ni": "Servicio de Internet — abril 2026", en: "Internet service — April 2026", fr: "Service Internet — avril 2026" },
     category: "Servicios",
     expense_date: "2026-04-05",
     is_recurring: true,
     recurring_frequency: "monthly",
     recurring_day_of_month: 5,
     notes: "",
+    notes_i18n: { "es-ni": "", en: "", fr: "" },
     created_at: "2026-04-05T08:00:00Z",
     updated_at: "2026-04-05T08:00:00Z",
   },
@@ -914,12 +1010,14 @@ export const DEMO_EXPENSES_INITIAL = [
     supplier_id: "sup-2",
     amount: 4500,
     description: "Compra de cables USB-C (lote)",
+    description_i18n: { "es-ni": "Compra de cables USB-C (lote)", en: "USB-C cable purchase (batch)", fr: "Achat de câbles USB-C (lot)" },
     category: "Inventario",
     expense_date: "2026-04-12",
     is_recurring: false,
     recurring_frequency: "",
     recurring_day_of_month: null,
     notes: "50 unidades cable 1m + 20 unidades cable 2m",
+    notes_i18n: { "es-ni": "50 unidades cable 1m + 20 unidades cable 2m", en: "50 units 1m cable + 20 units 2m cable", fr: "50 unités câble 1m + 20 unités câble 2m" },
     created_at: "2026-04-12T14:00:00Z",
     updated_at: "2026-04-12T14:00:00Z",
   },
@@ -927,11 +1025,12 @@ export const DEMO_EXPENSES_INITIAL = [
 
 // ─── Cash Closings ────────────────────────────────────────────────────────────
 // Pre-seeded closings for d(1), d(2), d(3) — amounts match DEMO_TRANSACTIONS
-const dStr = (offsetDays: number) => {
-  const date = new Date(now);
-  date.setDate(date.getDate() - offsetDays);
-  return date.toISOString().split("T")[0];
-};
+// `notes` stays in Spanish as the default (non-localized) value; `notes_i18n`
+// provides the 3 demo locales (es-ni, en, fr) — see `localizeCashClosings()`
+// in the demo API route.
+// `dStr` reuses the Nicaragua-anchored `todayNi`/`addDaysStr` helpers defined above
+// (with `d()`) so closing dates always agree with the rest of the app's "today".
+const dStr = (offsetDays: number) => addDaysStr(todayNi, -offsetDays);
 
 export const DEMO_CASH_CLOSINGS_INITIAL = [
   // 3 days ago: TXN-005 CASH 310.50
@@ -950,6 +1049,7 @@ export const DEMO_CASH_CLOSINGS_INITIAL = [
     diff_card: 0,
     diff_transfer: 0,
     notes: "Cierre sin diferencias",
+    notes_i18n: { "es-ni": "Cierre sin diferencias", en: "Closing with no discrepancies", fr: "Clôture sans écarts" },
     closed_by: "Juan García",
     closing_time: d(3, 18, 0),
     created_at: d(3, 18, 0),
@@ -970,6 +1070,7 @@ export const DEMO_CASH_CLOSINGS_INITIAL = [
     diff_card: 0,
     diff_transfer: 0,
     notes: "Sobrante de C$2 (billete olvidado)",
+    notes_i18n: { "es-ni": "Sobrante de C$2 (billete olvidado)", en: "C$2 overage (forgotten bill)", fr: "Excédent de C$2 (billet oublié)" },
     closed_by: "María López",
     closing_time: d(2, 19, 30),
     created_at: d(2, 19, 30),
@@ -990,6 +1091,7 @@ export const DEMO_CASH_CLOSINGS_INITIAL = [
     diff_card: 0,
     diff_transfer: -2,
     notes: "Diferencia mínima en transferencia",
+    notes_i18n: { "es-ni": "Diferencia mínima en transferencia", en: "Minimal transfer discrepancy", fr: "Écart minime sur le virement" },
     closed_by: "Juan García",
     closing_time: d(1, 18, 45),
     created_at: d(1, 18, 45),

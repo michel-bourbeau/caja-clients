@@ -8,6 +8,7 @@ import { useCurrency } from "@/lib/utils/useCurrency";
 import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { getIntlLocale } from "@/i18n/config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,9 +66,9 @@ function DiffBadge({ diff, t }: { diff: number; t: (k: string) => string }) {
   );
 }
 
-function fmtLocalDate(dateStr: string): string {
+function fmtLocalDate(dateStr: string, intlLocale: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d, 12).toLocaleDateString("es-NI", {
+  return new Date(y, m - 1, d, 12).toLocaleDateString(intlLocale, {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -80,7 +81,8 @@ function fmtLocalDate(dateStr: string): string {
 export default function CierreCajaPage() {
   const tenantId = useTenantId();
   const { fmt } = useCurrency();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const intlLocale = getIntlLocale(locale);
   const { user, hasPermission, refreshPermissions } = useAuth();
 
   // pos.cierre_review = see system totals, diffs and print (managers/admins)
@@ -291,7 +293,7 @@ export default function CierreCajaPage() {
       </head>
       <body>
         <h1>${t("cierre.printTitle")}</h1>
-        <p class="center">${fmtLocalDate(selectedDate)}</p>
+        <p class="center">${fmtLocalDate(selectedDate, intlLocale)}</p>
         ${current && current.closed_by ? `<p class="center">${t("cierre.printCashier").replace("{{name}}", current.closed_by)}</p>` : ""}
         <div class="divider"></div>
 
@@ -336,7 +338,7 @@ export default function CierreCajaPage() {
         ${current && current.notes ? `<div class="notes">${t("cierre.printNotes").replace("{{text}}", current.notes)}</div>` : ""}
 
         <div class="divider"></div>
-        <p class="center" style="font-size:10px;color:#555;">${t("cierre.printPrinted").replace("{{datetime}}", new Date().toLocaleString())}</p>
+        <p class="center" style="font-size:10px;color:#555;">${t("cierre.printPrinted").replace("{{datetime}}", new Date().toLocaleString(intlLocale))}</p>
       </body>
       </html>
     `);
@@ -413,8 +415,8 @@ export default function CierreCajaPage() {
                   </div>
                   <p className="text-xs text-slate-400 mt-1">
                     {systemTotals.tx_count === 1
-                      ? t("cierre.basedOn").replace("{{count}}", String(systemTotals.tx_count)).replace("{{date}}", fmtLocalDate(selectedDate))
-                      : t("cierre.basedOnPlural").replace("{{count}}", String(systemTotals.tx_count)).replace("{{date}}", fmtLocalDate(selectedDate))}
+                      ? t("cierre.basedOn").replace("{{count}}", String(systemTotals.tx_count)).replace("{{date}}", fmtLocalDate(selectedDate, intlLocale))
+                      : t("cierre.basedOnPlural").replace("{{count}}", String(systemTotals.tx_count)).replace("{{date}}", fmtLocalDate(selectedDate, intlLocale))}
                   </p>
                 </div>
               ) : (
@@ -690,9 +692,9 @@ export default function CierreCajaPage() {
                             className="hover:bg-blue-50 cursor-pointer transition-colors"
                           >
                             <td className="px-4 py-3">
-                              <p className="font-medium text-slate-900">{fmtLocalDate(c.closing_date)}</p>
+                              <p className="font-medium text-slate-900">{fmtLocalDate(c.closing_date, intlLocale)}</p>
                               <p className="text-xs text-slate-500">
-                                {new Date(c.created_at).toLocaleTimeString("es-NI", { hour: "2-digit", minute: "2-digit" })}
+                                {new Date(c.created_at).toLocaleTimeString(intlLocale, { hour: "2-digit", minute: "2-digit" })}
                               </p>
                               {c.notes && <p className="text-xs text-slate-400 truncate max-w-xs mt-0.5">{c.notes}</p>}
                             </td>
@@ -738,7 +740,7 @@ export default function CierreCajaPage() {
                       rows.push(
                         <tr key={`subtotal-${date}`} className="border-t-2 border-slate-300 bg-slate-50">
                           <td className="px-4 py-2 text-left font-bold text-slate-700">
-                            {t("cierre.historyDayTotal").replace("{{date}}", fmtLocalDate(date))}
+                            {t("cierre.historyDayTotal").replace("{{date}}", fmtLocalDate(date, intlLocale))}
                           </td>
                           <td className="px-4 py-2 text-right font-mono font-bold text-slate-800">
                             {fmt(dayCash)}

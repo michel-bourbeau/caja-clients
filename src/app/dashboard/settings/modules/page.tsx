@@ -95,7 +95,7 @@ const MODULES: Record<ModuleKey, ModuleConfig> = {
 };
 
 export default function ModulesPage() {
-  const { user } = useAuth();
+  const { user, isDemoMode } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
   const tenantId = useTenantId();
@@ -145,30 +145,35 @@ export default function ModulesPage() {
     const loadSettings = async () => {
       if (!tenantId) return;
       try {
-        // Load tenant plan and authorized modules
-        const tenantRes = await fetch(`/api/tenants/${tenantId}`);
-        if (tenantRes.ok) {
-          const tenantData = await tenantRes.json();
-          const tenantPlan = tenantData.plan || "basic";
-          
-          // Load plan configs to get authorized modules
-          const planRes = await fetch("/api/superadmin/plan-configs");
-          if (planRes.ok) {
-            const planData = await planRes.json();
-            const planConfig = planData.configs?.[tenantPlan] || {};
-            
-            // Get authorized modules for this plan (always include settings)
-            const authorized = new Set<ModuleKey>(
-              Object.entries(planConfig)
-                .filter(([_, enabled]) => enabled)
-                .map(([key]) => key as ModuleKey)
-            );
-            
-            // Settings & Contacts are ALWAYS authorized for all users
-            authorized.add("settings");
-            authorized.add("contacts");
-            
-            setAuthorizedModules(authorized);
+        if (isDemoMode) {
+          // Demo mode is self-contained (enterprise plan, no real DB calls) — every module is authorized.
+          setAuthorizedModules(new Set(Object.keys(MODULES) as ModuleKey[]));
+        } else {
+          // Load tenant plan and authorized modules
+          const tenantRes = await fetch(`/api/tenants/${tenantId}`);
+          if (tenantRes.ok) {
+            const tenantData = await tenantRes.json();
+            const tenantPlan = tenantData.plan || "basic";
+
+            // Load plan configs to get authorized modules
+            const planRes = await fetch("/api/superadmin/plan-configs");
+            if (planRes.ok) {
+              const planData = await planRes.json();
+              const planConfig = planData.configs?.[tenantPlan] || {};
+
+              // Get authorized modules for this plan (always include settings)
+              const authorized = new Set<ModuleKey>(
+                Object.entries(planConfig)
+                  .filter(([_, enabled]) => enabled)
+                  .map(([key]) => key as ModuleKey)
+              );
+
+              // Settings & Contacts are ALWAYS authorized for all users
+              authorized.add("settings");
+              authorized.add("contacts");
+
+              setAuthorizedModules(authorized);
+            }
           }
         }
 
@@ -196,7 +201,7 @@ export default function ModulesPage() {
     };
 
     loadSettings();
-  }, [tenantId]);
+  }, [tenantId, isDemoMode]);
 
   const handleModuleToggle = (moduleKey: ModuleKey) => {
     setModules((prev) => ({

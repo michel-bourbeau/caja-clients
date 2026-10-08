@@ -74,7 +74,7 @@ function PermissionCount({ permissions }: { permissions: string[] }) {
 export default function RolesPage() {
   const tenantId = useTenantId();
   const { refreshPermissions } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const [roles, setRoles] = useState<TenantRole[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -82,8 +82,9 @@ export default function RolesPage() {
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  // "Draft" permissions for the selected role — pending save
+  // "Draft" name/permissions for the selected role — pending save
   const [draftPerms, setDraftPerms] = useState<string[]>([]);
+  const [draftName, setDraftName] = useState("");
 
   // Add-role modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -124,19 +125,28 @@ export default function RolesPage() {
       
       setRoles(data);
       if (data.length > 0) {
-        setSelectedRoleId(data[0].id);
-        setDraftPerms(data[0].permissions);
+        // Keep the current selection (e.g. a role being edited) instead of
+        // jumping back to the first role whenever this refetches (locale change, etc.).
+        const stillExists = selectedRoleId ? data.some((r) => r.id === selectedRoleId) : false;
+        const nextRole = stillExists ? data.find((r) => r.id === selectedRoleId)! : data[0];
+        setSelectedRoleId(nextRole.id);
+        // Don't clobber an in-progress edit (unsaved name/permissions changes).
+        if (!showEditModal) {
+          setDraftPerms(nextRole.permissions);
+          setDraftName(nextRole.name);
+        }
       }
     } catch {
       showFlash("error", t("admin.rolesPage.loadError"));
     } finally {
       setLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, selectedRoleId, showEditModal]);
 
   useEffect(() => { 
     fetchRoles(); 
-  }, [tenantId]); // Use tenantId instead of fetchRoles to avoid infinite loop
+    // Re-fetch when the language changes so role names/descriptions (Demo Mode) refresh live.
+  }, [tenantId, locale]); // Use tenantId/locale instead of fetchRoles to avoid infinite loop
 
   // ── Manage scroll overflow ───────────────────────────────────────────────────
 
@@ -166,12 +176,13 @@ export default function RolesPage() {
     if (!selectedRole) return false;
     const a = [...selectedRole.permissions].sort().join(",");
     const b = [...draftPerms].sort().join(",");
-    return a !== b;
-  }, [selectedRole, draftPerms]);
+    return a !== b || selectedRole.name !== draftName;
+  }, [selectedRole, draftPerms, draftName]);
 
   const handleSelectRole = (role: TenantRole) => {
     setSelectedRoleId(role.id);
     setDraftPerms(role.permissions);
+    setDraftName(role.name);
     setShowEditModal(true);
   };
 
@@ -193,23 +204,28 @@ export default function RolesPage() {
     }
   };
 
-  // ── Save permissions ─────────────────────────────────────────────────────────
+  // ── Save name + permissions ───────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!selectedRoleId || !tenantId) return;
+    const trimmedName = draftName.trim();
+    if (!trimmedName) {
+      showFlash("error", t("admin.rolesPage.nameRequired"));
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/tenants/${tenantId}/roles/${selectedRoleId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ permissions: draftPerms }),
+        body: JSON.stringify({ name: trimmedName, permissions: draftPerms }),
       });
       if (!res.ok) {
         const j = await res.json();
         throw new Error(j.error ?? "Error");
       }
       const updated: TenantRole = await res.json();
-      setRoles((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setRoles((prev) => prev.map((r) => (r.id === selectedRoleId ? { ...r, ...updated, id: selectedRoleId } : r)));
       
       // Refresh user permissions if their role was updated
       await refreshPermissions();
@@ -423,10 +439,11 @@ export default function RolesPage() {
         {/* ── Edit Role Modal ──────────────────────────────────────────────────────── */}
         <Dialog
           isOpen={showEditModal && !!selectedRole}
-          title={selectedRole?.name || ""}
+          title={draftName || selectedRole?.name || ""}
           onClose={() => {
             setShowEditModal(false);
             setDraftPerms(selectedRole?.permissions || []);
+            setDraftName(selectedRole?.name || "");
           }}
           footer={
             <div className="flex gap-2">
@@ -435,6 +452,7 @@ export default function RolesPage() {
                 onClick={() => {
                   setShowEditModal(false);
                   setDraftPerms(selectedRole?.permissions || []);
+                  setDraftName(selectedRole?.name || "");
                 }}
               >
                 {t("admin.rolesPage.cancel")}
@@ -467,6 +485,18 @@ export default function RolesPage() {
               {t("admin.rolesPage.unsaved")}
             </div>
           )}
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("admin.rolesPage.nameLabel")}</label>
+            <input
+              type="text"
+              required
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder={t("admin.rolesPage.namePlaceholder")}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+            />
+          </div>
 
           <div className="space-y-6">
             {CATEGORIES.map((cat) => {

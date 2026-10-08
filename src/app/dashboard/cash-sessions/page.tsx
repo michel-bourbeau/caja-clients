@@ -7,6 +7,7 @@ import { Plus, Eye, RefreshCw, AlertTriangle, CheckCircle2, Clock, BarChart3 } f
 import { Button, Card, Container, Section, Badge } from "@/components/StripeUIComponents";
 import { SearchInput, DashboardHeader, EmptyState } from "@/components";
 import { useTenantId } from "@/lib/utils/tenant";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import {
   type ApiCashSession,
   empName,
@@ -54,13 +55,14 @@ export default function CashSessionsListPage() {
   }, [sessions, search, statusFilter]);
 
   const openSessions = filtered.filter((s) => s.status === "OPEN");
+  const todayNi = toNicaraguaDateString(new Date());
   const closedToday = filtered.filter((s) => {
     if (s.status !== "CLOSED" || !s.closed_at) return false;
-    return s.closed_at.slice(0, 10) === new Date().toISOString().slice(0, 10);
+    return toNicaraguaDateString(new Date(s.closed_at)) === todayNi;
   });
   const closedRest = filtered.filter((s) => {
     if (s.status !== "CLOSED" || !s.closed_at) return false;
-    return s.closed_at.slice(0, 10) !== new Date().toISOString().slice(0, 10);
+    return toNicaraguaDateString(new Date(s.closed_at)) !== todayNi;
   });
 
   return (

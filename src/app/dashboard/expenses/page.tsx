@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTenantId } from "@/lib/utils/tenant";
 import { useCurrency } from "@/lib/utils/useCurrency";
 import { useLanguage } from "@/context/LanguageContext";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 import { Expense, Supplier, ExpenseCategory, FixedExpense } from "@/lib/types";
 import { Dialog, DialogFooter, FlashMessage, useFlash, EmptyState, DeleteConfirmDialog } from "@/components";
 
@@ -51,7 +52,7 @@ export default function ExpensesPage() {
     amount: 0,
     description: "",
     category: "",
-    expense_date: new Date().toISOString().split("T")[0],
+    expense_date: toNicaraguaDateString(new Date()),
     is_recurring: false,
     recurring_frequency: "" as "weekly" | "biweekly" | "monthly" | "",
     recurring_day_of_month: new Date().getDate(),
@@ -174,8 +175,8 @@ export default function ExpensesPage() {
         periodEnd.setMonth(11); periodEnd.setDate(31);
       }
 
-      const paidFrom = periodStart.toISOString().split("T")[0];
-      const paidTo   = periodEnd.toISOString().split("T")[0];
+      const paidFrom = toNicaraguaDateString(periodStart);
+      const paidTo   = toNicaraguaDateString(periodEnd);
 
       const res = await fetch(
         `/api/tenants/${tenantId}/payroll/payments?paidFrom=${paidFrom}&paidTo=${paidTo}`
@@ -473,7 +474,7 @@ export default function ExpensesPage() {
       amount: 0,
       description: "",
       category: "",
-      expense_date: new Date().toISOString().split("T")[0],
+      expense_date: toNicaraguaDateString(new Date()),
       is_recurring: false,
       recurring_frequency: "",
       recurring_day_of_month: new Date().getDate(),

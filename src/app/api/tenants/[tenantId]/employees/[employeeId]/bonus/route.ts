@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 
 /**
  * GET /api/tenants/[tenantId]/employees/[employeeId]/bonus
@@ -39,9 +40,12 @@ export async function GET(
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     }
 
-    // Calculate aguinaldo for current cycle (Dec-Nov)
+    // Calculate aguinaldo for current cycle (Dec-Nov).
+    // The cycle boundary (Dec 1) is evaluated in Nicaragua local time — not the server
+    // process's timezone — so the cycle year is never off by a day around the boundary.
     const today = new Date();
-    let cycleYear = today.getMonth() >= 11 ? today.getFullYear() + 1 : today.getFullYear();
+    const [todayNiYear, todayNiMonth] = toNicaraguaDateString(today).split("-").map(Number);
+    const cycleYear = todayNiMonth === 12 ? todayNiYear + 1 : todayNiYear;
     const cycleStart = new Date(cycleYear - 1, 11, 1); // Dec 1 of previous year
     const cycleEnd = new Date(cycleYear, 10, 30); // Nov 30 of current year
 

@@ -953,6 +953,7 @@
       "delete": "Supprimer",
       "nameLabel": "Nom du rôle *",
       "namePlaceholder": "Ex : Superviseur",
+      "nameRequired": "Le nom du rôle est requis",
       "descLabel": "Description",
       "descPlaceholder": "Description brève (optionnel)",
       "afterCreate": "Les droits seront configurés après la création.",
@@ -961,7 +962,7 @@
       "confirmDeleteWarning": "Cette action est irréversible. Les employés avec ce rôle devront être réassignés.",
       "createdFlash": "Rôle \"{{name}}\" créé",
       "deletedFlash": "Rôle \"{{name}}\" supprimé",
-      "savedFlash": "Droits sauvegardés",
+      "savedFlash": "Rôle mis à jour",
       "loadError": "Impossible de charger les rôles",
       "createError": "Erreur lors de la création",
       "deleteError": "Erreur lors de la suppression"

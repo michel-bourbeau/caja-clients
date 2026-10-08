@@ -240,7 +240,7 @@ function PayrollContent() {
                 )}
                 {!loadingSummary && unpaidCount > 0 && (
                   <Button variant="primary" onClick={payAll} disabled={payingAll} className="shrink-0">
-                    {payingAll ? "Pagando..." : `✓ Pagar todos (${unpaidCount})`}
+                    {payingAll ? t("payroll.receipts.payingAll") : t("payroll.receipts.payAll", { n: unpaidCount })}
                   </Button>
                 )}
               </div>

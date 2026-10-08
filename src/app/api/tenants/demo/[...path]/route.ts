@@ -28,6 +28,136 @@ import {
   DEMO_EXPENSES_INITIAL,
   DEMO_CASH_CLOSINGS_INITIAL,
 } from "@/lib/demo/mockData";
+import { Locale, DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LOCALES, getIntlLocale } from "@/i18n/config";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
+
+const SUPPORTED_LOCALES: readonly string[] = Object.values(LOCALES);
+
+/** Reads the active UI language from the cookie set by LanguageContext, defaulting to es-ni. */
+function resolveLocale(req: NextRequest): Locale {
+  const cookie = req.cookies.get(LOCALE_STORAGE_KEY)?.value;
+  return cookie && SUPPORTED_LOCALES.includes(cookie) ? (cookie as Locale) : DEFAULT_LOCALE;
+}
+
+/** Demo categories translated into the active locale (name/description only — data otherwise unchanged). */
+function localizeCategories(locale: Locale) {
+  return DEMO_CATEGORIES.map((c) => ({
+    ...c,
+    name: c.name_i18n[locale] ?? c.name,
+    description: c.description_i18n[locale] ?? c.description,
+  }));
+}
+
+/** Demo products (and their variants) translated into the active locale. */
+function localizeProducts(locale: Locale) {
+  return DEMO_PRODUCTS.map((p) => ({
+    ...p,
+    name: p.name_i18n[locale] ?? p.name,
+    description: p.description_i18n[locale] ?? p.description,
+    variants: p.variants.map((v) => ({
+      ...v,
+      label: v.label_i18n[locale] ?? v.label,
+    })),
+  }));
+}
+
+/** Demo transactions with their line-item names re-mapped to the already-localized products. */
+function localizeTransactions(locale: Locale, products: ReturnType<typeof localizeProducts>) {
+  const nameByKey = new Map<string, string>();
+  products.forEach((p) => {
+    nameByKey.set(p.id, p.name);
+    p.variants.forEach((v) => nameByKey.set(v.id, `${p.name} — ${v.label}`));
+  });
+  return DEMO_TRANSACTIONS.map((tx) => ({
+    ...tx,
+    items: tx.items.map((item) => ({
+      ...item,
+      name: nameByKey.get((item as { variantId?: string }).variantId ?? item.productId) ?? item.name,
+    })),
+  }));
+}
+
+/** Demo roles translated into the active locale (name/description only — permissions otherwise unchanged). */
+function localizeRoles(locale: Locale) {
+  return DEMO_ROLES.map((r) => ({
+    ...r,
+    name: r.name_i18n[locale] ?? r.name,
+    description: r.description_i18n[locale] ?? r.description,
+  }));
+}
+
+/** Demo taxes translated into the active locale (name only). */
+function localizeTaxes(locale: Locale) {
+  return DEMO_TAXES.map((t) => ({
+    ...t,
+    name: t.name_i18n[locale] ?? t.name,
+  }));
+}
+
+/** Demo expense categories translated into the active locale (name/description only). */
+function localizeExpenseCategories(locale: Locale) {
+  return DEMO_EXPENSE_CATEGORIES.map((c) => ({
+    ...c,
+    name: c.name_i18n[locale] ?? c.name,
+    description: c.description_i18n[locale] ?? c.description,
+  }));
+}
+
+/** Maps each expense category's default (Spanish) name to its localized name — used to
+ * re-map the free-text `category` field stored on fixed expenses/expenses. */
+function buildCategoryNameMap(locale: Locale): Map<string, string> {
+  const map = new Map<string, string>();
+  DEMO_EXPENSE_CATEGORIES.forEach((c) => map.set(c.name, c.name_i18n[locale] ?? c.name));
+  return map;
+}
+
+/** Demo fixed expenses translated into the active locale (name/notes + category name). */
+function localizeFixedExpenses(locale: Locale) {
+  const categoryNames = buildCategoryNameMap(locale);
+  return DEMO_FIXED_EXPENSES.map((f) => ({
+    ...f,
+    name: f.name_i18n[locale] ?? f.name,
+    category: categoryNames.get(f.category) ?? f.category,
+    notes: f.notes_i18n[locale] ?? f.notes,
+  }));
+}
+
+/** Demo expenses translated into the active locale (description/notes + category name).
+ * Accepts the live (mutable) expenses list so edits/creations made during the demo session are preserved. */
+function localizeExpenses(expenses: typeof DEMO_EXPENSES_INITIAL, locale: Locale) {
+  const categoryNames = buildCategoryNameMap(locale);
+  return expenses.map((e) => ({
+    ...e,
+    description: e.description_i18n?.[locale] ?? e.description,
+    category: categoryNames.get(e.category) ?? e.category,
+    notes: e.notes_i18n?.[locale] ?? e.notes,
+  }));
+}
+
+/** Demo suppliers translated into the active locale (description only — company name unchanged). */
+function localizeSuppliers(suppliers: typeof DEMO_SUPPLIERS_INITIAL, locale: Locale) {
+  return suppliers.map((s) => ({
+    ...s,
+    description: s.description_i18n?.[locale] ?? s.description,
+  }));
+}
+
+/** Demo cash closings translated into the active locale (notes only). */
+function localizeCashClosings(closings: typeof DEMO_CASH_CLOSINGS_INITIAL, locale: Locale) {
+  return closings.map((c) => ({
+    ...c,
+    notes: c.notes_i18n?.[locale] ?? c.notes,
+  }));
+}
+
+/** Demo contacts translated into the active locale (position/notes only). */
+function localizeContacts(contacts: typeof DEMO_CONTACTS_INITIAL, locale: Locale) {
+  return contacts.map((c) => ({
+    ...c,
+    position: c.position_i18n?.[locale] ?? c.position,
+    notes: c.notes_i18n?.[locale] ?? c.notes,
+  }));
+}
 
 // Module-level mutable stores for demo data (persists within the same server process)
 let demoContacts = [...DEMO_CONTACTS_INITIAL];
@@ -36,7 +166,8 @@ let demoSuppliers = [...DEMO_SUPPLIERS_INITIAL];
 let demoCashClosings = [...DEMO_CASH_CLOSINGS_INITIAL];
 
 function json(data: unknown, status = 200) {
-  return NextResponse.json(data, { status });
+  // Responses vary by the `caja_locale` cookie (product/category names) — never cache them.
+  return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 
 function newId() {
@@ -47,11 +178,15 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
-function handleGet(path: string[], searchParams: URLSearchParams): NextResponse {
+function handleGet(path: string[], searchParams: URLSearchParams, locale: Locale): NextResponse {
   const [resource, id, sub, subId] = path;
 
   // GET /api/tenants/demo
   if (!resource) return json(DEMO_TENANT);
+
+  // Localized once per request and reused across every case that exposes product/category names.
+  const categories = localizeCategories(locale);
+  const products = localizeProducts(locale);
 
   switch (resource) {
     case "settings":
@@ -64,18 +199,18 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
       return json({ features: DEMO_TENANT.features });
 
     case "categories":
-      return json(DEMO_CATEGORIES);
+      return json(categories);
 
     case "products":
-      if (!id) return json(DEMO_PRODUCTS);
+      if (!id) return json(products);
       if (sub === "variants") {
-        const product = DEMO_PRODUCTS.find((p) => p.id === id);
-        return json(product ? (product as any).variants ?? [] : []);
+        const product = products.find((p) => p.id === id);
+        return json(product ? product.variants ?? [] : []);
       }
-      return json(DEMO_PRODUCTS.find((p) => p.id === id) ?? null);
+      return json(products.find((p) => p.id === id) ?? null);
 
     case "taxes":
-      return json(DEMO_TAXES);
+      return json(localizeTaxes(locale));
 
     case "transactions": {
       const isStats = searchParams.get("stats") === "true";
@@ -86,7 +221,7 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
       const limit = parseInt(searchParams.get("limit") ?? "50", 10);
 
       // Filter by date range when provided
-      let txs = DEMO_TRANSACTIONS;
+      let txs = localizeTransactions(locale, products);
       if (from) txs = txs.filter((t) => t.created_at >= `${from}T00:00:00Z`);
       if (to)   txs = txs.filter((t) => t.created_at <= `${to}T23:59:59Z`);
 
@@ -135,30 +270,32 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
       }
       return json({
         config: DEMO_PAYROLL_CONFIG,
-        periods: buildDemoPeriods(),
+        periods: buildDemoPeriods(locale),
         summary: buildDemoPayrollSummary(),
       });
 
     case "expenses": {
-      if (!id) return json(demoExpenses);
-      const exp = demoExpenses.find((e) => e.id === id);
+      const expenses = localizeExpenses(demoExpenses, locale);
+      if (!id) return json(expenses);
+      const exp = expenses.find((e) => e.id === id);
       return exp ? json(exp) : json({ message: "Not found" }, 404);
     }
 
     case "suppliers": {
-      if (!id) return json(demoSuppliers);
-      const sup = demoSuppliers.find((s) => s.id === id);
+      const suppliers = localizeSuppliers(demoSuppliers, locale);
+      if (!id) return json(suppliers);
+      const sup = suppliers.find((s) => s.id === id);
       return sup ? json(sup) : json({ message: "Not found" }, 404);
     }
 
     case "expense-categories":
-      return json(DEMO_EXPENSE_CATEGORIES);
+      return json(localizeExpenseCategories(locale));
 
     case "fixed-expenses":
-      return json(DEMO_FIXED_EXPENSES);
+      return json(localizeFixedExpenses(locale));
 
     case "roles":
-      return json(DEMO_ROLES);
+      return json(localizeRoles(locale));
 
     case "stats":
       return json({
@@ -184,33 +321,34 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
       return json({
         tenant: DEMO_TENANT,
         settings: DEMO_SETTINGS,
-        products: DEMO_PRODUCTS,
-        categories: DEMO_CATEGORIES,
+        products,
+        categories,
         employees: DEMO_EMPLOYEES,
         transactions: DEMO_TRANSACTIONS.slice(0, 50),
         exportedAt: new Date().toISOString(),
       });
 
     case "contacts": {
+      const contacts = localizeContacts(demoContacts, locale);
       if (id) {
-        const contact = demoContacts.find((c) => c.id === id);
+        const contact = contacts.find((c) => c.id === id);
         return contact ? json(contact) : json({ message: "Not found" }, 404);
       }
       const q = (searchParams.get("search") ?? "").toLowerCase();
       const filtered = q
-        ? demoContacts.filter((c) =>
+        ? contacts.filter((c) =>
             c.full_name.toLowerCase().includes(q) ||
             (c.company_name ?? "").toLowerCase().includes(q) ||
             (c.email ?? "").toLowerCase().includes(q) ||
             (c.phone_number ?? "").toLowerCase().includes(q)
           )
-        : demoContacts;
+        : contacts;
       return json({ contacts: filtered, total: filtered.length });
     }
 
     case "reports": {
       const type = searchParams.get("type") ?? "SUMMARY";
-      const txns = DEMO_TRANSACTIONS;
+      const txns = localizeTransactions(locale, products);
 
       if (type === "SUMMARY") {
         const dailyMap = new Map<string, { date: string; sales: number; discount: number; tax: number; transactions: number; payment: Record<string, number> }>();
@@ -321,7 +459,7 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
 
     case "bilan":
       // Legacy route kept for compatibility — redirect to reports BILAN handler
-      return handleGet(["reports", ...path.slice(1)], new URLSearchParams("type=BILAN"));
+      return handleGet(["reports", ...path.slice(1)], new URLSearchParams("type=BILAN"), locale);
 
     case "cash-closings": {
       const date = searchParams.get("date");
@@ -343,12 +481,12 @@ function handleGet(path: string[], searchParams: URLSearchParams): NextResponse 
 
       if (date) {
         // Return saved closing for that date or null
-        const closing = demoCashClosings.find((c) => c.closing_date === date) ?? null;
+        const closing = localizeCashClosings(demoCashClosings, locale).find((c) => c.closing_date === date) ?? null;
         return json(closing);
       }
 
       // Return full history newest first
-      return json([...demoCashClosings].sort((a, b) => b.closing_date.localeCompare(a.closing_date)));
+      return json(localizeCashClosings([...demoCashClosings].sort((a, b) => b.closing_date.localeCompare(a.closing_date)), locale));
     }
 
     default:
@@ -392,7 +530,7 @@ function handlePost(path: string[], body: unknown): NextResponse {
 
     case "employees":
       if (sub === "payments") {
-        return json({ ...(body as object), id: newId(), tenant_id: "demo", employee_id: id, paid_at: new Date().toISOString().split("T")[0], created_at: new Date().toISOString() }, 201);
+        return json({ ...(body as object), id: newId(), tenant_id: "demo", employee_id: id, paid_at: toNicaraguaDateString(new Date()), created_at: new Date().toISOString() }, 201);
       }
       return json({ ...(body as object), id: newId(), tenant_id: "demo", status: "ACTIVE", created_at: new Date().toISOString() }, 201);
 
@@ -469,6 +607,7 @@ function handlePost(path: string[], body: unknown): NextResponse {
         diff_card:     round2(declared_card - system_card),
         diff_transfer: round2(declared_transfer - system_transfer),
         notes: (b.notes as string) ?? null,
+        notes_i18n: { "es-ni": (b.notes as string) ?? "", en: (b.notes as string) ?? "", fr: (b.notes as string) ?? "" },
         closed_by: (b.closed_by as string) ?? null,
         closing_time: now2,
         created_at: now2,
@@ -518,28 +657,36 @@ function handleDelete(path: string[]): NextResponse {
 }
 
 // ─── Build realistic payroll periods ─────────────────────────────────────────
-function buildDemoPeriods() {
+// "Today" and the week's day-of-week are both resolved in Nicaragua local time (not the
+// server process's timezone), so the current period always matches what the rest of the
+// app (and `toNicaraguaDateString`) considers "today" — see `generatePeriods()` in
+// /api/tenants/[tenantId]/payroll/route.ts for the equivalent production-tenant logic.
+function addDaysStr(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+function buildDemoPeriods(locale: Locale) {
   const periods = [];
-  const now = new Date();
-  // Find the most recent Monday (weekStartDay = 1)
-  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon…
+  const todayStr = toNicaraguaDateString(new Date());
+  const [ty, tm, td] = todayStr.split("-").map(Number);
+  const dayOfWeek = new Date(Date.UTC(ty, tm - 1, td)).getUTCDay(); // 0=Sun, 1=Mon…
   const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const thisMonday = new Date(now);
-  thisMonday.setDate(now.getDate() - daysToMonday);
-  thisMonday.setHours(0, 0, 0, 0);
+  const thisMonday = addDaysStr(todayStr, -daysToMonday);
+
+  const fmt = (dateStr: string) => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleString(getIntlLocale(locale), { day: "numeric", month: "short", timeZone: "UTC" });
+  };
 
   for (let i = 0; i < 8; i++) {
-    const start = new Date(thisMonday);
-    start.setDate(thisMonday.getDate() - i * 7);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const fmt = (d: Date) =>
-      d.toLocaleString("es-NI", { day: "numeric", month: "short" });
+    const start = addDaysStr(thisMonday, -i * 7);
+    const end = addDaysStr(start, 6);
     periods.push({
       id: `period-${i}`,
-      startDate: start.toISOString().split("T")[0],
-      endDate: end.toISOString().split("T")[0],
-      label: `${fmt(start)} – ${fmt(end)} ${end.getFullYear()}`,
+      startDate: start,
+      endDate: end,
+      label: `${fmt(start)} – ${fmt(end)} ${end.slice(0, 4)}`,
       isCurrent: i === 0,
     });
   }
@@ -567,7 +714,7 @@ function buildDemoPayrollSummary() {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
   const searchParams = new URL(req.url).searchParams;
-  return handleGet(path ?? [], searchParams);
+  return handleGet(path ?? [], searchParams, resolveLocale(req));
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {

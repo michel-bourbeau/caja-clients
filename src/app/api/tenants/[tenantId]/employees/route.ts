@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { toNicaraguaDateString } from "@/lib/utils/formatters";
 
 /**
  * GET /api/tenants/[tenantId]/employees
@@ -113,7 +114,7 @@ export async function POST(
           role_id: roleId || "cashier",
           salary: salary ? parseFloat(salary) : 0,
           salary_type: salaryType || "hourly",
-          hire_date: hireDate || new Date().toISOString().split("T")[0],
+          hire_date: hireDate || toNicaraguaDateString(new Date()),
           status: "ACTIVE",
         },
       ])
