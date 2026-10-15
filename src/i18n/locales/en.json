@@ -1887,6 +1887,11 @@
     "colValidUntil": "Valid Until",
     "colMethod": "Method"
   },
+  "featureNotAvailable": {
+    "title": "Module Not Available",
+    "message": "This module is not enabled for your tenant. Contact your administrator to enable it.",
+    "backToDashboard": "Back to Dashboard"
+  },
   "planExpiration": {
     "suspendedTitle": "🚨 ACCOUNT SUSPENDED",
     "suspendedExpiredDays": "Your subscription expired {{n}} days ago",

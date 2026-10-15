@@ -1884,6 +1884,11 @@
     "colValidUntil": "Válido Hasta",
     "colMethod": "Método"
   },
+  "featureNotAvailable": {
+    "title": "Módulo No Disponible",
+    "message": "Este módulo no está activado para tu tenant. Contacta con tu administrador para activarlo.",
+    "backToDashboard": "Volver al Dashboard"
+  },
   "planExpiration": {
     "suspendedTitle": "🚨 CUENTA SUSPENDIDA",
     "suspendedExpiredDays": "Tu suscripción ha expirado hace {{n}} días",

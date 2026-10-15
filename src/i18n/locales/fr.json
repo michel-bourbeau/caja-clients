@@ -1883,6 +1883,11 @@
     "colValidUntil": "Valide Jusqu'au",
     "colMethod": "Méthode"
   },
+  "featureNotAvailable": {
+    "title": "Module Non Disponible",
+    "message": "Ce module n'est pas activé pour votre tenant. Contactez votre administrateur pour l'activer.",
+    "backToDashboard": "Retour au Dashboard"
+  },
   "planExpiration": {
     "suspendedTitle": "🚨 COMPTE SUSPENDU",
     "suspendedExpiredDays": "Votre abonnement a expiré il y a {{n}} jours",
