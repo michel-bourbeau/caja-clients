@@ -11,7 +11,7 @@ import { ROUTES } from "@/lib/constants";
 import { SidebarIcon } from "./SidebarIcon";
 
 export const Sidebar: React.FC = () => {
-  const { hasPermission, refreshPermissions, user } = useAuth();
+  const { hasPermission, refreshPermissions, user, isDemoMode } = useAuth();
   const { features } = useTenantFeatures();
   const { settings } = useTheme();
   const { t } = useLanguage();
@@ -70,7 +70,11 @@ export const Sidebar: React.FC = () => {
     <aside className="sidebar">
       {/* Header with Logo */}
       <div className="sidebar-header">
-        {settings.logoUrl ? (
+        {isDemoMode ? (
+          <div className="sidebar-logo-container">
+            <img src="/images/logo-generic-white.svg" alt="Demo Logo" className="sidebar-logo-img" />
+          </div>
+        ) : settings.logoUrl ? (
           <div className="sidebar-logo-container">
             <img src={settings.logoUrl} alt="Logo" className="sidebar-logo-img" />
           </div>
